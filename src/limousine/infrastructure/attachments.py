@@ -4,6 +4,7 @@ import io
 import re
 import unicodedata
 import uuid
+import warnings
 import zipfile
 from dataclasses import dataclass
 from pathlib import PurePosixPath
@@ -11,10 +12,13 @@ from pathlib import PurePosixPath
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage
+from PIL import Image, UnidentifiedImageError
 
 from limousine.domain.vehicles import DomainError
 
 MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+MAX_IMAGE_PIXELS = 25_000_000
+IMAGE_FORMATS = {".jpg": "JPEG", ".jpeg": "JPEG", ".png": "PNG", ".webp": "WEBP"}
 IMAGE_MIMES = {
     ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
 }
@@ -46,16 +50,38 @@ def safe_original_name(name):
     return name
 
 
+def _validate_image(extension, content):
+    expected_format = IMAGE_FORMATS[extension]
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(io.BytesIO(content), formats=[expected_format]) as image:
+                if image.format != expected_format:
+                    raise DomainError("The image format does not match its file extension.")
+                width, height = image.size
+                if width <= 0 or height <= 0 or width * height > MAX_IMAGE_PIXELS:
+                    raise DomainError("Photos must contain no more than 25 million pixels.")
+                image.verify()
+            # verify() checks structure but does not decode all pixel data.
+            # Reopening and loading also rejects truncated compressed content.
+            with Image.open(io.BytesIO(content), formats=[expected_format]) as image:
+                image.load()
+    except DomainError:
+        raise
+    except (
+        UnidentifiedImageError, OSError, ValueError, SyntaxError, OverflowError,
+        Image.DecompressionBombError, Image.DecompressionBombWarning,
+    ) as error:
+        raise DomainError("Choose a valid, complete JPG, PNG or WebP photo.") from error
+
+
 def _validate_content(extension, content):
     if not content:
         raise DomainError("Empty files cannot be uploaded.")
     valid = False
-    if extension in (".jpg", ".jpeg"):
-        valid = content.startswith(b"\xff\xd8\xff") and content.endswith(b"\xff\xd9")
-    elif extension == ".png":
-        valid = content.startswith(b"\x89PNG\r\n\x1a\n") and b"IHDR" == content[12:16] and content.endswith(b"IEND\xaeB`\x82")
-    elif extension == ".webp":
-        valid = len(content) >= 20 and content.startswith(b"RIFF") and content[8:12] == b"WEBP" and content[12:16] in (b"VP8 ", b"VP8L", b"VP8X")
+    if extension in IMAGE_FORMATS:
+        _validate_image(extension, content)
+        return
     elif extension == ".pdf":
         valid = content.startswith(b"%PDF-")
     elif extension == ".txt":

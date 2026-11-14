@@ -14,7 +14,7 @@
     unavailable: 'Oracle is unavailable or the vehicle tables are not set up yet.',
     requestFailed: 'Something went wrong. Please try again.', notFound: 'This vehicle could not be found.',
     invalidPlate: 'Enter a plate number of up to 64 characters.',
-    invalidFile: 'This file type is not supported. Use one of the formats listed below.',
+    invalidFile: 'This file is unsupported, damaged, or exceeds the allowed image dimensions. Check the format and limits below.',
     fileTooLarge: 'Each file must be no larger than 10 MB.',
     download: 'Download {name}', viewPhoto: 'View photo: {name}',
     uploading: 'Uploading {current} of {total}…', uploadComplete: '{count} attachments added.',
@@ -34,7 +34,7 @@
     vehicleRecord: 'ملف السيارة', loadingDetails: 'جارٍ تحميل السيارة…', vehicleInformation: 'بيانات السيارة',
     plateNumber: 'نمرة السيارة', fixedFieldsHint: 'سنضيف باقي الخانات الثابتة بعد تحديدها.', saveChanges: 'حفظ التعديلات',
     photos: 'الصور', photoDescription: 'الصور الخاصة بهذه السيارة.', addPhotos: 'إضافة صور', noPhotos: 'لم تُضف صور بعد.',
-    photoHint: 'JPG أو PNG أو WebP · حتى 10 ميجابايت للصورة', files: 'الملفات', fileDescription: 'المستندات الخاصة بهذه السيارة.',
+    photoHint: 'JPG أو PNG أو WebP · حتى 10 ميجابايت و25 مليون بكسل للصورة', files: 'الملفات', fileDescription: 'المستندات الخاصة بهذه السيارة.',
     addFiles: 'إضافة ملفات', noFiles: 'لم تُضف ملفات بعد.', fileHint: 'PDF أو TXT أو DOCX أو XLSX · حتى 10 ميجابايت للملف',
     addDescription: 'ابدأ بنمرة السيارة، ثم أضف الصور والملفات من صفحتها.', close: 'إغلاق', plateExample: 'مثال: 12-34567',
     cancel: 'إلغاء', saveVehicle: 'إضافة السيارة', switchArabic: 'التبديل للعربية', switchEnglish: 'Switch to English',
@@ -43,7 +43,7 @@
     saveUnavailable: 'الحفظ غير متاح قبل تجهيز اتصال Oracle.', saving: 'جارٍ الحفظ…', saved: 'تم حفظ التعديلات.',
     unavailable: 'تعذّر الوصول إلى Oracle أو لم تُجهّز جداول السيارات بعد.', requestFailed: 'حدث خطأ. أعد المحاولة.',
     notFound: 'لم نتمكّن من العثور على هذه السيارة.', invalidPlate: 'أدخل نمرة سيارة لا تتجاوز 64 حرفًا.',
-    invalidFile: 'نوع الملف غير مدعوم. استخدم إحدى الصيغ المذكورة.', fileTooLarge: 'حجم كل ملف يجب ألا يتجاوز 10 ميجابايت.',
+    invalidFile: 'الملف غير مدعوم أو تالف أو أبعاد الصورة أكبر من المسموح. تحقّق من الصيغة والحدود المذكورة.', fileTooLarge: 'حجم كل ملف يجب ألا يتجاوز 10 ميجابايت.',
     download: 'تنزيل {name}', viewPhoto: 'عرض الصورة: {name}', uploading: 'جارٍ رفع {current} من {total}…',
     uploadComplete: 'تمت إضافة {count} مرفق.', partialUpload: 'تمت إضافة {count} مرفق. {error}',
     pending: 'جارٍ فحص اتصال قاعدة البيانات…', emptyDisconnected: 'جهّز اتصال Oracle لإضافة السيارات وحفظ صورها وملفاتها.',
@@ -63,16 +63,28 @@
   let activeDetailId = null;
   let listRequest = 0;
   let detailRequest = 0;
+  const messages = new Map();
 
   function t(key, values = {}) {
     let result = (language === 'ar' ? ar[key] : en[key]) ?? en[key] ?? key;
-    Object.entries(values).forEach(([name, value]) => { result = result.replaceAll(`{${name}}`, String(value)); });
+    Object.entries(values).forEach(([name, value]) => {
+      const text = value && typeof value === 'object' && value.key ? t(value.key, value.values) : String(value);
+      result = result.replaceAll(`{${name}}`, () => text);
+    });
     return result;
   }
   function savePreference(key, value) { try { localStorage.setItem(`limousine.${key}`, value); } catch (_) {} }
   function announce(message) { $('announcement').textContent = message; }
   function show(id, visible) { $(id).hidden = !visible; }
-  function message(id, text, style = '') { $(id).textContent = text; $(id).className = `${id === 'upload-message' ? 'upload-message' : 'form-message'} ${style}`; }
+  function renderMessage(id) {
+    const { key, values, style } = messages.get(id);
+    $(id).textContent = key ? t(key, values) : '';
+    $(id).className = `${id === 'upload-message' ? 'upload-message' : 'form-message'} ${style}`;
+  }
+  function message(id, key = '', style = '', values = {}) {
+    messages.set(id, { key, values, style });
+    renderMessage(id);
+  }
   function icon(name) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.classList.add('icon'); svg.setAttribute('aria-hidden', 'true');
@@ -93,14 +105,14 @@
   function fileSize(value) {
     return value >= 1048576 ? `${(value / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.ceil(value / 1024))} KB`;
   }
-  function errorText(error) {
+  function errorKey(error) {
     const code = error.code || '';
-    if (['storage_unavailable', 'database_unavailable'].includes(code)) return t('unavailable');
-    if (['not_found', 'vehicle_not_found', 'attachment_not_found'].includes(code)) return t('notFound');
-    if (['invalid_plate', 'invalid_plate_number', 'validation_error'].includes(code)) return t('invalidPlate');
-    if (['file_too_large', 'upload_too_large'].includes(code)) return t('fileTooLarge');
-    if (['invalid_file', 'unsupported_file', 'unsupported_file_type', 'invalid_image'].includes(code)) return t('invalidFile');
-    return t('requestFailed');
+    if (['storage_unavailable', 'database_unavailable'].includes(code)) return 'unavailable';
+    if (['not_found', 'vehicle_not_found', 'attachment_not_found'].includes(code)) return 'notFound';
+    if (['invalid_plate', 'invalid_plate_number', 'validation_error'].includes(code)) return 'invalidPlate';
+    if (['file_too_large', 'upload_too_large'].includes(code)) return 'fileTooLarge';
+    if (['invalid_file', 'unsupported_file', 'unsupported_file_type', 'invalid_image'].includes(code)) return 'invalidFile';
+    return 'requestFailed';
   }
   async function api(url, options = {}) {
     const headers = new Headers(options.headers);
@@ -135,6 +147,7 @@
     $('language-label').lang = language === 'ar' ? 'en' : 'ar';
     $('language-toggle').setAttribute('aria-label', t(language === 'ar' ? 'switchEnglish' : 'switchArabic'));
     updateThemeButton(); renderList(); renderDetail(false); updateAddState();
+    messages.forEach((_, id) => renderMessage(id));
   }
   function renderList() {
     show('list-loading', listState === 'loading'); show('list-error', listState === 'error');
@@ -180,7 +193,7 @@
     $('close-dialog').disabled = addBusy; $('cancel-add').disabled = addBusy;
     $('save-vehicle').textContent = t(addBusy ? 'saving' : 'saveVehicle');
     if (!storageReady) {
-      message('add-message', t(listState === 'loading' ? 'pending' : 'saveUnavailable'));
+      message('add-message', listState === 'loading' ? 'pending' : 'saveUnavailable');
       $('add-message').dataset.connectionNotice = 'true';
     } else if ($('add-message').dataset.connectionNotice === 'true' || !$('add-dialog').open) {
       message('add-message', '');
@@ -194,8 +207,8 @@
   function renderDetail(resetInput = false) {
     show('detail-loading', detailState === 'loading'); show('detail-error', detailState === 'error');
     show('detail-content', detailState === 'ready' && !!currentVehicle);
-    $('detail-error-text').textContent = detailError;
-    $('detail-title').textContent = currentVehicle?.plate_number || '';
+    $('detail-error-text').textContent = detailError ? t(detailError) : '';
+    $('detail-title').textContent = currentVehicle?.plate_number || t('vehicleRecord');
     $('detail-created').textContent = currentVehicle ? t('added', { date: date(currentVehicle.created_at) }) : '';
     $('record-id').textContent = currentVehicle ? `#${currentVehicle.id}` : '';
     $('record-id').hidden = !currentVehicle;
@@ -234,24 +247,30 @@
   }
   async function loadDetail(id, resetInput = true) {
     const request = ++detailRequest;
-    if (resetInput) { detailState = 'loading'; currentVehicle = null; renderDetail(); }
+    if (resetInput) { detailState = 'loading'; detailError = ''; currentVehicle = null; renderDetail(); }
     try {
       const payload = await api(`/api/vehicles/${id}/`);
       if (request !== detailRequest || id !== activeDetailId) return;
       currentVehicle = payload.vehicle; detailState = 'ready'; renderDetail(resetInput);
       document.title = `${currentVehicle.plate_number} | ${t('title')}`;
+      if (resetInput) $('detail-title').focus({ preventScroll: true });
     } catch (error) {
       if (request !== detailRequest || id !== activeDetailId) return;
-      detailError = errorText(error); detailState = 'error'; renderDetail();
+      detailError = errorKey(error); detailState = 'error'; renderDetail();
+      if (resetInput) $('detail-title').focus({ preventScroll: true });
     }
   }
   function route() {
+    const previousDetailId = activeDetailId;
     const match = window.location.hash.match(/^#vehicle\/(\d+)$/);
     activeDetailId = match ? Number(match[1]) : null;
     show('list-view', !activeDetailId); show('detail-view', !!activeDetailId);
     message('information-message', ''); message('upload-message', '');
     if (activeDetailId) loadDetail(activeDetailId);
-    else { detailRequest++; document.title = t('title'); loadVehicles(); }
+    else {
+      detailRequest++; document.title = t('title'); loadVehicles();
+      if (previousDetailId !== null) $('list-title').focus({ preventScroll: true });
+    }
     window.scrollTo(0, 0);
   }
   $('language-toggle').addEventListener('click', () => {
@@ -269,26 +288,26 @@
   $('add-form').addEventListener('submit', async event => {
     event.preventDefault(); if (!storageReady || addBusy) return;
     const plate = $('new-plate').value.trim();
-    if (!plate || plate.length > 64) { message('add-message', t('invalidPlate'), 'error'); return; }
+    if (!plate || plate.length > 64) { message('add-message', 'invalidPlate', 'error'); return; }
     addBusy = true; updateAddState(); message('add-message', '');
     try {
       const payload = await api('/api/vehicles/', { method: 'POST', body: JSON.stringify({ plate_number: plate }) });
       $('add-dialog').close(); window.location.hash = `vehicle/${payload.vehicle.id}`;
-    } catch (error) { message('add-message', errorText(error), 'error'); }
+    } catch (error) { message('add-message', errorKey(error), 'error'); }
     finally { addBusy = false; updateAddState(); }
   });
   $('detail-plate').addEventListener('input', () => { message('information-message', ''); updateDetailControls(); });
   $('vehicle-information-form').addEventListener('submit', async event => {
     event.preventDefault(); if (!currentVehicle || informationBusy || uploadBusy) return;
     const id = currentVehicle.id; const plate = $('detail-plate').value.trim();
-    if (!plate || plate.length > 64) { message('information-message', t('invalidPlate'), 'error'); return; }
+    if (!plate || plate.length > 64) { message('information-message', 'invalidPlate', 'error'); return; }
     informationBusy = true; updateDetailControls(); message('information-message', '');
     try {
       const payload = await api(`/api/vehicles/${id}/`, { method: 'PATCH', body: JSON.stringify({ plate_number: plate }) });
       if (activeDetailId !== id) return;
-      currentVehicle = payload.vehicle; renderDetail(true); message('information-message', t('saved'), 'success');
+      currentVehicle = payload.vehicle; renderDetail(true); message('information-message', 'saved', 'success');
       document.title = `${currentVehicle.plate_number} | ${t('title')}`;
-    } catch (error) { if (activeDetailId === id) message('information-message', errorText(error), 'error'); }
+    } catch (error) { if (activeDetailId === id) message('information-message', errorKey(error), 'error'); }
     finally { informationBusy = false; updateDetailControls(); }
   });
   $('add-photos').addEventListener('click', () => $('photo-input').click());
@@ -296,24 +315,26 @@
   async function upload(input) {
     const selected = [...input.files]; input.value = '';
     if (!selected.length || !currentVehicle || uploadBusy || informationBusy) return;
-    if (selected.some(file => file.size > 10 * 1024 * 1024)) { message('upload-message', t('fileTooLarge'), 'error'); return; }
+    if (selected.some(file => file.size > 10 * 1024 * 1024)) { message('upload-message', 'fileTooLarge', 'error'); return; }
     const extensions = input.id === 'photo-input' ? ['jpg', 'jpeg', 'png', 'webp'] : ['pdf', 'txt', 'docx', 'xlsx'];
-    if (selected.some(file => !extensions.includes(file.name.split('.').pop().toLowerCase()))) { message('upload-message', t('invalidFile'), 'error'); return; }
+    if (selected.some(file => !extensions.includes(file.name.split('.').pop().toLowerCase()))) { message('upload-message', 'invalidFile', 'error'); return; }
     const id = currentVehicle.id; let completed = 0; let failure = '';
     uploadBusy = true; updateDetailControls();
     try {
       for (const file of selected) {
         if (activeDetailId !== id) break;
-        message('upload-message', t('uploading', { current: completed + 1, total: selected.length }));
+        message('upload-message', 'uploading', '', { current: completed + 1, total: selected.length });
         const body = new FormData(); body.append('file', file);
         await api(`/api/vehicles/${id}/attachments/`, { method: 'POST', body }); completed++;
       }
-    } catch (error) { failure = errorText(error); }
+    } catch (error) { failure = errorKey(error); }
     finally {
       uploadBusy = false;
       if (activeDetailId === id) {
         await loadDetail(id, false);
-        message('upload-message', failure ? t('partialUpload', { count: completed, error: failure }) : t('uploadComplete', { count: completed }), failure ? 'error' : 'success');
+        message('upload-message', failure ? 'partialUpload' : 'uploadComplete', failure ? 'error' : 'success', {
+          count: completed, error: { key: failure }
+        });
       }
       updateDetailControls();
     }

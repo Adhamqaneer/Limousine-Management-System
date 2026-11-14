@@ -1,4 +1,4 @@
-import base64
+import io
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,6 +11,7 @@ from django.http import HttpResponse
 from django.test import Client, SimpleTestCase, override_settings
 from django.urls import path
 from django.views.decorators.csrf import ensure_csrf_cookie
+from PIL import Image
 
 from limousine.domain.vehicles import Attachment, NotFound, Vehicle
 from limousine.infrastructure.attachments import LocalAttachmentStore, MAX_ATTACHMENT_BYTES
@@ -31,7 +32,13 @@ urlpatterns = [
     path("csrf-seed/", csrf_seed),
 ]
 
-PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/dYoAAAAASUVORK5CYII=")
+def png_fixture():
+    with io.BytesIO() as buffer, Image.new("RGB", (2, 2), "white") as image:
+        image.save(buffer, format="PNG")
+        return buffer.getvalue()
+
+
+PNG = png_fixture()
 STAMP = datetime(2026, 11, 14, 10, 0, tzinfo=timezone.utc)
 
 

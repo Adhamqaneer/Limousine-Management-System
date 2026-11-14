@@ -14,7 +14,8 @@ COPY --chown=limousine:limousine manage.py ./
 
 # Static collection needs no Oracle connection or deployment credentials.
 RUN DJANGO_SETTINGS_MODULE=limousine.config.settings.base python manage.py collectstatic --noinput \
-    && chown -R limousine:limousine /app/staticfiles
+    && mkdir -p /app/media \
+    && chown -R limousine:limousine /app/staticfiles /app/media
 USER limousine
 EXPOSE 8000
 CMD ["gunicorn", "limousine.config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "30", "--error-logfile", "-"]

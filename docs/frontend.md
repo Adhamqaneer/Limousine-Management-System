@@ -16,10 +16,12 @@ Paths are relative to `src/limousine/presentation/web/`.
 
 New vehicles appear after existing vehicles in order of addition. The plate number is the only fixed field currently agreed; more fields can be added through the domain, application, ORM migration and form. It remains text so leading zeroes and different plate formats are preserved.
 
-Each vehicle has its own photo gallery and file list. The first image is used as the vehicle card cover. Uploads are checked by extension, content and size (10 MiB per file). Documents download as attachments; only supported raster formats have inline previews. Metadata uses Oracle; file bytes currently use the local `media/` directory. Object Storage is future work.
+Each vehicle has its own photo gallery and file list. The first image is used as the vehicle card cover. Uploads are checked by extension, content and size (10 MiB per file). Raster photos are verified and decoded using Pillow, with a 25-million-pixel cap; malformed or truncated images are rejected before storage. Documents download as attachments; only supported raster formats have inline previews. Metadata uses Oracle; file bytes currently use the local `media/` directory. Object Storage is future work.
 
 Without Oracle configuration, the page and add-form preview remain available with a clear storage notice; saving is disabled. No browser-local substitute database or runtime fake repository is used.
 
+Existing form/upload/detail messages are stored as translation keys so they switch language with the interface. Navigation focuses the destination heading; language changes and attachment refreshes preserve focus.
+
 ## Verification limits
 
-Python tests cover validation, addition order, editing, attachment ownership, uploads, error handling and CSRF using isolated test doubles. ORM model/migration consistency is checked without connecting to Oracle. Real Oracle migration and persistence have not been verified. Browser QA of this replacement interface was blocked by the computer-use tool's inability to verify the current browser URL on Windows; previous showroom screenshots do not validate this interface.
+Python tests cover validation, addition order, editing, attachment ownership, uploads, image decoding, error handling, CSRF and README enforcement using isolated test doubles and temporary Git repositories. Frontend message translation and focus changes were exercised with DOM/fetch stubs, not a real browser. ORM model/migration consistency is checked without connecting to Oracle. Real Oracle migration and persistence have not been verified. Browser QA of this replacement interface was blocked by the computer-use tool's inability to verify the current browser URL on Windows; previous showroom screenshots do not validate this interface.
