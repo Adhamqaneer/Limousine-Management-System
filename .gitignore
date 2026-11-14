@@ -1,0 +1,33 @@
+# Local configuration, database wallets, and credentials
+.env
+.env.*
+!.env.example
+wallet/
+Wallet_*/
+*.pem
+*.key
+*.p12
+*.sso
+
+# Python and local tooling
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.runtime/
+.deps/
+.pytest_cache/
+.coverage
+htmlcov/
+.idea/
+.vscode/
+
+# Generated files and local data
+staticfiles/
+media/
+backups/
+logs/
+*.log
+*.sqlite3
+.DS_Store
+Thumbs.db
