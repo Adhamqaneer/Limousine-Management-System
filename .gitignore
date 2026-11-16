@@ -17,6 +17,8 @@ venv/
 .runtime/
 .deps/
 .local/
+.agents/
+skills-lock.json
 .pytest_cache/
 .coverage
 htmlcov/

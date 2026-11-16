@@ -14,6 +14,8 @@ class VehicleRepository(Protocol):
         self, vehicle_id: int, *, storage_key: str, original_name: str, kind: str, size: int
     ) -> Attachment: ...
     def get_attachment(self, vehicle_id: int, attachment_id: int) -> Attachment: ...
+    def delete_attachment(self, vehicle_id: int, attachment_id: int) -> str: ...
+    def delete_cover(self, vehicle_id: int) -> str: ...
     def replace_cover(self, cover: VehicleCover) -> tuple[VehicleCover, str | None]: ...
 
 
@@ -75,6 +77,12 @@ class VehicleService:
         if cover is None:
             raise NotFound("This vehicle has no card photo.")
         return cover
+
+    def delete_attachment(self, vehicle_id: int, attachment_id: int) -> str:
+        return self.repository.delete_attachment(vehicle_id, attachment_id)
+
+    def delete_cover(self, vehicle_id: int) -> str:
+        return self.repository.delete_cover(vehicle_id)
 
     def replace_cover(self, vehicle_id: int, *, storage_key: str, original_name: str, size: int):
         self.repository.get_vehicle(vehicle_id)

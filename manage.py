@@ -17,6 +17,7 @@ def main():
     commands.add_parser("check")
     commands.add_parser("test")
     commands.add_parser("migrate")
+    commands.add_parser("cleanupfiles")
     commands.add_parser("collectstatic")
     operator = commands.add_parser("setoperator")
     operator.add_argument("slot", type=int, choices=range(1, 5))
@@ -48,6 +49,14 @@ def main():
             print("Pre-migration database backup saved under .local/backups/.")
     elif args.command == "collectstatic":
         print("FastAPI serves source static assets directly; no generated static build is required.")
+    elif args.command == "cleanupfiles":
+        from limousine.config.runtime import load_settings
+        from limousine.infrastructure.database import Database
+        from limousine.infrastructure.attachments import LocalAttachmentStore
+        from limousine.infrastructure.file_cleanup import FileCleanup
+        settings = load_settings()
+        completed, pending = FileCleanup(Database(settings), LocalAttachmentStore(settings.media_root)).retry_pending()
+        print(f"Cleanup batch: {completed} completed; {pending} deferred. Up to 100 entries per run.")
     elif args.command == "setoperator":
         from limousine.config.runtime import load_settings
         from limousine.infrastructure.database import Database

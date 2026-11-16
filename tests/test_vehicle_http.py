@@ -24,6 +24,7 @@ class VehicleHttpTests(TestCase):
         self.app.dependency_overrides[current_user]=lambda:ADMIN
         self.app.dependency_overrides[administrator]=lambda:ADMIN
         self.service=MagicMock(); self.app.state.vehicles=self.service
+        self.app.state.cleanup=MagicMock()
         self.car=Vehicle(1,"001",STAMP,vehicle_type="Sedan")
         self.service.get_vehicle.return_value=self.car
         self.service.create_vehicle.return_value=self.car
@@ -84,3 +85,40 @@ class VehicleHttpTests(TestCase):
         self.assertIn('href="/users/"',response.text)
         self.assertEqual(self.client.cookies["csrftoken"],self.headers["X-CSRFToken"])
         self.assertEqual(self.client.get("/users/").status_code,200)
+
+    def test_delete_requires_csrf_and_does_not_accept_get(self):
+        for url in ("/api/vehicles/1/attachments/2/", "/api/vehicles/1/cover/"):
+            self.assertEqual(self.client.delete(url).status_code,403)
+        self.service.delete_attachment.assert_not_called()
+        self.service.delete_cover.assert_not_called()
+        self.assertEqual(self.client.get("/api/vehicles/1/attachments/2/").status_code,405)
+
+    def test_delete_uses_vehicle_scope_and_cleans_only_committed_metadata(self):
+        self.service.delete_attachment.return_value="key-for-attachment"
+        response=self.client.delete("/api/vehicles/1/attachments/2/",headers=self.headers)
+        self.assertEqual(response.status_code,204)
+        self.service.delete_attachment.assert_called_once_with(1,2)
+        self.app.state.cleanup.process.assert_called_once_with("key-for-attachment")
+        self.app.state.cleanup.reset_mock()
+        self.service.delete_attachment.side_effect=NotFound()
+        self.assertEqual(self.client.delete("/api/vehicles/9/attachments/2/",headers=self.headers).status_code,404)
+        self.app.state.cleanup.process.assert_not_called()
+        self.service.delete_attachment.side_effect=psycopg.OperationalError("private")
+        response=self.client.delete("/api/vehicles/1/attachments/2/",headers=self.headers)
+        self.assertEqual(response.status_code,503)
+        self.assertNotIn("private",response.text)
+        self.app.state.cleanup.process.assert_not_called()
+
+    def test_cover_removal_is_independent_and_deferred_cleanup_still_succeeds(self):
+        self.service.delete_cover.return_value="old-cover"
+        self.app.state.cleanup.process.return_value=False
+        self.assertEqual(self.client.delete("/api/vehicles/1/cover/",headers=self.headers).status_code,204)
+        self.service.delete_cover.assert_called_once_with(1)
+        self.service.delete_attachment.assert_not_called()
+        self.app.state.cleanup.process.assert_called_once_with("old-cover")
+
+    def test_anonymous_cannot_delete(self):
+        self.app.dependency_overrides.clear()
+        for url in ("/api/vehicles/1/attachments/2/", "/api/vehicles/1/cover/"):
+            self.assertEqual(self.client.delete(url,headers=self.headers).status_code,401)
+        self.service.delete_attachment.assert_not_called()

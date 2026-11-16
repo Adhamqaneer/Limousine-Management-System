@@ -4,6 +4,28 @@ H SPACE is a local-first vehicle management website for a family car office. The
 
 The interface keeps the orange/charcoal identity, English by default, Arabic/RTL and light/dark mode. Vehicle cards open a detail view. Creating a vehicle requires its type and plate number; driver name, chassis number and manufacture year are optional text fields. Card photos are uploaded independently from gallery attachments.
 
+## Interface and backgrounds
+
+The H SPACE Studio refresh uses the owner's orange/charcoal logo identity and a locally generated **Toyota Camry** architectural background. Sign-in has a cinematic full-scene backdrop and an opaque, readable form; the vehicle list has a matching hero, with a calmer ambient background throughout the workspace. The image is decorative and is never assigned as a vehicle's uploaded card photo.
+
+Navigation, cards, forms, Team and Office-document previews share the new visual system. English/Arabic RTL and both themes remain available on all pages; light mode uses warm-white data surfaces and a white sign-in panel against the cinematic scene. Sign-in includes a Show/Hide password control without changing authentication. Team provides retry feedback when loading fails.
+
+The refresh changes presentation only: no database migration, new environment setting or dependency is required. The previous deletion feature still requires schema version 2. Existing data, attachments, account roles and APIs are unchanged. The public background asset is `static/web/hspace-camry-studio.png` (1672 × 941, approximately 1.7 MiB), generated for this project with imagegen and served locally. Shared header/icons and seven small browser scripts support the pages; there are no external fonts, video backgrounds or added UI frameworks.
+
+The requested ui-ux-pro-max skill informed the accessibility/interaction review. Brand-matching rules and tokens are in [the design master](design-system/h-space/MASTER.md); implementation details are in [the frontend guide](docs/frontend.md).
+
+The refresh passed 54 existing tests, page-template compilation, six JavaScript syntax checks and calculated contrast checks for the main text/action/control pairs. The loopback server served the new login, background and shared controls with HTTP 200. Browser access was unavailable; desktop/mobile rendered layouts and interactive visual checks at 375/768/1024/1440px remain unverified. The owned preview server was stopped after verification. After starting the project, use Ctrl+F5 to reload updated styles/scripts. Publishing the source does not deploy the application; cloud deployment remains deferred.
+
+## Compact cards and interaction
+
+The frontend-design refinement makes the vehicle grid fit **five cards at laptop viewport widths of 1200 CSS pixels and above**. It uses four columns at 1024–1199px, three at 800–1023px, two at 561–799px and one at 560px or below. Browser zoom changes the available CSS viewport width. Cards use smaller spacing and plate headings while keeping photo/removal controls at least 44px high; long text and footer actions wrap.
+
+On a fine mouse pointer, cards lift slightly, tilt by at most 1.5 degrees per axis and show a soft orange highlight. Pointer movement is batched into one animation frame; tilt stops over action buttons and resets on leaving, scrolling, resizing, rerendering or hiding the page. Touch and keyboard access use native links/buttons, press feedback and visible focus. Nothing becomes accessible only on hover.
+
+Buttons and focused fields provide clearer feedback; save buttons expose busy state and a spinner. Opening details or the add dialog has a short transition. Sign-in uses one coordinated entrance; no continuous background animation was added. Reduced-motion preferences suppress these effects, including changes made while a page is open. Decorative section numbers and the sign-in access index were replaced by meaningful icons/labels. Data, API and database behavior are unchanged.
+
+Validation for this refinement: 14 focused health/vehicle HTTP tests, all seven JavaScript syntax checks and isolated interaction-controller checks passed. Controller checks covered frame batching, bounded tilt, touch exclusion, action-button stability, reset/cancellation and live reduced-motion changes. Native Windows Chrome review reached wide and narrow windows, English/Arabic and dark/light workspace views with existing data. The final narrow-heading adjustment remains visually unverified: Computer Use stopped when it could not reliably verify the browser URL. A full five-occupied-card row, exact viewport sizes, pointer animation appearance and physical phone testing remain outstanding. No sample inventory was added for the review. Reload the updated interface with Ctrl+F5. Source publication does not migrate local data or deploy the application.
+
 ## Current local installation
 
 PostgreSQL 18 hosts the project-owned database `limousine_local`, with restricted role `limousine_local_app`. Private connection settings are in ignored `.env`. Existing vehicle rows, attachment metadata, cover records and file bytes were preserved during the framework conversion.
@@ -38,7 +60,13 @@ This does not update the private credentials note automatically.
 
 Uploads remain private in `media/vehicles/`; PostgreSQL stores filenames, storage keys, byte sizes and vehicle associations. Gallery uploads never choose or replace a card photo. Files are limited to 10 MiB, with bounded image/document validation. Images, PDF and TXT can be viewed through authenticated preview routes. DOCX/XLSX receive bounded local text/table previews; these do not reproduce Office formatting. Unsupported formats are rejected. No third-party viewer receives documents.
 
-There is no vehicle/attachment deletion workflow, reservation system, accounting or maintenance workflow.
+Each gallery image and document has a Delete button with a permanent-deletion confirmation. All four signed-in users can delete attachments. The card has a separate Remove card photo action, which leaves gallery files intact. Deletion requires CSRF protection and scopes the attachment to its vehicle. Deleted preview/download links return 404; repeating a deletion returns 404.
+
+Metadata removal and a durable file-cleanup entry commit in one PostgreSQL transaction. The file is then removed from the private disk directory. If disk cleanup fails, the attachment is already inaccessible and its cleanup entry remains for retry. An already-open download may finish. Deletion cannot be undone through the application; separately retained backups are unaffected.
+
+Retry deferred file cleanup with `python manage.py cleanupfiles` (up to 100 entries per invocation). This processes only queued keys, preserves any still-referenced file, and never scans/deletes unrelated uploads. No background worker is configured. Card-photo replacement uses the same retry mechanism.
+
+There is no vehicle deletion workflow, reservation system, accounting or maintenance workflow.
 
 ## Setup on a new machine
 
@@ -58,7 +86,7 @@ Environment variables: `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`
 
 ## Database and architecture
 
-In pgAdmin, refresh Databases, open **limousine_local → Schemas → public → Tables**. Right-click a table, then View/Edit Data → All Rows. The six application tables are:
+In pgAdmin, refresh Databases, open **limousine_local → Schemas → public → Tables**. Right-click a table, then View/Edit Data → All Rows. The seven application tables are:
 
 | Table | Responsibility |
 | --- | --- |
@@ -68,6 +96,7 @@ In pgAdmin, refresh Databases, open **limousine_local → Schemas → public →
 | hspace_user | Four UUID accounts, role and soft-delete status |
 | hspace_session | Hashed session tokens and expiry |
 | hspace_schema_migration | Applied schema versions |
+| hspace_file_cleanup | Durable pending removals of private file bytes |
 
 ```sql
 SELECT id, plate_number, vehicle_type, driver_name,
@@ -77,7 +106,13 @@ FROM public.limo_vehicle ORDER BY id;
 
 The conversion removed Django source, configuration, packages and old authentication/framework tables, including the temporary legacy schema. Core vehicle table names and identifiers were preserved. Ignored emergency backups under `.local/backups/` contain pre-conversion snapshots; they are not used by the running app. Backup restoration has not been tested. The current migration command initializes only the FastAPI schema and is idempotent; it is not an importer for older installations.
 
-Responsibilities remain separated: business rules in domain, use cases/contracts in application, PostgreSQL/files/passwords/schema in infrastructure, and HTTP/templates/assets in presentation. `manage.py` is a small project CLI, not a framework dependency. It supports runserver, check, test, migrate, setoperator and a compatibility collectstatic command (no build is needed). Local schema changes are restricted to the configured loopback `limousine_local` database; do not run migrations against an unintended environment.
+Responsibilities remain separated: business rules in domain, use cases/contracts in application, PostgreSQL/files/passwords/schema in infrastructure, and HTTP/templates/assets in presentation. `manage.py` is a small project CLI, not a framework dependency. It supports runserver, check, test, migrate, cleanupfiles, setoperator and a compatibility collectstatic command (no build is needed). Local schema changes are restricted to the configured loopback `limousine_local` database; do not run migrations against an unintended environment.
+
+Schema version 2 adds the cleanup queue and validates required vehicle fields, bounded positive file sizes, supported file kinds, safe unique storage keys and session hashes. It removes an inherited duplicate index and indexes session expiry. Upgrading an existing local database takes a private backup first; invalid historical rows stop the upgrade rather than being silently altered. The vehicle list now batches metadata reads into three queries instead of adding two queries per vehicle.
+
+For an existing checkout, stop the development server, run `python manage.py migrate` in the configured environment, then restart it. The deletion feature and card-photo replacement need schema version 2. `manage.py cleanupfiles` is also available to retry deferred file removal.
+
+Run `python scripts/check_database.py` for a read-only local audit of role privileges, expected schema versions/constraints/indexes, file references and byte sizes. It prints counts/findings without row contents or secrets. Run filesystem checks while uploads/deletions are idle. This does not establish production readiness. The local application role owns its schema for setup; separate migration/runtime roles and tested backup restoration remain production work.
 
 ## Verification
 
@@ -92,6 +127,12 @@ The conversion passed 48 isolated tests and compiled all four page templates. Re
 
 The opt-in real database check is `python scripts/verify_local.py`. It requires the intended local database and current private credentials note. It temporarily changes a member's status and revokes sessions, then restores account status and removes its own records. Run it when other users are not working.
 
+Deletion-specific integration checks are in `python scripts/verify_deletion.py`. They use temporary records/files and a short-lived member session, exercise rollback and disk failure/retry, then compare existing business rows/accounts/file hashes and remove their own fixtures. Run while the local application is idle.
+
+This addition passed 54 isolated tests and real PostgreSQL deletion checks, including member permissions, authentication/CSRF, wrong-vehicle rejection, repeated deletion, cover/gallery independence, replacement cleanup, rollback on a database error, disk failure/retry and actual CHECK, foreign-key and unique-storage-key constraints. Existing account/business rows and original file hashes remained unchanged. The final read-only audit found one existing vehicle, seven attachments, one cover, four users, zero pending cleanups, no missing/mismatched/unreferenced files and no missing expected constraints/indexes; the role has no superuser, create-database, create-role, replication or bypass-RLS privileges. Version 2 was applied successfully after a private backup, and rerunning the migration completed without reapplying the upgrade.
+
+All four JavaScript files passed syntax checks. A fresh visual browser check was attempted but the computer-use safeguard stopped it because it could not establish the active Windows browser URL reliably; the updated controls/confirmation and narrow layout have not been visually verified. The loopback preview server was stopped afterward. Backup restore, restart, Docker and production checks remain outstanding. Cloud deployment remains deferred.
+
 The test client currently emits an upstream deprecation warning about httpx; tests still pass. Browser appearance was checked on the previous UI version; the migrated backend has not yet received a fresh browser interaction check. Docker, backup restoration, device restart and deployment remain unverified.
 
 CI runs the README change check, application/template check and isolated tests. It does not connect to the real local database. Documentation checking verifies that README changed, not that every statement is correct.
@@ -102,6 +143,6 @@ Docker/Compose supplies only the web service, binds its host port to loopback an
 
 The repository contains application source, tests, documentation and setup examples. The README and supporting guides are maintained in English; the application's Arabic interface remains available.
 
-Local connection secrets, account credentials, uploaded files, database backups, wallet files and the local Python runtime are excluded from Git. Cloning or pulling the repository does not restore the local database or attachments. Set up a private environment separately using the steps above. Pushing source to GitHub does not deploy the application or move local data to the cloud.
+Local connection secrets, account credentials, uploaded files, database backups, wallet files and the local Python runtime are excluded from Git. Checkout-local design skills under .agents/ and their skills-lock.json are also excluded; they are authoring tools and are not required to run the application. Cloning or pulling the repository does not restore the local database or attachments. Set up a private environment separately using the steps above. Pushing source to GitHub does not deploy the application or move local data to the cloud.
 
 See [architecture](docs/architecture.md), [frontend](docs/frontend.md) and [remaining work](docs/next-steps.md).

@@ -19,6 +19,10 @@
     fileTooLarge: 'Each file must be no larger than 10 MB.',
     download: 'Download {name}', viewPhoto: 'View photo: {name}',
     viewFile: 'View', cardPhoto: 'Card photo', changeCardPhoto: 'Change card photo',
+    deleteAttachment: 'Delete', deleteNamed: 'Delete {name}', removeCardPhoto: 'Remove card photo',
+    confirmDelete: 'Permanently delete "{name}"? This cannot be undone.',
+    confirmRemoveCover: 'Remove the card photo for {plate}? This cannot be undone.',
+    deleting: 'Deleting…', deleted: 'Attachment deleted.', coverDeleted: 'Card photo removed.',
     coverSaving: 'Saving card photo…', coverSaved: 'Card photo saved.',
     uploading: 'Uploading {current} of {total}…', uploadComplete: '{count} attachments added.',
     partialUpload: '{count} attachments added. {error}', pending: 'Checking the database connection…',
@@ -26,9 +30,9 @@
     languageChanged: 'Language changed to English.', lightEnabled: 'Light mode enabled.', darkEnabled: 'Dark mode enabled.'
   });
   const ar = {
-    title: 'H SPACE | السيارات', skip: 'انتقل إلى المحتوى', brandSub: 'إدارة السيارات', vehicles: 'السيارات',
+    heroAccent: 'كل التفاصيل قدامك.', navVehicles: 'السيارات', title: 'H SPACE | السيارات', skip: 'انتقل إلى المحتوى', brandSub: 'إدارة السيارات', vehicles: 'سياراتك.',
     workspace: 'مساحة عملك', teamAccess: 'إدارة الفريق', vehicleCollection: 'مجموعة السيارات', footerTagline: 'لكل تفصيل مكانه.',
-    listDescription: 'سياراتك وصورها وملفاتها. كلها في مساحة واحدة.', addVehicle: 'إضافة سيارة',
+    listDescription: 'لكل تفصيل مكانه. ولكل سيارة مساحتها.', addVehicle: 'إضافة سيارة',
     databaseTitle: 'تخزين السيارات غير متاح حاليًا',
     databaseDescription: 'أعد المحاولة عند توفر اتصال قاعدة البيانات المحلية.',
     retry: 'إعادة المحاولة', search: 'البحث بالنمرة أو النوع', searchPlaceholder: 'ابحث بالنمرة أو النوع…',
@@ -52,6 +56,10 @@
     invalidFile: 'الملف غير مدعوم أو تالف أو أبعاد الصورة أكبر من المسموح. تحقّق من الصيغة والحدود المذكورة.', fileTooLarge: 'حجم كل ملف يجب ألا يتجاوز 10 ميجابايت.',
     download: 'تنزيل {name}', viewPhoto: 'عرض الصورة: {name}', uploading: 'جارٍ رفع {current} من {total}…',
     viewFile: 'عرض', cardPhoto: 'صورة البطاقة', changeCardPhoto: 'تغيير صورة البطاقة',
+    deleteAttachment: 'حذف', deleteNamed: 'حذف {name}', removeCardPhoto: 'حذف صورة البطاقة',
+    confirmDelete: 'حذف "{name}" نهائيًا؟ لا يمكن التراجع عن الحذف.',
+    confirmRemoveCover: 'حذف صورة بطاقة السيارة {plate}؟ لا يمكن التراجع عن الحذف.',
+    deleting: 'جارٍ الحذف…', deleted: 'تم حذف المرفق.', coverDeleted: 'تم حذف صورة البطاقة.',
     coverSaving: 'جارٍ حفظ صورة البطاقة…', coverSaved: 'تم حفظ صورة البطاقة.',
     uploadComplete: 'تمت إضافة {count} مرفق.', partialUpload: 'تمت إضافة {count} مرفق. {error}',
     pending: 'جارٍ فحص اتصال قاعدة البيانات…', emptyDisconnected: 'جهّز اتصال قاعدة البيانات المحلية لإضافة السيارات وحفظ صورها وملفاتها.',
@@ -69,6 +77,7 @@
   let informationBusy = false;
   let uploadBusy = false;
   let coverBusy = false;
+  let deleteBusy = false;
   let activeDetailId = null;
   let listRequest = 0;
   let detailRequest = 0;
@@ -151,7 +160,7 @@
     const dark = root.dataset.theme !== 'light';
     $('theme-toggle').setAttribute('aria-label', t(dark ? 'lightMode' : 'darkMode'));
     $('theme-toggle').title = t(dark ? 'lightMode' : 'darkMode');
-    document.querySelector('meta[name="theme-color"]').content = dark ? '#18181b' : '#f6f5f2';
+    document.querySelector('meta[name="theme-color"]').content = dark ? '#101113' : '#f5f3ef';
   }
   function applyLanguage() {
     root.lang = language; root.dir = language === 'ar' ? 'rtl' : 'ltr';
@@ -198,8 +207,16 @@
       input.accept = 'image/jpeg,image/png,image/webp';
       button.addEventListener('click', () => input.click());
       input.addEventListener('change', () => saveCardPhoto(vehicle.id, input.files[0]));
-      card.append(link, button, input); return card;
+      card.append(link, button, input);
+      if (vehicle.cover_url) {
+        const remove = element('button', 'button ghost small remove-cover-button danger', t('removeCardPhoto'));
+        remove.type = 'button'; remove.disabled = coverBusy;
+        remove.setAttribute('aria-label', `${t('removeCardPhoto')}: ${vehicle.plate_number}`);
+        remove.addEventListener('click', () => removeCardPhoto(vehicle)); card.append(remove);
+      }
+      return card;
     }) : [];
+    document.dispatchEvent(new Event('hspace:cards-changed'));
     $('vehicle-grid').replaceChildren(...cards);
   }
   async function loadVehicles() {
@@ -230,12 +247,23 @@
     } catch (error) { message('cover-message', errorKey(error), 'error'); }
     finally { coverBusy = false; renderList(); }
   }
+  async function removeCardPhoto(vehicle) {
+    if (coverBusy || !window.confirm(t('confirmRemoveCover', { plate: vehicle.plate_number }))) return;
+    coverBusy = true; renderList(); message('cover-message', 'deleting');
+    try {
+      await api(`/api/vehicles/${vehicle.id}/cover/`, { method: 'DELETE' });
+      vehicles = vehicles.map(item => item.id === vehicle.id ? { ...item, cover_url: null } : item);
+      message('cover-message', 'coverDeleted', 'success');
+    } catch (error) { message('cover-message', errorKey(error), 'error'); }
+    finally { coverBusy = false; renderList(); }
+  }
   function updateAddState() {
     $('save-vehicle').disabled = !storageReady || addBusy;
     $('new-plate').disabled = addBusy;
     $('new-type').disabled = addBusy;
     $('close-dialog').disabled = addBusy; $('cancel-add').disabled = addBusy;
     $('save-vehicle').textContent = t(addBusy ? 'saving' : 'saveVehicle');
+    $('save-vehicle').setAttribute('aria-busy', String(addBusy));
     if (!storageReady) {
       message('add-message', listState === 'loading' ? 'pending' : 'saveUnavailable');
       $('add-message').dataset.connectionNotice = 'true';
@@ -269,13 +297,20 @@
       link.setAttribute('aria-label', t('download', { name: file.name })); link.title = t('download', { name: file.name });
       link.append(icon('download')); return link;
     }
+    function remove(file) {
+      const button = element('button', 'button ghost small danger attachment-delete', t('deleteAttachment'));
+      button.type = 'button'; button.disabled = deleteBusy || uploadBusy || informationBusy;
+      button.setAttribute('aria-label', t('deleteNamed', { name: file.name }));
+      button.addEventListener('click', () => deleteAttachment(currentVehicle.id, file)); return button;
+    }
     $('photo-grid').replaceChildren(...photos.map(file => {
       const card = element('div', 'photo-card'); const link = element('a', 'photo-link');
       link.href = file.preview_url; link.target = '_blank'; link.rel = 'noopener';
       link.setAttribute('aria-label', t('viewPhoto', { name: file.name }));
       const img = document.createElement('img'); img.src = file.preview_url; img.alt = file.name; img.loading = 'lazy'; link.append(img);
       const caption = element('div', 'photo-caption'); const name = element('bdi', 'filename', file.name); name.title = file.name;
-      caption.append(name, download(file)); card.append(link, caption); return card;
+      const actions = element('div', 'file-actions'); actions.append(download(file), remove(file));
+      caption.append(name, actions); card.append(link, caption); return card;
     }));
     $('file-list').replaceChildren(...files.map(file => {
       const row = element('div', 'file-row'); const info = element('div', 'file-info');
@@ -285,17 +320,33 @@
       const preview = element('a', 'button secondary small', t('viewFile'));
       preview.href = file.preview_url; preview.target = '_blank'; preview.rel = 'noopener';
       preview.setAttribute('aria-label', `${t('viewFile')}: ${file.name}`);
-      actions.append(preview, download(file)); row.append(icon('file'), info, actions); return row;
+      actions.append(preview, download(file), remove(file)); row.append(icon('file'), info, actions); return row;
     }));
     updateDetailControls();
   }
   function updateDetailControls() {
-    const busy = informationBusy || uploadBusy;
+    const busy = informationBusy || uploadBusy || deleteBusy;
+    document.querySelectorAll('.attachment-delete').forEach(button => { button.disabled = busy; });
     Object.values(detailFields).forEach(id => { $(id).disabled = busy; });
     const unchanged = currentVehicle && Object.entries(detailValues()).every(([name, value]) => value === (currentVehicle[name] || ''));
     $('save-information').disabled = busy || !currentVehicle || unchanged;
     $('save-information').textContent = t(informationBusy ? 'saving' : 'saveChanges');
+    $('save-information').setAttribute('aria-busy', String(informationBusy));
     $('add-photos').disabled = busy; $('add-files').disabled = busy;
+  }
+  async function deleteAttachment(id, file) {
+    if (deleteBusy || uploadBusy || informationBusy || !window.confirm(t('confirmDelete', { name: file.name }))) return;
+    deleteBusy = true; updateDetailControls(); message('upload-message', 'deleting');
+    try {
+      await api(`/api/vehicles/${id}/attachments/${file.id}/`, { method: 'DELETE' });
+      if (activeDetailId !== id || !currentVehicle) return;
+      currentVehicle = { ...currentVehicle, attachments: currentVehicle.attachments.filter(item => item.id !== file.id),
+        attachment_count: currentVehicle.attachments.filter(item => item.id !== file.id).length };
+      renderDetail(); message('upload-message', 'deleted', 'success');
+      $('upload-message').focus({ preventScroll: true });
+    } catch (error) {
+      if (activeDetailId === id) message('upload-message', errorKey(error), 'error');
+    } finally { deleteBusy = false; updateDetailControls(); }
   }
   async function loadDetail(id, resetInput = true) {
     const request = ++detailRequest;
@@ -304,6 +355,7 @@
       const payload = await api(`/api/vehicles/${id}/`);
       if (request !== detailRequest || id !== activeDetailId) return;
       currentVehicle = payload.vehicle; detailState = 'ready'; renderDetail(resetInput);
+      if (resetInput) document.dispatchEvent(new Event('hspace:detail-ready'));
       document.title = `${currentVehicle.plate_number} | ${t('title')}`;
       if (resetInput) $('detail-title').focus({ preventScroll: true });
     } catch (error) {
@@ -352,7 +404,7 @@
   });
   Object.values(detailFields).forEach(id => $(id).addEventListener('input', () => { message('information-message', ''); updateDetailControls(); }));
   $('vehicle-information-form').addEventListener('submit', async event => {
-    event.preventDefault(); if (!currentVehicle || informationBusy || uploadBusy) return;
+    event.preventDefault(); if (!currentVehicle || informationBusy || uploadBusy || deleteBusy) return;
     const id = currentVehicle.id; const fields = detailValues();
     if (!fields.plate_number || fields.plate_number.length > 64) { message('information-message', 'invalidPlate', 'error'); return; }
     if (!fields.vehicle_type) { message('information-message', 'invalidDetails', 'error'); return; }
@@ -369,7 +421,7 @@
   $('add-files').addEventListener('click', () => $('file-input').click());
   async function upload(input) {
     const selected = [...input.files]; input.value = '';
-    if (!selected.length || !currentVehicle || uploadBusy || informationBusy) return;
+    if (!selected.length || !currentVehicle || uploadBusy || informationBusy || deleteBusy) return;
     if (selected.some(file => file.size > 10 * 1024 * 1024)) { message('upload-message', 'fileTooLarge', 'error'); return; }
     const extensions = input.id === 'photo-input' ? ['jpg', 'jpeg', 'png', 'webp'] : ['pdf', 'txt', 'docx', 'xlsx'];
     if (selected.some(file => !extensions.includes(file.name.split('.').pop().toLowerCase()))) { message('upload-message', 'invalidFile', 'error'); return; }

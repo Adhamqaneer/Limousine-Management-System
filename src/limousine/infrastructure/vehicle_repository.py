@@ -13,6 +13,10 @@ class PostgresVehicleRepository:
     def _vehicle(self, connection, row):
         attachments = connection.execute("SELECT * FROM limo_attachment WHERE vehicle_id=%s ORDER BY id", (row["id"],)).fetchall()
         photo = connection.execute("SELECT * FROM limo_vehicle_cover WHERE vehicle_id=%s", (row["id"],)).fetchone()
+        return self._build_vehicle(row, attachments, photo)
+
+    @staticmethod
+    def _build_vehicle(row, attachments, photo):
         return Vehicle(
             row["id"], row["plate_number"], row["created_at"], tuple(attachment(item) for item in attachments),
             row["vehicle_type"], row["driver_name"], row["chassis_number"], row["manufacture_year"],
@@ -21,7 +25,15 @@ class PostgresVehicleRepository:
 
     def list_vehicles(self):
         with self.database.connect() as connection:
-            return [self._vehicle(connection, row) for row in connection.execute("SELECT * FROM limo_vehicle ORDER BY id").fetchall()]
+            rows = connection.execute("SELECT * FROM limo_vehicle ORDER BY id").fetchall()
+            if not rows:
+                return []
+            ids = [row["id"] for row in rows]
+            attachments = {vehicle_id: [] for vehicle_id in ids}
+            for item in connection.execute("SELECT * FROM limo_attachment WHERE vehicle_id=ANY(%s) ORDER BY id", (ids,)).fetchall():
+                attachments[item["vehicle_id"]].append(item)
+            covers = {item["vehicle_id"]: item for item in connection.execute("SELECT * FROM limo_vehicle_cover WHERE vehicle_id=ANY(%s)", (ids,)).fetchall()}
+            return [self._build_vehicle(row, attachments[row["id"]], covers.get(row["id"])) for row in rows]
 
     def get_vehicle(self, vehicle_id):
         with self.database.connect() as connection:
@@ -68,4 +80,31 @@ class PostgresVehicleRepository:
             connection.execute(
                 "INSERT INTO limo_vehicle_cover (vehicle_id,storage_key,original_name,size) VALUES (%s,%s,%s,%s) ON CONFLICT (vehicle_id) DO UPDATE SET storage_key=EXCLUDED.storage_key,original_name=EXCLUDED.original_name,size=EXCLUDED.size",
                 (cover.vehicle_id, cover.storage_key, cover.original_name, cover.size))
+            if old and old["storage_key"] != cover.storage_key:
+                self._queue_cleanup(connection, old["storage_key"])
             return cover, old["storage_key"] if old else None
+
+    @staticmethod
+    def _queue_cleanup(connection, key):
+        connection.execute("INSERT INTO hspace_file_cleanup(storage_key) VALUES (%s) ON CONFLICT DO NOTHING", (key,))
+
+    def delete_attachment(self, vehicle_id, attachment_id):
+        with self.database.connect() as connection:
+            row = connection.execute(
+                "DELETE FROM limo_attachment WHERE vehicle_id=%s AND id=%s RETURNING storage_key",
+                (vehicle_id, attachment_id)).fetchone()
+            if not row:
+                raise NotFound("Attachment not found for this vehicle.")
+            self._queue_cleanup(connection, row["storage_key"])
+            return row["storage_key"]
+
+    def delete_cover(self, vehicle_id):
+        with self.database.connect() as connection:
+            # Serialize removal with replacement, including the no-cover case.
+            if not connection.execute("SELECT id FROM limo_vehicle WHERE id=%s FOR UPDATE", (vehicle_id,)).fetchone():
+                raise NotFound("Vehicle not found.")
+            row = connection.execute("DELETE FROM limo_vehicle_cover WHERE vehicle_id=%s RETURNING storage_key", (vehicle_id,)).fetchone()
+            if not row:
+                raise NotFound("This vehicle has no card photo.")
+            self._queue_cleanup(connection, row["storage_key"])
+            return row["storage_key"]

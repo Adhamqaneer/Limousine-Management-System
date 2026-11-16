@@ -1,8 +1,10 @@
-/* Apply the saved palette before CSS loads, without requiring storage access. */
+/* Apply presentation preferences before paint. Business data stays on the server. */
 (() => {
-  let theme = 'dark';
+  let theme = 'dark', language = 'en';
   try {
     if (localStorage.getItem('limousine.theme') === 'light') theme = 'light';
-  } catch (_) { /* Preferences still work for this visit when storage is blocked. */ }
-  document.documentElement.dataset.theme = theme;
+    if (localStorage.getItem('limousine.language') === 'ar') language = 'ar';
+  } catch (_) {}
+  const root = document.documentElement;
+  root.dataset.theme = theme; root.lang = language; root.dir = language === 'ar' ? 'rtl' : 'ltr';
 })();

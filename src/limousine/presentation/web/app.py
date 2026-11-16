@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.exceptions import RequestValidationError
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
-from starlette.responses import JSONResponse, RedirectResponse, FileResponse
+from starlette.responses import JSONResponse, RedirectResponse, FileResponse, Response
 from starlette.staticfiles import StaticFiles
 from limousine.config.runtime import load_settings, ROOT
 from limousine.application.vehicles import VehicleService
@@ -15,6 +15,7 @@ from limousine.application.accounts import AccountService
 from limousine.domain.vehicles import DomainError, NotFound
 from limousine.domain.accounts import AccessDenied
 from limousine.infrastructure.database import Database
+from limousine.infrastructure.file_cleanup import FileCleanup
 from limousine.infrastructure.accounts import PostgresAccountRepository
 from limousine.infrastructure.vehicle_repository import PostgresVehicleRepository
 from limousine.infrastructure.attachments import LocalAttachmentStore, AttachmentTooLarge, MAX_ATTACHMENT_BYTES
@@ -79,6 +80,7 @@ def create_app(settings=None):
     app.state.account_service = AccountService(app.state.accounts)
     app.state.vehicles = VehicleService(PostgresVehicleRepository(app.state.database))
     app.state.store = LocalAttachmentStore(settings.media_root)
+    app.state.cleanup = FileCleanup(app.state.database, app.state.store)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.allowed_hosts))
     app.mount("/static", StaticFiles(directory=str(ROOT / "src/limousine/presentation/web/static")), name="static")
 
@@ -238,10 +240,7 @@ def create_app(settings=None):
                 logger.warning("Failed to clean an unsuccessful upload.")
             raise
         if old:
-            try:
-                store.delete(old)
-            except OSError:
-                logger.warning("Failed to clean a replaced card photo.")
+            app.state.cleanup.process(old)
         return JSONResponse({"vehicle": vehicle_payload(service.get_vehicle(vehicle_id), True)} if cover else {"attachment": attachment_payload(item)}, status_code=201)
 
     async def upload_request(vehicle_id, request, cover):
@@ -259,6 +258,20 @@ def create_app(settings=None):
     @app.post("/api/vehicles/{vehicle_id}/cover/")
     async def upload_cover(vehicle_id: int, request: Request, user=Depends(current_user)):
         return await upload_request(vehicle_id, request, True)
+
+    @app.delete("/api/vehicles/{vehicle_id}/attachments/{attachment_id}/", status_code=204)
+    def delete_attachment(vehicle_id: int, attachment_id: int, request: Request, user=Depends(current_user)):
+        require_csrf(request)
+        key = app.state.vehicles.delete_attachment(vehicle_id, attachment_id)
+        app.state.cleanup.process(key)
+        return Response(status_code=204)
+
+    @app.delete("/api/vehicles/{vehicle_id}/cover/", status_code=204)
+    def delete_cover(vehicle_id: int, request: Request, user=Depends(current_user)):
+        require_csrf(request)
+        key = app.state.vehicles.delete_cover(vehicle_id)
+        app.state.cleanup.process(key)
+        return Response(status_code=204)
 
     def file_response(key, filename, preview):
         path = app.state.store.path(key)

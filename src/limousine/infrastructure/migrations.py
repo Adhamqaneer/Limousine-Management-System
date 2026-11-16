@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 from limousine.config.runtime import ROOT
+from psycopg import sql
 
 DDL = """
 CREATE TABLE IF NOT EXISTS hspace_schema_migration (version integer PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP);
@@ -61,7 +62,34 @@ def migrate(database):
     if settings.db_host not in ("127.0.0.1", "localhost", "::1") or settings.db_name != "limousine_local":
         raise ValueError("Local migrations are restricted to the configured limousine_local database.")
     with database.connect() as connection:
+        exists = connection.execute("SELECT to_regclass('public.hspace_schema_migration') AS name").fetchone()["name"]
+        upgrade = exists and not connection.execute("SELECT 1 FROM hspace_schema_migration WHERE version=2").fetchone()
+    backup = backup_database(settings) if upgrade else None
+    with database.connect() as connection:
         connection.execute("SELECT pg_advisory_xact_lock(72730804)")
         connection.execute(DDL)
         connection.execute("INSERT INTO hspace_schema_migration(version) VALUES (1) ON CONFLICT DO NOTHING")
-    return None
+        if not connection.execute("SELECT 1 FROM hspace_schema_migration WHERE version=2").fetchone():
+            connection.execute("""
+                CREATE TABLE hspace_file_cleanup (
+                    storage_key varchar(500) PRIMARY KEY,
+                    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    CHECK (storage_key ~ '^vehicles/[0-9a-f]{32}[.](jpg|jpeg|png|webp|pdf|txt|docx|xlsx)$'));
+                ALTER TABLE limo_vehicle ADD CONSTRAINT hspace_vehicle_required_fields
+                    CHECK (btrim(plate_number) <> '' AND btrim(vehicle_type) <> '');
+                ALTER TABLE limo_attachment ADD CONSTRAINT hspace_attachment_kind
+                    CHECK (kind IN ('image','file'));
+                ALTER TABLE hspace_user ADD CONSTRAINT hspace_username_not_blank CHECK (btrim(username) <> '');
+                ALTER TABLE hspace_session ADD CONSTRAINT hspace_session_hash_format CHECK (token_hash ~ '^[0-9a-f]{64}$');
+                CREATE INDEX hspace_session_expiry_idx ON hspace_session(expires_at);
+            """)
+            for table in ("limo_attachment", "limo_vehicle_cover"):
+                connection.execute(sql.SQL("ALTER TABLE {} ADD CONSTRAINT {} CHECK (size > 0 AND size <= 10485760 AND btrim(original_name) <> '')").format(sql.Identifier(table), sql.Identifier(table + "_valid_metadata")))
+                connection.execute(sql.SQL("ALTER TABLE {} ADD CONSTRAINT {} CHECK (storage_key ~ '^vehicles/[0-9a-f]{{32}}[.](jpg|jpeg|png|webp|pdf|txt|docx|xlsx)$')").format(sql.Identifier(table), sql.Identifier(table + "_valid_key")))
+                connection.execute(sql.SQL("ALTER TABLE {} ADD CONSTRAINT {} UNIQUE(storage_key)").format(sql.Identifier(table), sql.Identifier(table + "_storage_key_unique")))
+                # Replace the obsolete nonnegative check with the stronger bounded check.
+                connection.execute(sql.SQL("ALTER TABLE {} DROP CONSTRAINT IF EXISTS {}").format(sql.Identifier(table), sql.Identifier(table + "_size_check")))
+            # An inherited index duplicated hspace_attachment_vehicle_idx.
+            connection.execute("DROP INDEX IF EXISTS limo_attachment_vehicle_id_155e7f20")
+            connection.execute("INSERT INTO hspace_schema_migration(version) VALUES (2)")
+    return backup
