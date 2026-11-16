@@ -1,0 +1,30 @@
+
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ attachment.name }} | H SPACE</title>
+  <link rel="icon" type="image/svg+xml" href="{{ static('web/brand-mark.svg') }}">
+  <script src="{{ static('web/appearance.js') }}"></script>
+  <script src="{{ static('web/document_preview.js') }}" defer></script>
+  <link rel="stylesheet" href="{{ static('web/app.css') }}">
+</head>
+<body>
+  <header class="app-header"><a class="brand" href="/" aria-label="H SPACE">{% include 'web/_brand.html' %}</a></header>
+  <main class="container document-preview">
+    <div class="page-heading"><h1 dir="auto">{{ attachment.name }}</h1><a class="button secondary" href="{{ attachment.download_url }}" data-i18n="download">Download original</a></div>
+    <p class="muted preview-description" data-i18n="description">Text and table preview. Formatting, images and formulas may differ from the original.</p>
+    {% if unavailable %}<p class="notice" role="status" data-i18n="unavailable">This document cannot be previewed. You can download the original.</p>{% else %}
+      {% if preview.truncated %}<p class="notice" data-i18n="truncated">This is a limited preview of a large document. Download the original to see everything.</p>{% endif %}
+      <article class="panel document-content">
+        {% for block in preview.blocks %}
+          {% if block.heading %}<h2 dir="auto">{{ block.heading }}</h2>{% endif %}
+          {% if block.rows %}<div class="table-scroll"><table><tbody>{% for row in block.rows %}<tr>{% for cell in row %}<td dir="auto">{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>{% endif %}
+          {% if block.text %}<p dir="auto">{{ block.text }}</p>{% endif %}
+        {% else %}<p data-i18n="empty">No previewable text or tables in this document.</p>{% endfor %}
+      </article>
+    {% endif %}
+  </main>
+</body>
+</html>

@@ -5,8 +5,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import SimpleTestCase, override_settings
+from tests.uploads import SimpleUploadedFile
+from unittest import TestCase as SimpleTestCase
 from PIL import Image
 
 from limousine.domain.vehicles import DomainError
@@ -31,10 +31,7 @@ class ImageUploadValidationTests(SimpleTestCase):
     def setUp(self):
         self.media = TemporaryDirectory(prefix="limousine-image-tests-")
         self.addCleanup(self.media.cleanup)
-        settings_override = override_settings(MEDIA_ROOT=self.media.name)
-        settings_override.enable()
-        self.addCleanup(settings_override.disable)
-        self.store = LocalAttachmentStore()
+        self.store = LocalAttachmentStore(self.media.name)
 
     def assert_rejected_without_saved_bytes(self, name, content):
         with self.assertRaises(DomainError):

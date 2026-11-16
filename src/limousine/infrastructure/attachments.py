@@ -1,4 +1,4 @@
-"""Bounded local attachment storage; business metadata remains in Oracle."""
+"""Bounded local attachment storage; business metadata remains in PostgreSQL."""
 
 import io
 import re
@@ -7,11 +7,7 @@ import uuid
 import warnings
 import zipfile
 from dataclasses import dataclass
-from pathlib import PurePosixPath
-
-from django.conf import settings
-from django.core.files.base import ContentFile
-from django.core.files.storage import FileSystemStorage
+from pathlib import PurePosixPath, Path
 from PIL import Image, UnidentifiedImageError
 
 from limousine.domain.vehicles import DomainError
@@ -108,8 +104,9 @@ def _validate_content(extension, content):
 
 
 class LocalAttachmentStore:
-    def __init__(self):
-        self.storage = FileSystemStorage(location=settings.MEDIA_ROOT)
+    def __init__(self, root=None):
+        from limousine.config.runtime import ROOT
+        self.root = Path(root) if root is not None else ROOT / "media"
 
     def save(self, upload):
         if upload.size is not None and upload.size > MAX_ATTACHMENT_BYTES:
@@ -123,8 +120,20 @@ class LocalAttachmentStore:
             raise AttachmentTooLarge("The file must be 10 MB or smaller.")
         _validate_content(extension, content)
         key = f"vehicles/{uuid.uuid4().hex}{extension}"
-        saved_key = self.storage.save(key, ContentFile(content))
-        return StoredUpload(saved_key, name, "image" if extension in IMAGE_MIMES else "file", len(content))
+        target = self.root / key
+        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with target.open("xb") as output:
+                output.write(content)
+        except OSError:
+            target.unlink(missing_ok=True)
+            raise
+        return StoredUpload(key, name, "image" if extension in IMAGE_MIMES else "file", len(content))
+
+    def save_card_photo(self, upload):
+        if PurePosixPath(safe_original_name(upload.name)).suffix.lower() not in IMAGE_MIMES:
+            raise DomainError("Choose a JPG, PNG or WebP card photo.")
+        return self.save(upload)
 
     @staticmethod
     def _check_key(key):
@@ -134,12 +143,20 @@ class LocalAttachmentStore:
 
     def open(self, key):
         self._check_key(key)
-        return self.storage.open(key, "rb")
+        return self.path(key).open("rb")
+
+    def path(self, key):
+        self._check_key(key)
+        target = (self.root / key).resolve()
+        if not target.is_relative_to(self.root.resolve()):
+            raise FileNotFoundError("Attachment not found.")
+        return target
 
     def delete(self, key):
         self._check_key(key)
-        self.storage.delete(key)
+        self.path(key).unlink(missing_ok=True)
 
     @staticmethod
     def content_type(key):
-        return IMAGE_MIMES.get(PurePosixPath(key).suffix.lower(), "application/octet-stream")
+        extension = PurePosixPath(key).suffix.lower()
+        return IMAGE_MIMES.get(extension) or FILE_MIMES.get(extension, "application/octet-stream")

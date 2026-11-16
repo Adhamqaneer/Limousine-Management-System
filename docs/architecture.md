@@ -1,66 +1,19 @@
-# بنية المشروع
+# Architecture
 
-المشروع يستخدم Python 3.12 وDjango 5.2 LTS. محرك قاعدة البيانات المعتمد هو Oracle Database عبر backend الخاص بـDjango، `django.db.backends.oracle`، وبرنامج التشغيل `python-oracledb 4.0.2` في Thin mode.
+H SPACE uses FastAPI/Uvicorn and PostgreSQL only. Cloud deployment is deferred.
 
-الهدف من Clean Architecture هو إبقاء قواعد العمل مستقلة قدر الإمكان عن إطار الويب وآليات التخزين، وتحديد الأماكن التي ينبغي تعديلها عند إضافة وظيفة أو تغيير خدمة خارجية. لا تجعل هذه البنية تغيير محرك قاعدة البيانات مجرد تعديل إعداد اتصال؛ نقل البيانات والقيود والاستعلامات يحتاج تصميمًا واختبارًا مستقلين.
+- **domain** defines agreed vehicle fields and validation, UUID user identity, ADMIN/MEMBER roles and protected account status rules.
+- **application** contains VehicleService, AccountService and repository contracts.
+- **infrastructure** implements psycopg repositories, local private file storage, bounded document preview, PBKDF2 password verification, session persistence and versioned SQL schema.
+- **presentation/web** adapts HTTP requests to services, validates CSRF, handles safe errors and serves Jinja2 templates/static assets.
+- **config/runtime.py** loads private environment settings and validates production requirements.
 
-## توزيع الملفات
+Composition is in presentation/web/app.py. Every business route requires a valid server-side session; user management additionally requires ADMIN. Raw session tokens stay in HttpOnly cookies; their SHA-256 hashes and absolute 12-hour expiry are persisted. Account deactivation, soft deletion and password changes revoke sessions. Session checks reject inactive/deleted accounts on every request.
 
-```text
-manage.py
-scripts/
-src/limousine/
-  config/
-    settings/
-  domain/
-  application/
-  infrastructure/
-    django/
-  presentation/
-    web/
-tests/
-docs/
-```
+Four account slots are constrained in the database. User IDs are UUIDs; vehicle/attachment IDs retain their existing numeric values. Role values are a Python StrEnum and database CHECK constraint. Soft-delete/date/active consistency and a single ADMIN are constrained. The owner account is protected by domain rules and repository update restrictions.
 
-## حدود المسؤوليات
+The six active tables are documented in [README](../README.md). Vehicle covers and gallery attachments have independent records. Private file bytes live under media/vehicles; parameterized SQL stores metadata only. The initial schema migration is transactional and idempotent, restricted to the intended local database. The one-time framework conversion preserved business rows/files/password hashes and removed old framework tables and source. Ignored emergency backups are retained separately and are not runtime dependencies.
 
-| الجزء | المسؤولية |
-| --- | --- |
-| `domain` | الكيانات وقواعد العمل التي لا تعتمد على Django أو Oracle أو HTTP |
-| `application` | حالات الاستخدام وتنسيق العمل، والواجهات المطلوبة للوصول إلى التخزين والخدمات الخارجية |
-| `infrastructure` | تنفيذ التعامل مع قاعدة البيانات والخدمات الخارجية، وتكاملات Django اللازمة لذلك |
-| `presentation/web` | الطلبات والاستجابات، المسارات، والقوالب الخاصة بواجهة الويب |
-| `config` | تركيب الأجزاء، إعدادات التشغيل، ونقاط دخول Django |
+Missing configuration/database access returns generic unavailable responses; there is no alternate runtime repository. Tests inject mocks only. Sensitive database exceptions and request bodies are not returned or logged intentionally. Static assets are public; uploads are served only through authenticated handlers with no-store and nosniff headers.
 
-اتجاه الاعتماد الأساسي من الخارج إلى الداخل. `domain` لا يستورد Django أو طبقات المشروع الخارجية. `application` يمكنها الاعتماد على `domain` وواجهاتها، ولا تستورد تنفيذ البنية التحتية أو العرض. الربط بين الواجهات وتنفيذها يحصل في نقاط تركيب التطبيق المناسبة.
-
-الشريحة الأولى تشمل نمرة السيارة فقط كحقل ثابت، وترتيب السيارات حسب الإضافة وربط الصور والملفات بكل سيارة. بقية الحقول تُحدد لاحقًا. الكيانات والتحقق في domain/vehicles.py، وحالات الاستخدام وعقد التخزين في application/vehicles.py، وتنفيذ ORM في infrastructure/vehicle_repository.py والموديلات في infrastructure/django/models.py، ونقل HTTP في presentation/web/vehicle_views.py.
-
-## الإعدادات والاتصال
-
-- **التطوير المحلي:** يسمح بفتح صفحة البداية وفحص حياة التطبيق دون إعداد Oracle. تعلن الجاهزية أن الاتصال غير مهيأ، ولا تُحفظ أي سجلات.
-- **الاختبارات:** إعداد مستقل لا يتصل بقاعدة بيانات ويستخدم `SimpleTestCase` لاختبارات الأساس. الـbackend غير المتصل المستخدم هنا وسيلة لمنع الاتصالات العرضية، وليس قاعدة بيانات تشغيل بديلة.
-- **الإنتاج:** يتطلب الأسرار وإعدادات Oracle وأسماء المضيفين المسموحة، ولا يعتمد على أسرار التطوير الافتراضية.
-
-متغيرات Oracle الأساسية هي `ORACLE_DSN` و`ORACLE_USER` و`ORACLE_PASSWORD`. المتغيرات `ORACLE_CONFIG_DIR` و`ORACLE_WALLET_LOCATION` و`ORACLE_WALLET_PASSWORD` تخص أنواع الاتصال التي تحتاج ملفات إعداد أو Wallet. تُمرر الأسرار من البيئة ولا تُسجل في المستودع.
-
-تشغيل `migrate` عند اكتمال الإعداد يستهدف Oracle. توجد ترحيلة أولى للسيارات وبيانات المرفقات، ولم تُنفّذ ترحيلات المستخدمين أو الصلاحيات. لم يُثبت الاتصال بقاعدة حقيقية بعد.
-
-## نقاط الفحص
-
-| المسار | ما يثبته |
-| --- | --- |
-| `/health/live/` | أن عملية الويب تستجيب؛ لا يفحص قاعدة البيانات |
-| `/health/ready/` | أن إعداد Oracle موجود وأن فحص الاتصال نجح؛ يعيد `503` عند غياب الإعداد أو تعذر الاتصال |
-
-نجاح liveness لا يعني أن التطبيق قادر على حفظ بيانات. ونجاح readiness لا يثبت اكتمال وظائف المشروع أو صحة كل صلاحيات Oracle أو نجاح الترحيلات المستقبلية. رسائل HTTP لا تعرض كلمات مرور أو تفاصيل استثناءات الاتصال.
-
-## التخزين والنسخ الاحتياطي
-
-قاعدة البيانات مخصصة للسجلات المنظمة. تُخزّن بيانات المرفقات المنظمة في Oracle، والملفات حاليًا تحت media/ على الجهاز من خلال infrastructure/attachments.py. Oracle Object Storage ما زال ضمن الخطة. المرفقات تُقدّم عبر مسارات مرتبطة بالسيارة، وليست روابط media عامة.
-
-خطة النسخ ستعتمد أدوات تصدير واستيراد مناسبة لـOracle. `pg_dump` غير مستخدم في المشروع. يلزم التحقق عمليًا من صلاحية الاسترجاع، مع نسخة مستقلة خارج بيئة الإنتاج؛ وجود ملفات تصدير وحده لا يثبت إمكانية استعادة النظام. أتمتة سحب نسخة اللابتوب عبر Windows Task Scheduler مؤجلة.
-
-## حدود الدفعة الأولى
-
-المتوفر أساس التشغيل وأول شريحة للسيارات والمرفقات. الاختبارات مستقلة عن قاعدة حقيقية؛ الحفظ على Oracle وتطبيق الترحيلات يحتاجان فحصًا فعليًا بعد توفير الاتصال. لم تُنفّذ إدارة المستخدمين أو تسجيل الدخول أو الصلاحيات أو التقارير أو النسخ الاحتياطي أو النشر السحابي. Docker يجهّز خدمة الويب فقط ولا يوفّر خدمة Oracle محلية.
+See [README](../README.md) for commands, actual verification and production limitations.

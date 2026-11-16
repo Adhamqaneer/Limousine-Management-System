@@ -1,1 +1,1 @@
-"""Adapters for Oracle, storage, and external services."""
+"""Adapters for PostgreSQL, storage, and external services."""

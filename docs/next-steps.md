@@ -1,49 +1,9 @@
-# الخطوات التالية
+# Remaining work
 
-## نقطة البداية
+The current scope is a local FastAPI/PostgreSQL trial with four accounts. Adham is ADMIN; the other three share vehicle permissions. The framework conversion, account/session behavior, private files and core vehicle workflows passed isolated and real database integration checks. Old framework source/packages/tables were removed; business rows, file bytes and password hashes were preserved.
 
-المستودع يحتوي على أساس Django وشريحة أولى للسيارات بتقسيم Clean Architecture: قائمة حسب الإضافة، نمرة سيارة ثابتة، تعديل، وصور ومستندات. الواجهة إنجليزية مع العربية وRTL ووضعين. Oracle هي قاعدة التشغيل الوحيدة؛ يلزم تجهيز الاتصال وتطبيق الترحيلات واختبار الحفظ فعليًا. نظام المستخدمين والصلاحيات مؤجل.
+Before wider use, perform a fresh browser check of the converted backend, including Team, language/theme, narrow layout and document previews. Test a physical phone separately; development currently stays on loopback. Also test PostgreSQL/device restart and restoration of database plus media backups.
 
-المشروع يمكن تشغيله محليًا حتى قبل انتهاء مشكلة إنشاء حساب Oracle، لكن فحص `/health/ready/` سيبقى `503` ويعلن أن قاعدة البيانات غير مهيأة حتى تُوفر بيانات اتصال صحيحة وتنجح تجربة الاتصال.
+Cloud deployment is deferred. It will need explicit database/file destinations, HTTPS, secrets, login rate limiting, operational monitoring, persistent storage and tested backups. Docker has been updated but not built or run. Existing local data will not move automatically. Backup scheduling remains future work.
 
-## 1. تحديد أول عملية فعلية
-
-قبل توسيع موديلات وشاشات إدارة السيارات بعد حقل النمرة الأولي، نحتاج تثبيت المعلومات التالية مع صاحب المشروع:
-
-- ما البيانات المطلوبة لكل سيارة، وأيها إلزامي؟
-- ما الذي يميز السيارة بشكل فريد في شغل الشركة؟
-- ما العمليات المطلوبة في أول نسخة: العرض والإضافة والتعديل، وما شروط كل عملية؟
-- عند إخراج سيارة من النظام، هل المطلوب حذفها أو الاحتفاظ بتاريخها مع تغيير حالتها؟
-- ما أدوار المستخدمين، ومن يستطيع تنفيذ كل عملية؟
-
-الحجم المذكور، نحو 30–40 سيارة وثلاثة مستخدمين، تقدير أولي للسعة وليس مواصفات كاملة للوظائف. الحجوزات والمحاسبة والصيانة وغيرها تحتاج متطلبات صريحة قبل إضافتها للنطاق.
-
-## 2. اختبار Oracle على قاعدة حقيقية
-
-بعد اكتمال الحساب أو توفير قاعدة Oracle مناسبة:
-
-1. إعداد مستخدم التطبيق والصلاحيات اللازمة، ووصف الاتصال ونوع TLS أو Wallet المستخدم.
-2. تعبئة `ORACLE_DSN` و`ORACLE_USER` و`ORACLE_PASSWORD` محليًا، وإعداد متغيرات Wallet عند الحاجة.
-3. التأكد من أن `/health/ready/` يعيد `200` بعد الاتصال الحقيقي.
-4. اختبار إنشاء الجداول والترحيلات الخاصة بأول وظيفة بعد كتابتها على بيئة غير إنتاجية.
-5. اختبار قواعد العمل وتخزين البيانات والاسترجاع، مع مراجعة الفروق الخاصة بـOracle في القيود والنصوص والقيم الفارغة.
-
-الفحوص الحالية لا تثبت أيًا من تجارب Oracle السابقة، ولا تنشئ قاعدة اختبار سحابية تلقائيًا.
-
-## 3. بناء أول شريحة مكتملة
-
-منطق أول شريحة للسيارات والمرفقات مكتوب ومغطّى باختبارات معزولة. المتبقي لإثباتها من البداية للنهاية هو تطبيق الترحيلات وتجربة الإضافة والتعديل ورفع المرفقات واسترجاعها على Oracle حقيقية، ثم فحص الواجهة في متصفح. بعد تثبيت الحقول الإضافية نوسّع الشريحة ونبني المستخدمين والصلاحيات حسب الأدوار المحددة.
-
-الهدف التحقق من البنية بعمل حقيقي قبل توسيعها. لا نضيف واجهات مجردة أو خدمات خارجية دون وظيفة تحتاجها.
-
-## 4. المرفقات والتصدير والاسترجاع
-
-رفع الصور والوثائق المحلي موجود حاليًا، مع فحص النوع والحجم وسلامة الصور. المتبقي سياسات الوصول والمستخدمون وربط Oracle Object Storage بدل القرص المحلي عند تجهيز البيئة السحابية. وبعدها نجهّز تصدير Oracle ونسخة الملفات معًا، والاحتفاظ بنسخ تاريخية مشفّرة ومستقلة، ونجرب استرجاع النظام كاملًا.
-
-لم يُنفّذ النسخ الاحتياطي في هذه الدفعة، و`pg_dump` ليس ضمن الخطة. تبقى **جدولة سحب نسخة اللابتوب باستخدام Windows Task Scheduler للمرحلة الأخيرة** كما طلب المستخدم.
-
-## 5. تجهيز النشر
-
-تشغيل Docker محليًا ليس نشرًا سحابيًا. النشر يحتاج إعداد قاعدة Oracle والاتصال الآمن والأسرار وأسماء المضيفين وHTTPS وتقديم الملفات الثابتة ومراقبة الصحة. قبل إدخال بيانات تشغيل حقيقية، يلزم اختبار الوظائف والصلاحيات والنسخ والاسترجاع على البيئة المقصودة.
-
-لم يُنشر المشروع على Oracle Cloud أو أي مزود آخر، ولم يُجرَ تعديل على إعدادات حساب Oracle أو معاملات البطاقة من داخل هذا المستودع.
+No reservations, accounting, maintenance or new vehicle fields are part of this change. Actual validation and setup commands are in [README](../README.md).

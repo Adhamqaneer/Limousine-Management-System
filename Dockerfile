@@ -1,21 +1,11 @@
 FROM python:3.12-slim
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app/src \
-    DJANGO_SETTINGS_MODULE=limousine.config.settings.production
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app/src HSPACE_ENV=production
 WORKDIR /app
-
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt \
-    && useradd --create-home --uid 10001 limousine
-COPY --chown=limousine:limousine src ./src
-COPY --chown=limousine:limousine manage.py ./
-
-# Static collection needs no Oracle connection or deployment credentials.
-RUN DJANGO_SETTINGS_MODULE=limousine.config.settings.base python manage.py collectstatic --noinput \
-    && mkdir -p /app/media \
-    && chown -R limousine:limousine /app/staticfiles /app/media
-USER limousine
+RUN pip install --no-cache-dir -r requirements.txt && useradd --create-home --uid 10001 hspace
+COPY --chown=hspace:hspace src ./src
+COPY --chown=hspace:hspace manage.py ./
+RUN mkdir -p /app/media && chown hspace:hspace /app/media
+USER hspace
 EXPOSE 8000
-CMD ["gunicorn", "limousine.config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "30", "--error-logfile", "-"]
+CMD ["python","-m","uvicorn","limousine.presentation.web.app:app","--host","0.0.0.0","--port","8000","--no-access-log"]

@@ -1,289 +1,107 @@
-# Limousine Management System
+# H SPACE — Vehicle Management System
 
-نظام ويب لإدارة سيارات شركة ليموزين. الفكرة بسيطة: تضيف سيارة، تظهر كبطاقة ضمن قائمة مرتبة حسب الإضافة، وتفتح ملفها لتعديل بياناتها وإرفاق صورها ومستنداتها. بيانات السيارة تُدخل في **خانات ثابتة نحددها حسب العمل**؛ الحقل المتفق عليه حاليًا هو **نمرة السيارة** فقط.
+H SPACE is a local-first vehicle management website for a family car office. The backend uses **FastAPI on Uvicorn**, with PostgreSQL as its only runtime database. Cloud deployment is deferred while the application is tested locally.
 
-المشروع مبني بـPython وDjango، ويفصل قواعد العمل عن الواجهة والتخزين وفق Clean Architecture. قاعدة التشغيل المعتمدة هي **Oracle Database فقط**. حساب Oracle Cloud وسيلة لاستضافة القاعدة لاحقًا؛ المطلوب لتشغيل الحفظ هو قاعدة Oracle فعلية وبيانات اتصالها، وليس مجرد تسجيل دخول إلى موقع Oracle.
+The interface keeps the orange/charcoal identity, English by default, Arabic/RTL and light/dark mode. Vehicle cards open a detail view. Creating a vehicle requires its type and plate number; driver name, chassis number and manufacture year are optional text fields. Card photos are uploaded independently from gallery attachments.
 
-## حالة المشروع الآن
+## Current local installation
 
-| الجزء | الحالة الفعلية |
-| --- | --- |
-| واجهة قائمة السيارات وصفحة السيارة | موجودة، مع نموذج إضافة وبحث بالنمرة |
-| اللغات والمظهر | الإنجليزية افتراضيًا، العربية مع RTL، وضع ليلي ونهاري، وحفظ التفضيلات |
-| البيانات الثابتة | نمرة السيارة كنص يحافظ على الأصفار؛ باقي الحقول تنتظر التحديد |
-| الإضافة والعرض والتعديل | منطق التطبيق وواجهات HTTP وتخزين ORM مكتوبة ومختبرة باختبارات معزولة |
-| الصور والمستندات | رفع وعرض/تنزيل مع فحص النوع والحجم، وبيانات المرفق مرتبطة بسيارته |
-| اتصال Oracle والترحيلات والحفظ الحقيقي | **لم تُختبر على قاعدة Oracle حقيقية بعد** |
-| المستخدمون وتسجيل الدخول والصلاحيات | لم تُنفّذ بعد؛ التشغيل الحالي للتطوير المحلي |
-| Oracle Object Storage | مخطط له؛ الملفات حاليًا على قرص الجهاز |
-| النشر والنسخ الاحتياطي والاسترجاع | لم تُنفّذ؛ Windows Task Scheduler مؤجل للمرحلة الأخيرة |
+PostgreSQL 18 hosts the project-owned database `limousine_local`, with restricted role `limousine_local_app`. Private connection settings are in ignored `.env`. Existing vehicle rows, attachment metadata, cover records and file bytes were preserved during the framework conversion.
 
-لا توجد قاعدة SQLite أو PostgreSQL بديلة، ولا تُحفظ سجلات السيارات في localStorage. بدون إعداد Oracle تستطيع فتح الواجهة ومعاينة نموذج الإضافة، لكن زر الحفظ معطّل وتظهر رسالة توضّح أن التخزين غير متاح. فشل الاتصال أو غياب الجداول لا يُعرض كأنّه نجاح في الحفظ.
+Four fixed account slots are configured: Adham qaneer, AbdAlhameed qaneer, Abdullah qaneer and Ahmad qaneer. Their existing passwords were retained. Private local credentials are in `.local/accounts.txt`, excluded from Git and Docker. Adham has the ADMIN role; the other three have MEMBER. All have the same vehicle access. Only the admin can disable, soft-delete or restore member accounts through Team. The admin account cannot be disabled or deleted through this feature. No public registration is provided.
 
-## كيف تستخدمه؟
-
-بعد تهيئة Oracle وتطبيق الترحيلات:
-
-1. افتح قائمة **Vehicles / السيارات** ثم **Add vehicle / إضافة سيارة**.
-2. أدخل النمرة واحفظ؛ تنتقل إلى ملف السيارة الجديدة.
-3. عدّل النمرة من قسم بيانات السيارة واضغط حفظ التعديلات عند الحاجة.
-4. أضف صورًا أو مستندات من الأقسام المخصصة لها. يمكنك تحديد أكثر من ملف؛ تُرفع بالتتابع، ويظهر عدد الملفات المكتملة إذا تعثّر جزء من الرفع.
-5. ارجع إلى القائمة؛ تُضاف السيارات الجديدة بعد السابقة، وتستخدم أول صورة للسيارة كغلاف بطاقتها. البحث يرشّح القائمة بالنمرة مع إبقاء ترتيبها.
-
-الفرز يعتمد رقم السجل المتزايد `id`، وليس النمرة. تعديل النمرة لا يغيّر موضع السيارة أو تاريخ إضافتها. لا توجد حاليًا وظيفة حذف سيارة أو مرفق، ولا حجوزات أو حسابات أو صيانة.
-
-## التقنيات والاعتمادات
-
-| التقنية | دورها |
-| --- | --- |
-| Python 3.12 | بيئة التطوير المستخدمة |
-| Django 5.2.19 LTS | HTTP، القوالب، إعدادات التطبيق، ORM والترحيلات |
-| python-oracledb 4.0.2 | الاتصال بـOracle في Thin mode |
-| Pillow 13.0.0 | التحقق من سلامة الصور وقراءة محتواها فعليًا |
-| python-dotenv 1.2.4 | قراءة الإعدادات المحلية من `.env` |
-| WhiteNoise 6.12.0 | تقديم CSS وJavaScript وملفات manifest |
-| Gunicorn 23.0.0 | خادم WSGI داخل Linux/Docker؛ لا يُثبت على Windows |
-| HTML / CSS / JavaScript | واجهة بسيطة دون Node أو npm أو عملية بناء للفرونت إند |
-
-الإصدارات مثبتة في [requirements.txt](requirements.txt). تثبيتها مطلوب عند إعداد جهاز جديد أو تحديث الاعتمادات. بيئة `.runtime` المحمولة الموجودة على جهاز التطوير محلية ومُستثناة من Git.
-
-## التشغيل على جهاز التطوير الحالي — Windows
-
-افتح Terminal في VS Code، ثم نفّذ:
+From PowerShell in this directory:
 
 ```powershell
-cd "C:\Users\adham\Desktop\Desktop\Limousine Management System"
 powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Command runserver
 ```
 
-افتح <http://127.0.0.1:8000/>، واترك التيرمنال يعمل. للإيقاف اضغط **Ctrl+C**. بعد تغيير كود Python أوقف الأمر وشغله مجددًا؛ السكربت يستخدم `--noreload`. إذا ظهرت ملفات واجهة قديمة، حدّث الصفحة بـ**Ctrl+F5**.
+Open <http://127.0.0.1:8000/>. Stop with Ctrl+C. The server binds to loopback; use `-Port 8001` if needed. Restart after Python changes and use Ctrl+F5 after static asset changes. A physical phone cannot access this loopback address remotely without separate network configuration.
 
-يمكن اختيار منفذ آخر:
+## Authentication and account data
+
+Users have UUID identifiers, username, password hash, a constrained ADMIN/MEMBER role, active status, `is_deleted` and `deleted_at`. First/last name and email columns are absent. The application uses a Python role enumeration and PostgreSQL CHECK constraints, rather than a native PostgreSQL enum type.
+
+Authentication uses opaque server-side sessions, **not access/refresh JWTs**. Sessions last 12 hours from sign-in without sliding renewal. Only the SHA-256 token hash is stored in PostgreSQL. The browser cookie is HttpOnly and SameSite=Lax; production enables Secure cookies. Sign-out, password changes, deactivation and soft deletion revoke sessions. Old framework sessions were discarded; sign in again after the conversion.
+
+Signed session-bound CSRF tokens protect state changes, including login/logout. Passwords use PBKDF2-SHA256. New passwords require at least eight characters, cannot be entirely numeric and cannot match another account's password. There is no login rate limiter yet.
+
+To change one account, supply its slot and username; the command prompts privately for the password:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Command runserver -Port 8001
+.\.runtime\python\python.exe manage.py setoperator 1 "Adham qaneer"
 ```
 
-يمكن كذلك تشغيل بايثون المحمول الموجود على هذا الجهاز مباشرة:
+This does not update the private credentials note automatically.
+
+## Files and previews
+
+Uploads remain private in `media/vehicles/`; PostgreSQL stores filenames, storage keys, byte sizes and vehicle associations. Gallery uploads never choose or replace a card photo. Files are limited to 10 MiB, with bounded image/document validation. Images, PDF and TXT can be viewed through authenticated preview routes. DOCX/XLSX receive bounded local text/table previews; these do not reproduce Office formatting. Unsupported formats are rejected. No third-party viewer receives documents.
+
+There is no vehicle/attachment deletion workflow, reservation system, accounting or maintenance workflow.
+
+## Setup on a new machine
+
+Use Python 3.12+ and PostgreSQL 14+. Dependencies are pinned in [requirements.txt](requirements.txt): FastAPI, Starlette, Pydantic, Uvicorn, Jinja2, python-multipart, psycopg, python-dotenv, Pillow and the HTTP test client. The frontend uses plain HTML/CSS/JavaScript and local assets, without npm or a build step.
 
 ```powershell
-.\.runtime\python\python.exe manage.py runserver 127.0.0.1:8000
-```
-
-السكربت يختار Python من `.venv` أولًا، ثم `.runtime/python`، ثم `python` المتاح في النظام. يُشغّل السيرفر على loopback فقط، ولا يتطلب فتحه للعامة.
-
-## تجهيز جهاز جديد
-
-ثبّت Python 3.12 وGit، ثم من PowerShell:
-
-```powershell
-git clone https://github.com/Adhamqaneer/Limousine-Management-System.git
-cd Limousine-Management-System
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 if (-not (Test-Path -LiteralPath .env)) { Copy-Item .env.example .env }
-powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Command check
+.\.venv\Scripts\python.exe scripts/setup_local.py
 powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Command runserver
 ```
 
-لا تستبدل `.env` الموجود عند التحديث؛ فيه إعداداتك المحلية. لتحديث الاعتمادات في بيئة `.venv` الموجودة:
+Copy the example only when `.env` does not already exist. Setup privately prompts for the local PostgreSQL administrator password, provisions only the project database/role, writes application credentials locally, applies the schema and creates the four named accounts when none exist. Existing accounts are preserved. Never commit secrets or use this setup against another project's database.
 
-```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
+Environment variables: `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `HSPACE_SECRET_KEY`, `HSPACE_ALLOWED_HOSTS` and `HSPACE_ENV` (local or production). Production requires complete database settings, a strong secret and explicit allowed hosts. Private uploads, runtime, backups and generated artifacts are ignored.
 
-على Linux/macOS استخدم `.venv/bin/python` بدل مسار Windows، ويمكن تشغيل أوامر `manage.py` مباشرة.
+## Database and architecture
 
-## إعداد Oracle وتفعيل الحفظ
+In pgAdmin, refresh Databases, open **limousine_local → Schemas → public → Tables**. Right-click a table, then View/Edit Data → All Rows. The six application tables are:
 
-شغّل قاعدة Oracle أو جهّز قاعدة مستضافة، وأنشئ مستخدم التطبيق والصلاحيات المناسبة لها. بيانات دخول OCI Console ليست تلقائيًا اسم مستخدم قاعدة البيانات وكلمة مرورها.
-
-ضع الإعدادات في `.env` المحلي أو متغيرات البيئة:
-
-| المتغير | الاستخدام |
+| Table | Responsibility |
 | --- | --- |
-| `DJANGO_SETTINGS_MODULE` | الافتراضي للتطوير `limousine.config.settings.local` |
-| `ORACLE_DSN` | وصف الاتصال، مثل `db-host:1521/service_name`، أو DSN الخاص بالخدمة |
-| `ORACLE_USER` | مستخدم التطبيق داخل قاعدة البيانات |
-| `ORACLE_PASSWORD` | كلمة مرور مستخدم القاعدة |
-| `ORACLE_CONFIG_DIR` | مجلد ملفات إعداد الاتصال عند الحاجة |
-| `ORACLE_WALLET_LOCATION` | مسار Wallet عندما يتطلبها نوع الاتصال |
-| `ORACLE_WALLET_PASSWORD` | كلمة مرور Wallet عند الحاجة |
-| `DJANGO_SECRET_KEY` | سر التطبيق؛ إلزامي وقوي في الإنتاج |
-| `DJANGO_ALLOWED_HOSTS` | أسماء المضيفين المسموحة، مفصولة بفواصل |
-| `DJANGO_CSRF_TRUSTED_ORIGINS` | عناوين HTTPS الموثوقة عند تجهيز النشر |
-| `DJANGO_TRUST_PROXY` | يفعّل الثقة بترويسة HTTPS فقط خلف proxy موثوق مضبوط لذلك |
-| `DJANGO_HSTS_INCLUDE_SUBDOMAINS` / `DJANGO_HSTS_PRELOAD` | خيارات إنتاج اختيارية؛ لا تُفعّل قبل تجهيز HTTPS للنطاقات المعنية |
+| limo_vehicle | Agreed vehicle text fields and creation time |
+| limo_attachment | Gallery/file metadata |
+| limo_vehicle_cover | Independent card photo metadata |
+| hspace_user | Four UUID accounts, role and soft-delete status |
+| hspace_session | Hashed session tokens and expiry |
+| hspace_schema_migration | Applied schema versions |
 
-إما أن تكون متغيرات Oracle الثلاثة الأساسية مكتملة أو فارغة كلها. الإعداد الجزئي يُرفض برسالة واضحة. يستخدم الاتصال Thin mode ولا يحتاج Oracle Instant Client؛ نوع TLS/Wallet والصلاحيات وإتاحة الشبكة تُضبط حسب القاعدة الفعلية.
+```sql
+SELECT id, plate_number, vehicle_type, driver_name,
+       chassis_number, manufacture_year, created_at
+FROM public.limo_vehicle ORDER BY id;
+```
 
-بعد اكتمال الاتصال، طبّق الترحيلات:
+The conversion removed Django source, configuration, packages and old authentication/framework tables, including the temporary legacy schema. Core vehicle table names and identifiers were preserved. Ignored emergency backups under `.local/backups/` contain pre-conversion snapshots; they are not used by the running app. Backup restoration has not been tested. The current migration command initializes only the FastAPI schema and is idempotent; it is not an importer for older installations.
+
+Responsibilities remain separated: business rules in domain, use cases/contracts in application, PostgreSQL/files/passwords/schema in infrastructure, and HTTP/templates/assets in presentation. `manage.py` is a small project CLI, not a framework dependency. It supports runserver, check, test, migrate, setoperator and a compatibility collectstatic command (no build is needed). Local schema changes are restricted to the configured loopback `limousine_local` database; do not run migrations against an unintended environment.
+
+## Verification
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Command migrate
-powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Command runserver
+.\.runtime\python\python.exe manage.py check
+.\.runtime\python\python.exe manage.py test
+.\.runtime\python\python.exe scripts/check_readme.py
+git diff --check
 ```
 
-الأمر الأول ينشئ الجداول المعرفة في الترحيلات على **قاعدة Oracle المحددة بإعداداتك**؛ لا ينشئ خدمة Oracle أو حساب Cloud. يرفض التنفيذ دون إعداد اتصال كامل. يلزم بعده تجربة إضافة سيارة وتعديلها ورفع ملف واسترجاعه على قاعدة غير إنتاجية قبل الاعتماد عليها.
+The conversion passed 48 isolated tests and compiled all four page templates. Real local PostgreSQL integration checks passed for all four existing passwords, UUID/roles, admin-only account changes, soft deletion/restoration, session revocation/expiry, CSRF, vehicle creation/editing, independent card photos, image/PDF/TXT/DOCX/XLSX previews and private downloads. Test fixtures were removed. Existing business rows, password hashes and attachment bytes were compared before/after and preserved. Removal of the legacy schema and an idempotent schema rerun were also verified. A fresh Uvicorn process returned HTTP 200 for live health, real PostgreSQL readiness and the branded login page after cleanup; the project interpreter could no longer import the removed framework. The verification server was stopped afterward. All four JavaScript files passed syntax checks.
 
-## كيف يعمل الكود؟
+The opt-in real database check is `python scripts/verify_local.py`. It requires the intended local database and current private credentials note. It temporarily changes a member's status and revokes sessions, then restores account status and removes its own records. Run it when other users are not working.
 
-رحلة إضافة سيارة هي:
+The test client currently emits an upstream deprecation warning about httpx; tests still pass. Browser appearance was checked on the previous UI version; the migrated backend has not yet received a fresh browser interaction check. Docker, backup restoration, device restart and deployment remain unverified.
 
-```text
-المستخدم يعبّئ النموذج
-  → app.js يرسل POST مع JSON وCSRF token
-  → vehicle_views.py يحوّل HTTP إلى استدعاء لحالة الاستخدام
-  → VehicleService يطبق قواعد المجال ويطلب التخزين عبر عقد Repository
-  → DjangoVehicleRepository يكتب السجل عبر ORM في Oracle
-  → النتيجة تعود كـJSON وتُعرض في صفحة السيارة
-```
+CI runs the README change check, application/template check and isolated tests. It does not connect to the real local database. Documentation checking verifies that README changed, not that every statement is correct.
 
-الرفع يتبع نفس الفصل: طبقة الملفات تتحقق من المحتوى وتخزن البايتات، ثم تُحفظ بيانات المرفق في Oracle. إذا فشل حفظ البيانات الوصفية، يحاول التطبيق إزالة الملف الذي رُفع حتى لا يبقى ملف بلا سجل. فشل التنظيف يُسجّل برسالة عامة للمراجعة، دون طباعة بيانات اتصال أو محتوى الملفات.
+Docker/Compose supplies only the web service, binds its host port to loopback and uses a persistent media volume. A container needs separately configured PostgreSQL connectivity; its localhost is not the host computer. Production still needs HTTPS, rate limiting, operational hardening and tested database-plus-media backups.
 
-### خريطة الملفات والمسؤوليات
+## GitHub and local data
 
-| المسار | ما الذي يفعله؟ |
-| --- | --- |
-| `manage.py` | نقطة دخول أوامر Django، وإضافة `src` لمسار الاستيراد |
-| `src/limousine/domain/vehicles.py` | كيانات `Vehicle` و`Attachment`، والتحقق من النمرة وأخطاء المجال |
-| `src/limousine/application/vehicles.py` | `VehicleService` وواجهة `VehicleRepository`؛ الإضافة والعرض والتعديل وربط المرفقات |
-| `src/limousine/infrastructure/vehicle_repository.py` | تنفيذ عقد التخزين باستخدام Django ORM وتحويل السجلات إلى كيانات |
-| `src/limousine/infrastructure/django/models.py` | شكل جداول السيارات والمرفقات والعلاقة بينهما |
-| `src/limousine/infrastructure/django/migrations/` | تاريخ تغييرات مخطط القاعدة؛ توجد ترحيلة أولى |
-| `src/limousine/infrastructure/attachments.py` | التحقق من الملفات، أسماء التخزين العشوائية، وقراءة البايتات من القرص |
-| `src/limousine/infrastructure/health.py` | فحص اتصال Oracle مع حجب تفاصيل الأخطاء الحساسة |
-| `src/limousine/infrastructure/django/management/commands/` | تكييف `runserver` و`migrate` مع حالة Oracle غير المهيأة |
-| `src/limousine/presentation/web/views.py` | الصفحة الرئيسية ومسارات الصحة |
-| `src/limousine/presentation/web/vehicle_views.py` | التحقق من صيغة الطلب، تحويل النتائج إلى JSON، وربط حالة الاستخدام بتنفيذ التخزين |
-| `src/limousine/presentation/web/urls.py` | تعريف مسارات الصفحة وواجهات API والمرفقات |
-| `src/limousine/presentation/web/templates/web/home.html` | هيكل القائمة ونموذج الإضافة وصفحة السيارة |
-| `src/limousine/presentation/web/static/web/app.js` | الترجمة والتنقل وحالات التحميل والنماذج والتواصل مع API |
-| `src/limousine/presentation/web/static/web/app.css` | المظهر، الاستجابة للشاشات المختلفة وRTL |
-| `src/limousine/presentation/web/static/web/appearance.js` | استرجاع المظهر المحفوظ قبل تحميل CSS |
-| `src/limousine/config/` | تركيب التطبيق، DSN وإعدادات التطوير والاختبار والإنتاج وWSGI/ASGI |
-| `scripts/run.ps1` | تسهيل التشغيل والفحص على Windows |
-| `scripts/check_readme.py` | فحص تحديث README مع تغييرات التنفيذ، محليًا وفي CI |
-| `tests/` | اختبارات المجال وحالات الاستخدام وHTTP والإعدادات والملفات والتوثيق |
-| `AGENTS.md` | تعليمات ثابتة لمساعد البرمجة، ومنها تحديث التوثيق مع كل تعديل |
-| `.github/workflows/checks.yml` | تشغيل فحص التوثيق والاختبارات وجمع الملفات على GitHub Actions |
+The repository contains application source, tests, documentation and setup examples. The README and supporting guides are maintained in English; the application's Arabic interface remains available.
 
-ملفات `__init__.py` قد تكون فارغة بشكل طبيعي؛ هي لتهيئة حزم Python. وجودها لا يعني أن منطق المشروع كله فيها.
+Local connection secrets, account credentials, uploaded files, database backups, wallet files and the local Python runtime are excluded from Git. Cloning or pulling the repository does not restore the local database or attachments. Set up a private environment separately using the steps above. Pushing source to GitHub does not deploy the application or move local data to the cloud.
 
-### لماذا هذا التقسيم؟
-
-`domain` لا يعرف Django أو Oracle أو HTTP. و`application` يعتمد على قواعد المجال وعقد التخزين، وليس على تنفيذ Oracle. الطبقات الخارجية تنفّذ التخزين والعرض. هذا يجعل إضافة حقل أو تعديل قاعدة عمل أو تغيير طريقة تخزين الملفات أوضح وأقل تشابكًا؛ ولا يعني أن تغيير محرك قاعدة البيانات لا يحتاج ترحيل بيانات واختبارًا.
-
-لإضافة خانة ثابتة جديدة: نتفق على معناها والتحقق منها، ثم نحدّث الكيان وحالة الاستخدام والموديل وننشئ migration ونحدّث API والنموذج والترجمة والاختبارات وREADME. لا نضيف حقولًا أو طبقات شكلية لمجرد زيادة عدد الملفات.
-
-## البيانات والمرفقات
-
-| السجل | الحقول الحالية |
-| --- | --- |
-| `limo_vehicle` | `id`، `plate_number`، `created_at` |
-| `limo_attachment` | `id`، `vehicle_id`، `storage_key`، `original_name`، `kind`، `size`، `created_at` |
-
-النمرة مطلوبة، بحد أقصى 64 حرفًا، وتُزال المسافات المحيطة بها وتُرفض محارف التحكم. لم نفرض صيغة محلية أو قاعدة عدم التكرار؛ نحدد قواعد العمل هذه مع صاحب المشروع لاحقًا.
-
-بيانات المرفقات في Oracle، والبايتات في `media/vehicles/` بأسماء عشوائية لا تعتمد على اسم المستخدم. يبقى الاسم الأصلي المعقّم للعرض والتنزيل. لا توجد روابط `/media/` عامة؛ الوصول عبر مسار المرفق الخاص بالسيارة.
-
-- الصور: JPG/JPEG وPNG وWebP، حتى **10 MiB لكل ملف** و**25 مليون بكسل للصورة**، مع التحقق وفك الترميز باستخدام Pillow.
-- المستندات: PDF وTXT بترميز UTF-8 وDOCX وXLSX، حتى **10 MiB**. التحقق من الصيغة هنا ليس فحص برمجيات ضارة أو ضمان سلامة كامل لمحتوى المستند.
-- الصور المدعومة فقط تُعرض inline؛ المستندات تُنزّل كمرفقات مع `nosniff` وبدون تخزين مؤقت عام.
-- التفضيلات فقط تُحفظ في localStorage بالمفتاحين `limousine.language` و`limousine.theme`.
-
-## واجهات HTTP
-
-| الطريقة والمسار | الوظيفة |
-| --- | --- |
-| `GET /` | الواجهة؛ تعمل حتى قبل تهيئة Oracle |
-| `GET /health/live/` | حياة التطبيق، دون فتح اتصال قاعدة |
-| `GET /health/ready/` | فحص اتصال Oracle، ويعيد `503` عند غياب الإعداد أو فشل الاتصال |
-| `GET /api/vehicles/` | القائمة مرتبة حسب الإضافة |
-| `POST /api/vehicles/` | إنشاء سيارة من JSON يحتوي `plate_number` فقط |
-| `GET /api/vehicles/<id>/` | بيانات سيارة ومرفقاتها |
-| `PATCH /api/vehicles/<id>/` | تعديل النمرة |
-| `POST /api/vehicles/<id>/attachments/` | multipart بحقل واحد اسمه `file` |
-| `GET/HEAD /api/vehicles/<id>/attachments/<attachment_id>/download/` | تنزيل مرفق تابع للسيارة |
-| `GET/HEAD /api/vehicles/<id>/attachments/<attachment_id>/preview/` | معاينة صورة مدعومة تابعة للسيارة |
-
-نجاح الإنشاء والرفع يعيد `201`. الأخطاء المعتادة: `400` لإدخال غير صالح، `404` لسجل مفقود، `413` لحجم زائد، و`503` عند عدم جاهزية التخزين. طلبات التعديل تحتاج CSRF token؛ الواجهة تضيفه تلقائيًا. نجاح `/health/ready/` يثبت الاتصال فقط، ولا يثبت أن الترحيلات طُبّقت أو أن كل عمليات العمل مكتملة.
-
-## الفحص والاختبارات
-
-من جذر المستودع على Windows:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Command check
-powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Command test
-.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run --settings=limousine.config.settings.test
-powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Command collectstatic
-.\.venv\Scripts\python.exe scripts/check_readme.py
-```
-
-استبدل `.venv\Scripts\python.exe` بـ`.runtime\python\python.exe` إذا كنت تستخدم البيئة المحمولة الحالية. لتشغيل مجموعة معينة:
-
-```powershell
-.\.venv\Scripts\python.exe manage.py test tests --pattern=test_attachments.py --settings=limousine.config.settings.test
-```
-
-تستخدم الاختبارات backend غير متصل لمنع الاتصال بقاعدة حقيقية. عقود التخزين الوهمية موجودة في الاختبارات فقط؛ لا يختارها التطبيق عند التشغيل. تغطي الاختبارات حفظ الأصفار، الترتيب، التعديل، ملكية المرفقات، رفض الملفات التالفة والكبيرة، التنظيف بعد فشل التخزين، CSRF، الإعدادات وفحص توثيق التغييرات.
-
-**حدود التحقق:** الاختبارات المعزولة وفحص مخطط الترحيلات لا تثبت نجاح اتصال Oracle أو إنشاء جداولها أو حفظ السجلات فعليًا. كذلك لا نعدّ بناء Docker أو اختبار واجهة بالمتصفح ناجحًا إلا بعد تشغيله والتحقق منه. الفحص البصري للواجهة البديلة تعذّر سابقًا بسبب قيود أداة التحكم بالمتصفح على Windows؛ صور المعرض القديم لا تختبر الواجهة الحالية.
-
-### نتيجة المراجعة الحالية
-
-- نجح **58 اختبارًا** دون اتصال بقاعدة حقيقية، ولم يرصد فحص توافق الموديلات والترحيلات تغييرات ناقصة.
-- أُصلح قبول الصور ذات الترويسات الصحيحة والمحتوى التالف، وأضيف التحقق بفك الترميز وحدّ البكسلات واختباراته، مع توضيح حالات رفض الملف في الرسائل.
-- أُصلح بقاء رسائل الخطأ والحالة باللغة السابقة، وأضيف نقل تركيز لوحة المفاتيح إلى عنوان صفحة السيارة أو القائمة عند التنقل. فُحص هذا المنطق بتنفيذ معزول مع DOM/fetch وهميين، وليس متصفحًا فعليًا.
-- عُدّل Docker لإتاحة الكتابة في `/app/media` للمستخدم غير الجذر، وأضيف volume للمرفقات في Compose. نجح فحص صياغة Compose؛ لم يُثبت الإصلاح بعد بتشغيل حاوية.
-- أضيفت تعليمات تحديث README وفحصها محليًا وفي CI، مع اختبارات لحالات التغيير المحلي والرفع وتحديث README وغيابه.
-
-## Docker وإعداد الإنتاج
-
-بعد تجهيز `.env`:
-
-```powershell
-docker compose up --build
-```
-
-Compose يشغّل خدمة الويب فقط، على <http://127.0.0.1:8000/>، باستخدام إعدادات التطوير المحلي. لا ينشئ Oracle ولا ينشر على الإنترنت. تُحفظ المرفقات في volume اسمه `vehicle_media` مركّب على `/app/media`، والمجلد قابل للكتابة للمستخدم غير الجذر داخل الصورة. يحتفظ volume بالملفات عند إعادة إنشاء الحاوية؛ حذفه أو استخدام `docker compose down -v` يحذف تخزين المرفقات المرتبط به. هذه الملفات منفصلة عن `media/` المستخدم عند التشغيل مباشرة على Windows، وليست نسخة احتياطية.
-
-عند استخدام Wallet داخل Docker، وفّر mount آمنًا واضبط مساراته داخل الحاوية؛ مسار Windows وحده لا يجعله متاحًا داخلها. إذا شغّلت الصورة دون Compose، وفّر تخزينًا دائمًا للمسار `/app/media` بنفسك.
-
-`Dockerfile` الافتراضي يستخدم إعدادات الإنتاج، وCompose يغيّرها للتطوير المحلي. إعدادات الإنتاج تفرض سرًا مناسبًا وأسماء مضيفين محددة وإعداد Oracle كاملًا، وتفعّل تحويل HTTPS وخصائص cookies الآمنة. خلف proxy مضبوط يمكن تفعيل `DJANGO_TRUST_PROXY`؛ لا تفعّله لمجرد التخلص من خطأ HTTPS.
-
-بعد ضبط إعدادات البيئة المقصودة:
-
-```powershell
-.\.venv\Scripts\python.exe manage.py check --deploy --settings=limousine.config.settings.production
-```
-
-تشغيل الإنتاج لم يكتمل بعد: يجب تنفيذ المستخدمين والصلاحيات وتأمين الوصول للمرفقات واختبار التخزين والنسخ والاسترجاع قبل إدخال بيانات تشغيل حقيقية أو إتاحته للعامة. Docker daemon غير متاح في بيئة المراجعة الحالية؛ لم يُختبر بناء الصورة وتشغيلها فعليًا.
-
-## مشاكل شائعة
-
-| المشكلة | السبب أو الإجراء |
-| --- | --- |
-| الصفحة تعمل والحفظ معطّل | إعداد Oracle غير موجود أو اتصال التخزين غير جاهز |
-| readiness يعيد `503` | افحص إعداد الاتصال والشبكة والخدمة؛ ليس دليلًا على توقف صفحة الويب |
-| readiness ناجح وAPI السيارات يفشل | قد تكون جداول السيارات غير منشأة؛ طبّق الترحيلات وافحص صلاحيات مستخدم القاعدة |
-| تغييرات Python لا تظهر | أعد تشغيل السيرفر؛ سكربت التشغيل يستخدم `--noreload` |
-| CSS/JavaScript قديمان | استخدم Ctrl+F5، واجمع static مجددًا عند تشغيل إعدادات الإنتاج |
-| `No module named PIL` | ثبّت `requirements.txt` في بيئة Python نفسها التي تشغّل المشروع |
-| ملف مرفوض رغم امتداده | الامتداد وحده لا يكفي؛ قد يكون المحتوى تالفًا أو مخالفًا أو الصورة تتجاوز حد البكسلات |
-| المنفذ `8000` مشغول | أوقف السيرفر السابق أو شغّل السكربت مع `-Port 8001` |
-
-## إبقاء هذا الشرح محدّثًا
-
-تعليمات [AGENTS.md](AGENTS.md) تلزم مساعد البرمجة بتحديث README ضمن كل تغيير بالكود أو الإعدادات أو الاعتمادات أو التشغيل، دون انتظار طلب جديد. يُحدّث الشرح المتأثر والنتائج والحدود، وتُحدّث الوثائق المساندة عند الحاجة.
-
-كذلك يفحص `scripts/check_readme.py` التغييرات المحلية وفي GitHub Actions؛ إذا تغيّر التنفيذ أو الاختبارات دون README يفشل الفحص. في CI تُقارن تغييرات طلب الدمج أو مجموعة commits المرفوعة، لا آخر ملف مفتوح فقط. هذا يفرض وجود تحديث مرافق، لكنه **لا يكتب شرحًا تلقائيًا لتعديلات يدوية ولا يثبت صحة الشرح**؛ مراجعة الدقة تبقى جزءًا من العمل.
-
-## وثائق إضافية والعمل القادم
-
-- [شرح البنية وحدود الطبقات](docs/architecture.md).
-- [تفاصيل الواجهة واللغات والمرفقات](docs/frontend.md).
-- [المتطلبات المتبقية وخطة العمل](docs/next-steps.md).
-
-التالي: إكمال إعداد Oracle وتجربة الترحيلات والحفظ الحقيقي، تحديد باقي حقول السيارة وقواعدها، بناء المستخدمين والصلاحيات، ثم ربط Object Storage والنسخ والاسترجاع. تبقى جدولة سحب النسخ على اللابتوب باستخدام Windows Task Scheduler للمرحلة الأخيرة.
+See [architecture](docs/architecture.md), [frontend](docs/frontend.md) and [remaining work](docs/next-steps.md).

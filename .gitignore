@@ -16,6 +16,7 @@ __pycache__/
 venv/
 .runtime/
 .deps/
+.local/
 .pytest_cache/
 .coverage
 htmlcov/

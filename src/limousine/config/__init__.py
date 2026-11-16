@@ -1,1 +1,1 @@
-"""Application composition and Django configuration."""
+"""FastAPI application composition and configuration."""

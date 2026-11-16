@@ -5,6 +5,7 @@
 .venv
 .runtime
 .deps
+.local
 __pycache__
 *.pyc
 wallet

@@ -2,18 +2,19 @@
 
 from typing import Protocol
 
-from limousine.domain.vehicles import Attachment, DomainError, NotFound, Vehicle, normalize_plate_number
+from limousine.domain.vehicles import Attachment, DomainError, NotFound, Vehicle, VehicleCover, normalize_plate_number, normalize_vehicle_fields
 
 
 class VehicleRepository(Protocol):
     def list_vehicles(self) -> list[Vehicle]: ...
     def get_vehicle(self, vehicle_id: int) -> Vehicle: ...
-    def create_vehicle(self, plate_number: str) -> Vehicle: ...
-    def update_vehicle(self, vehicle_id: int, plate_number: str) -> Vehicle: ...
+    def create_vehicle(self, plate_number: str, **fields: str) -> Vehicle: ...
+    def update_vehicle(self, vehicle_id: int, **fields: str) -> Vehicle: ...
     def add_attachment(
         self, vehicle_id: int, *, storage_key: str, original_name: str, kind: str, size: int
     ) -> Attachment: ...
     def get_attachment(self, vehicle_id: int, attachment_id: int) -> Attachment: ...
+    def replace_cover(self, cover: VehicleCover) -> tuple[VehicleCover, str | None]: ...
 
 
 class VehicleService:
@@ -28,11 +29,20 @@ class VehicleService:
     def get_vehicle(self, vehicle_id: int) -> Vehicle:
         return self.repository.get_vehicle(vehicle_id)
 
-    def create_vehicle(self, plate_number: str) -> Vehicle:
-        return self.repository.create_vehicle(normalize_plate_number(plate_number))
+    def create_vehicle(self, plate_number: str, vehicle_type: str, **fields: str) -> Vehicle:
+        return self.repository.create_vehicle(
+            normalize_plate_number(plate_number),
+            **normalize_vehicle_fields({"vehicle_type": vehicle_type, **fields}),
+        )
 
-    def update_vehicle(self, vehicle_id: int, plate_number: str) -> Vehicle:
-        return self.repository.update_vehicle(vehicle_id, normalize_plate_number(plate_number))
+    def update_vehicle(self, vehicle_id: int, **fields: str) -> Vehicle:
+        if not fields:
+            raise DomainError("Provide at least one vehicle field.")
+        normalized = {}
+        if "plate_number" in fields:
+            normalized["plate_number"] = normalize_plate_number(fields.pop("plate_number"))
+        normalized.update(normalize_vehicle_fields(fields))
+        return self.repository.update_vehicle(vehicle_id, **normalized)
 
     def add_attachment(
         self, vehicle_id: int, *, storage_key: str, original_name: str, kind: str, size: int
@@ -59,3 +69,19 @@ class VehicleService:
         if attachment.vehicle_id != vehicle_id:
             raise NotFound("Attachment not found for this vehicle.")
         return attachment
+
+    def get_cover(self, vehicle_id: int) -> VehicleCover:
+        cover = self.repository.get_vehicle(vehicle_id).cover
+        if cover is None:
+            raise NotFound("This vehicle has no card photo.")
+        return cover
+
+    def replace_cover(self, vehicle_id: int, *, storage_key: str, original_name: str, size: int):
+        self.repository.get_vehicle(vehicle_id)
+        if not isinstance(storage_key, str) or not storage_key.strip() or len(storage_key) > 500:
+            raise DomainError("The card photo storage key is invalid.")
+        if not isinstance(original_name, str) or not original_name.strip() or len(original_name) > 255:
+            raise DomainError("The card photo name is invalid.")
+        if isinstance(size, bool) or not isinstance(size, int) or size <= 0:
+            raise DomainError("Choose a non-empty photo.")
+        return self.repository.replace_cover(VehicleCover(vehicle_id, storage_key, original_name.strip(), size))

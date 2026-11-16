@@ -1,1 +1,1 @@
-"""Foundation tests; real Oracle integration tests require a dedicated database."""
+"""Isolated tests; PostgreSQL workflow validation is an explicit separate command."""
