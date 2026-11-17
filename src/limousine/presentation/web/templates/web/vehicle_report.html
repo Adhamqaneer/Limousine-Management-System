@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101113"><title>H SPACE | Print vehicle data</title>
+  <link rel="icon" href="{{ static('web/brand-mark.svg') }}">
+  <script src="{{ static('web/appearance.js') }}"></script>
+  <link rel="stylesheet" href="{{ static('web/app.css') }}">
+  <link rel="stylesheet" href="{{ static('web/vehicle-report.css') }}">
+  <script src="{{ static('web/page-tools.js') }}" defer></script>
+  <script src="{{ static('web/search.js') }}" defer></script>
+  <script src="{{ static('web/vehicle-filters.js') }}" defer></script>
+  <script src="{{ static('web/report-data.js') }}" defer></script>
+  <script src="{{ static('web/vehicle-report.js') }}" defer></script>
+</head>
+<body class="workspace-page report-page">
+  {% include 'web/_icons.html' %}{% include 'web/_header.html' %}
+  <a class="skip-link report-controls" href="#main-content" data-i18n="skip">Skip to content</a>
+  <main class="container" id="main-content">
+    <div class="page-heading compact-hero report-controls"><div>
+      <p class="eyebrow" data-i18n="reportEyebrow">Your office, on paper</p>
+      <h1 data-i18n="reportTitle">Print vehicle data</h1>
+      <p class="muted" data-i18n="reportDescription">Choose the fields. Preview every vehicle. Print or save as PDF.</p>
+    </div></div>
+    <section class="panel report-controls report-options" aria-labelledby="fields-title">
+      <div class="report-toolbar"><h2 id="fields-title" data-i18n="chooseFields">Choose fields</h2>
+        <div class="report-actions"><button type="button" class="button secondary small" id="select-all" data-i18n="selectAll">Select all</button><button type="button" class="button secondary small" id="clear-fields" data-i18n="clearFields">Clear selection</button></div>
+      </div>
+      <fieldset class="report-fieldset"><legend class="sr-only" data-i18n="chooseFields">Choose fields</legend><div class="report-choices" id="report-choices"></div></fieldset>
+      <div class="report-toolbar report-bottom"><p class="muted" id="selection-summary" role="status" aria-live="polite"></p>
+        <div class="report-actions"><button type="button" class="button secondary" id="refresh-report" data-i18n="refreshReport">Refresh data</button><button type="button" class="button primary" id="print-report" disabled><svg class="icon" aria-hidden="true"><use href="#printer"/></svg><span data-i18n="printReport">Print / Save PDF</span></button></div>
+      </div>
+      <a class="back-link" id="print-all-vehicles" href="/reports/vehicles/" hidden data-i18n="printAll">Print all vehicles</a>
+    </section>
+    <section aria-labelledby="preview-title" class="report-preview">
+      <div class="report-toolbar report-controls preview-toolbar"><h2 id="preview-title" data-i18n="previewTitle">Print preview</h2><span id="report-scope-description" class="muted" data-i18n="allVehicles">All vehicles · creation order</span></div>
+      <p id="report-status" class="panel" role="status" aria-live="polite" data-i18n="loadingReport">Loading vehicles…</p>
+      <div class="report-scroll"><article class="report-paper" id="report-paper" hidden>
+        <div class="report-watermark" aria-hidden="true">{% include 'web/_brand.html' %}</div>
+        <table id="report-table"><caption class="sr-only" data-i18n="sheetTitle">Vehicle data report</caption>
+          <thead><tr class="report-letterhead-row"><td id="report-letterhead-cell" colspan="8">
+            {% include 'web/_print_letterhead.html' %}
+            <p id="report-count" class="report-count"></p><p id="report-criteria" class="report-criteria" hidden></p>
+          </td></tr><tr id="report-head"></tr></thead><tbody id="report-body"></tbody>
+        </table>
+      </article></div>
+    </section>
+    <noscript><p class="panel">Enable JavaScript to select fields and load the report.</p></noscript>
+  </main>
+  <dialog id="print-style-dialog" class="report-controls" aria-labelledby="print-style-title" aria-describedby="print-style-description">
+    <div class="dialog-heading"><div><h2 id="print-style-title" data-i18n="choosePrintStyle">Choose paper style</h2><p id="print-style-description" data-i18n="paperStyleDescription">Is your paper blank or already printed with the office letterhead?</p></div></div>
+    <div class="print-style-options">
+      <button id="print-with-letterhead" type="button" class="print-style-option" autofocus><strong data-i18n="withLetterhead">With letterhead</strong><span data-i18n="withLetterheadHint">For blank paper or PDF: include the office letterhead and H SPACE watermark.</span></button>
+      <button id="print-without-letterhead" type="button" class="print-style-option"><strong data-i18n="withoutLetterhead">Without letterhead</strong><span data-i18n="withoutLetterheadHint">For preprinted office paper: leave the letterhead area empty and omit the watermark.</span></button>
+    </div>
+    <div class="dialog-actions"><button id="cancel-print-style" type="button" class="button secondary" data-i18n="cancelPrint">Cancel</button></div>
+  </dialog>
+</body>
+</html>

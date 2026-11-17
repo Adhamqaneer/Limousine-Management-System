@@ -4,6 +4,9 @@
   function save(key, value) { try { localStorage.setItem('limousine.' + key, value); } catch (_) {} }
   function refresh() {
     const arabic = root.lang === 'ar', dark = root.dataset.theme !== 'light';
+    document.querySelectorAll('[data-i18n="navDrivers"]').forEach(el => { el.textContent=arabic?'سجل الشوفيرين':'Driver history'; });
+    document.querySelectorAll('[data-i18n="navTrash"]').forEach(el => { el.textContent = arabic ? 'المحذوفات' : 'Deleted items'; });
+    document.querySelectorAll('[data-i18n="navReports"]').forEach(el => { el.textContent = arabic ? 'طباعة البيانات' : 'Print data'; });
     const language = document.getElementById('language-label');
     language.textContent = arabic ? 'English' : 'العربية'; language.lang = arabic ? 'en' : 'ar';
     document.getElementById('language-toggle').setAttribute('aria-label', arabic ? 'Switch to English' : 'التبديل للعربية');

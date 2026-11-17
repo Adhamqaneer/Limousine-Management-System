@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 import unicodedata
+import re
 
 
 class DomainError(ValueError):
@@ -14,7 +15,7 @@ class NotFound(LookupError):
 
 
 def normalize_plate_number(value: str) -> str:
-    """Keep plate formats flexible until the company's fields are agreed."""
+    """Preserve ASCII digits and optional hyphens between digit groups."""
     if not isinstance(value, str):
         raise DomainError("Enter a plate number.")
     value = value.strip()
@@ -22,12 +23,27 @@ def normalize_plate_number(value: str) -> str:
         raise DomainError("Enter a plate number.")
     if len(value) > 64:
         raise DomainError("The plate number must be 64 characters or fewer.")
-    if any(ord(character) < 32 or ord(character) == 127 for character in value):
-        raise DomainError("The plate number must be a single line of text.")
+    if not re.fullmatch(r"[0-9]+(?:-[0-9]+)*", value):
+        raise DomainError("Use English digits, with optional hyphens between digits, for the vehicle number.")
     return value
 
 
-VEHICLE_TEXT_FIELDS = {"vehicle_type": 120, "driver_name": 200, "chassis_number": 120, "manufacture_year": 32}
+VEHICLE_TEXT_FIELDS = {"owner_name": 200, "owner_phone": 32, "driver_name": 200,
+                       "driver_phone": 32, "vehicle_type": 120, "manufacture_year": 32, "chassis_number": 120}
+
+
+def is_vehicle_name(value):
+    """Allow English/Arabic letters, Arabic marks and spaces; require a letter."""
+    has_letter = False
+    for char in value:
+        category = unicodedata.category(char)
+        arabic = any(start <= ord(char) <= end for start, end in ((0x600, 0x6ff), (0x750, 0x77f), (0x8a0, 0x8ff)))
+        letter = char.isascii() and char.isalpha() or arabic and category.startswith("L")
+        if letter:
+            has_letter = True
+        elif char != " " and not (arabic and category.startswith("M") and has_letter):
+            return False
+    return has_letter
 
 
 def normalize_vehicle_fields(fields):
@@ -44,6 +60,15 @@ def normalize_vehicle_fields(fields):
             raise DomainError("A vehicle field exceeds its allowed length.")
         if any(unicodedata.category(char) == "Cc" for char in value):
             raise DomainError("Vehicle fields must be a single line of text.")
+        if value:
+            if name in ("owner_name", "driver_name", "vehicle_type") and not is_vehicle_name(value):
+                raise DomainError("Names and vehicle type accept Arabic or English letters and spaces only.")
+            if name == "owner_phone" and not re.fullmatch(r"[0-9\u0660-\u0669\u06f0-\u06f9]+", value):
+                raise DomainError("The owner phone accepts digits only.")
+            if name in ("driver_phone", "manufacture_year") and not re.fullmatch(r"[0-9]+", value):
+                raise DomainError("Driver phone and vehicle model accept English digits only.")
+            if name == "chassis_number" and not re.fullmatch(r"[A-Za-z0-9]+", value):
+                raise DomainError("The chassis number accepts English letters and digits only.")
         result[name] = value
     return result
 
@@ -78,3 +103,6 @@ class Vehicle:
     chassis_number: str = ""
     manufacture_year: str = ""
     cover: VehicleCover | None = None
+    owner_name: str = ""
+    owner_phone: str = ""
+    driver_phone: str = ""

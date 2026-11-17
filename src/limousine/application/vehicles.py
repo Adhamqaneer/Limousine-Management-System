@@ -1,6 +1,7 @@
 """The first vehicle use cases; persistence is supplied through a repository."""
 
 from typing import Protocol
+from limousine.domain.recycling import require_actor
 
 from limousine.domain.vehicles import Attachment, DomainError, NotFound, Vehicle, VehicleCover, normalize_plate_number, normalize_vehicle_fields
 
@@ -8,15 +9,15 @@ from limousine.domain.vehicles import Attachment, DomainError, NotFound, Vehicle
 class VehicleRepository(Protocol):
     def list_vehicles(self) -> list[Vehicle]: ...
     def get_vehicle(self, vehicle_id: int) -> Vehicle: ...
-    def create_vehicle(self, plate_number: str, **fields: str) -> Vehicle: ...
+    def create_vehicle(self, plate_number: str, *, actor=None, **fields: str) -> Vehicle: ...
     def update_vehicle(self, vehicle_id: int, **fields: str) -> Vehicle: ...
     def add_attachment(
-        self, vehicle_id: int, *, storage_key: str, original_name: str, kind: str, size: int
+        self, vehicle_id: int, *, storage_key: str, original_name: str, kind: str, size: int, actor=None
     ) -> Attachment: ...
     def get_attachment(self, vehicle_id: int, attachment_id: int) -> Attachment: ...
-    def delete_attachment(self, vehicle_id: int, attachment_id: int) -> str: ...
-    def delete_cover(self, vehicle_id: int) -> str: ...
-    def replace_cover(self, cover: VehicleCover) -> tuple[VehicleCover, str | None]: ...
+    def delete_attachment(self, vehicle_id: int, attachment_id: int, *, actor) -> None: ...
+    def delete_cover(self, vehicle_id: int, *, actor) -> None: ...
+    def replace_cover(self, cover: VehicleCover, *, actor) -> tuple[VehicleCover, None]: ...
 
 
 class VehicleService:
@@ -31,13 +32,16 @@ class VehicleService:
     def get_vehicle(self, vehicle_id: int) -> Vehicle:
         return self.repository.get_vehicle(vehicle_id)
 
-    def create_vehicle(self, plate_number: str, vehicle_type: str, **fields: str) -> Vehicle:
+    def create_vehicle(self, plate_number: str, vehicle_type: str, *, actor=None, **fields: str) -> Vehicle:
         return self.repository.create_vehicle(
             normalize_plate_number(plate_number),
             **normalize_vehicle_fields({"vehicle_type": vehicle_type, **fields}),
+            **({'actor': actor} if actor else {}),
         )
 
     def update_vehicle(self, vehicle_id: int, **fields: str) -> Vehicle:
+        if {'driver_name','driver_phone'} & fields.keys():
+            raise DomainError('Use Change driver or Correct current driver to preserve history.')
         if not fields:
             raise DomainError("Provide at least one vehicle field.")
         normalized = {}
@@ -47,7 +51,7 @@ class VehicleService:
         return self.repository.update_vehicle(vehicle_id, **normalized)
 
     def add_attachment(
-        self, vehicle_id: int, *, storage_key: str, original_name: str, kind: str, size: int
+        self, vehicle_id: int, *, storage_key: str, original_name: str, kind: str, size: int, actor=None
     ) -> Attachment:
         self.repository.get_vehicle(vehicle_id)
         if not isinstance(storage_key, str) or not storage_key.strip() or len(storage_key) > 500:
@@ -64,6 +68,7 @@ class VehicleService:
             original_name=original_name.strip(),
             kind=kind,
             size=size,
+            **({'actor': actor} if actor else {}),
         )
 
     def get_attachment(self, vehicle_id: int, attachment_id: int) -> Attachment:
@@ -78,13 +83,16 @@ class VehicleService:
             raise NotFound("This vehicle has no card photo.")
         return cover
 
-    def delete_attachment(self, vehicle_id: int, attachment_id: int) -> str:
-        return self.repository.delete_attachment(vehicle_id, attachment_id)
+    def delete_attachment(self, vehicle_id: int, attachment_id: int, *, actor):
+        require_actor(actor)
+        return self.repository.delete_attachment(vehicle_id, attachment_id, actor=actor)
 
-    def delete_cover(self, vehicle_id: int) -> str:
-        return self.repository.delete_cover(vehicle_id)
+    def delete_cover(self, vehicle_id: int, *, actor):
+        require_actor(actor)
+        return self.repository.delete_cover(vehicle_id, actor=actor)
 
-    def replace_cover(self, vehicle_id: int, *, storage_key: str, original_name: str, size: int):
+    def replace_cover(self, vehicle_id: int, *, storage_key: str, original_name: str, size: int, actor):
+        require_actor(actor)
         self.repository.get_vehicle(vehicle_id)
         if not isinstance(storage_key, str) or not storage_key.strip() or len(storage_key) > 500:
             raise DomainError("The card photo storage key is invalid.")
@@ -92,4 +100,4 @@ class VehicleService:
             raise DomainError("The card photo name is invalid.")
         if isinstance(size, bool) or not isinstance(size, int) or size <= 0:
             raise DomainError("Choose a non-empty photo.")
-        return self.repository.replace_cover(VehicleCover(vehicle_id, storage_key, original_name.strip(), size))
+        return self.repository.replace_cover(VehicleCover(vehicle_id, storage_key, original_name.strip(), size), actor=actor)

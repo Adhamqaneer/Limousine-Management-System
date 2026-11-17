@@ -63,7 +63,7 @@ def migrate(database):
         raise ValueError("Local migrations are restricted to the configured limousine_local database.")
     with database.connect() as connection:
         exists = connection.execute("SELECT to_regclass('public.hspace_schema_migration') AS name").fetchone()["name"]
-        upgrade = exists and not connection.execute("SELECT 1 FROM hspace_schema_migration WHERE version=2").fetchone()
+        upgrade = exists and not connection.execute("SELECT 1 FROM hspace_schema_migration WHERE version=5").fetchone()
     backup = backup_database(settings) if upgrade else None
     with database.connect() as connection:
         connection.execute("SELECT pg_advisory_xact_lock(72730804)")
@@ -92,4 +92,85 @@ def migrate(database):
             # An inherited index duplicated hspace_attachment_vehicle_idx.
             connection.execute("DROP INDEX IF EXISTS limo_attachment_vehicle_id_155e7f20")
             connection.execute("INSERT INTO hspace_schema_migration(version) VALUES (2)")
+        if not connection.execute("SELECT 1 FROM hspace_schema_migration WHERE version=3").fetchone():
+            connection.execute("""
+                ALTER TABLE limo_vehicle
+                    ADD COLUMN owner_name varchar(200) NOT NULL DEFAULT '',
+                    ADD COLUMN owner_phone varchar(32) NOT NULL DEFAULT '',
+                    ADD COLUMN driver_phone varchar(32) NOT NULL DEFAULT '',
+                    ADD CONSTRAINT hspace_owner_phone_digits CHECK (owner_phone !~ '[^0-9\u0660-\u0669\u06f0-\u06f9]'),
+                    ADD CONSTRAINT hspace_driver_phone_digits CHECK (driver_phone !~ '[^0-9]');
+                INSERT INTO hspace_schema_migration(version) VALUES (3);
+            """)
+        if not connection.execute("SELECT 1 FROM hspace_schema_migration WHERE version=4").fetchone():
+            for table in ('limo_vehicle', 'limo_attachment', 'limo_vehicle_cover'):
+                connection.execute(sql.SQL("""ALTER TABLE {} ADD COLUMN created_by uuid REFERENCES hspace_user(id),
+                    ADD COLUMN is_deleted boolean NOT NULL DEFAULT FALSE,
+                    ADD COLUMN deleted_at timestamptz,
+                    ADD COLUMN deleted_by uuid REFERENCES hspace_user(id),
+                    ADD CONSTRAINT {} CHECK ((is_deleted AND deleted_at IS NOT NULL AND deleted_by IS NOT NULL)
+                        OR (NOT is_deleted AND deleted_at IS NULL AND deleted_by IS NULL))""").format(sql.Identifier(table), sql.Identifier(table + '_deletion_state')))
+            # Retain older cover versions; only one undeleted cover may be active.
+            constraints = connection.execute("""SELECT conname FROM pg_constraint
+                WHERE conrelid='limo_vehicle_cover'::regclass AND contype='u'
+                AND conkey=ARRAY[(SELECT attnum FROM pg_attribute WHERE attrelid='limo_vehicle_cover'::regclass AND attname='vehicle_id')]::smallint[]""").fetchall()
+            for constraint in constraints:
+                connection.execute(sql.SQL('ALTER TABLE limo_vehicle_cover DROP CONSTRAINT {}').format(sql.Identifier(constraint['conname'])))
+            connection.execute("""
+                ALTER TABLE limo_vehicle_cover ADD COLUMN created_at timestamptz;
+                ALTER TABLE limo_vehicle_cover ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;
+                CREATE UNIQUE INDEX hspace_one_active_cover ON limo_vehicle_cover(vehicle_id) WHERE NOT is_deleted;
+                CREATE INDEX hspace_deleted_vehicles ON limo_vehicle(deleted_at) WHERE is_deleted;
+                CREATE TABLE hspace_activity (
+                    id bigserial PRIMARY KEY, vehicle_id bigint NOT NULL REFERENCES limo_vehicle(id),
+                    entity_kind varchar(10) NOT NULL CHECK(entity_kind IN ('vehicle','attachment','cover')),
+                    entity_id bigint NOT NULL, action varchar(10) NOT NULL CHECK(action IN ('CREATE','DELETE','RESTORE')),
+                    actor_id uuid NOT NULL REFERENCES hspace_user(id), actor_name varchar(150) NOT NULL,
+                    label varchar(255) NOT NULL, reason varchar(20) NOT NULL DEFAULT '',
+                    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP);
+                CREATE INDEX hspace_activity_vehicle_idx ON hspace_activity(vehicle_id,id DESC);
+                CREATE FUNCTION hspace_retain_records() RETURNS trigger LANGUAGE plpgsql AS $$
+                BEGIN RAISE EXCEPTION 'Retained records cannot be physically removed.' USING ERRCODE='23514'; END $$;
+                CREATE TRIGGER hspace_retain_vehicle BEFORE DELETE ON limo_vehicle FOR EACH ROW EXECUTE FUNCTION hspace_retain_records();
+                CREATE TRIGGER hspace_retain_attachment BEFORE DELETE ON limo_attachment FOR EACH ROW EXECUTE FUNCTION hspace_retain_records();
+                CREATE TRIGGER hspace_retain_cover BEFORE DELETE ON limo_vehicle_cover FOR EACH ROW EXECUTE FUNCTION hspace_retain_records();
+                CREATE TRIGGER hspace_retain_activity BEFORE UPDATE OR DELETE ON hspace_activity FOR EACH ROW EXECUTE FUNCTION hspace_retain_records();
+                INSERT INTO hspace_schema_migration(version) VALUES (4);
+            """)
+        if not connection.execute("SELECT 1 FROM hspace_schema_migration WHERE version=5").fetchone():
+            connection.execute("""
+                CREATE TABLE hspace_driver_assignment (
+                    id bigserial PRIMARY KEY, vehicle_id bigint NOT NULL REFERENCES limo_vehicle(id),
+                    driver_name varchar(200) NOT NULL, driver_phone varchar(32) NOT NULL DEFAULT '',
+                    started_on date, ended_on date, is_current boolean NOT NULL DEFAULT TRUE,
+                    created_by uuid REFERENCES hspace_user(id), created_by_name varchar(150),
+                    created_at timestamptz DEFAULT CURRENT_TIMESTAMP,
+                    updated_by uuid REFERENCES hspace_user(id), updated_by_name varchar(150), updated_at timestamptz,
+                    CHECK((is_current AND ended_on IS NULL) OR (NOT is_current AND ended_on IS NOT NULL)),
+                    CHECK(started_on IS NULL OR ended_on IS NULL OR started_on<=ended_on));
+                CREATE UNIQUE INDEX hspace_driver_current ON hspace_driver_assignment(vehicle_id) WHERE is_current;
+                CREATE INDEX hspace_driver_vehicle ON hspace_driver_assignment(vehicle_id,id DESC);
+                CREATE TABLE hspace_driver_change (
+                    id bigserial PRIMARY KEY, vehicle_id bigint NOT NULL REFERENCES limo_vehicle(id),
+                    assignment_id bigint NOT NULL REFERENCES hspace_driver_assignment(id),
+                    action varchar(8) NOT NULL CHECK(action IN ('ASSIGN','CORRECT')),
+                    actor_id uuid NOT NULL REFERENCES hspace_user(id), actor_name varchar(150) NOT NULL,
+                    before_data jsonb, after_data jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP);
+                CREATE INDEX hspace_driver_change_vehicle ON hspace_driver_change(vehicle_id,id DESC);
+                INSERT INTO hspace_driver_assignment(vehicle_id,driver_name,driver_phone,created_at)
+                    SELECT id,driver_name,driver_phone,NULL FROM limo_vehicle WHERE driver_name<>'' OR driver_phone<>'';
+                CREATE TRIGGER hspace_retain_driver BEFORE DELETE ON hspace_driver_assignment FOR EACH ROW EXECUTE FUNCTION hspace_retain_records();
+                CREATE TRIGGER hspace_retain_driver_change BEFORE UPDATE OR DELETE ON hspace_driver_change FOR EACH ROW EXECUTE FUNCTION hspace_retain_records();
+                CREATE FUNCTION hspace_driver_current_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+                BEGIN
+                    IF (NEW.driver_name,NEW.driver_phone) IS DISTINCT FROM (OLD.driver_name,OLD.driver_phone)
+                        AND NOT EXISTS(SELECT 1 FROM hspace_driver_assignment a WHERE a.vehicle_id=NEW.id AND a.is_current
+                            AND a.driver_name=NEW.driver_name AND a.driver_phone=NEW.driver_phone)
+                    THEN RAISE EXCEPTION 'Use the driver history workflow.' USING ERRCODE='23514'; END IF;
+                    RETURN NEW;
+                END $$;
+                CREATE TRIGGER hspace_guard_current_driver BEFORE UPDATE OF driver_name,driver_phone ON limo_vehicle
+                    FOR EACH ROW EXECUTE FUNCTION hspace_driver_current_guard();
+                INSERT INTO hspace_schema_migration(version) VALUES (5);
+            """)
     return backup

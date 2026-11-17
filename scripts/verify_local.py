@@ -24,6 +24,9 @@ def main():
     settings=load_settings()
     assert settings.db_host in ("127.0.0.1","localhost","::1") and settings.db_name=="limousine_local"
     database=Database(settings)
+    with database.connect() as connection:
+        if connection.execute('SELECT 1 FROM hspace_schema_migration WHERE version>=4').fetchone():
+            raise RuntimeError('The legacy conversion verifier is retired for schema 4. Use scripts/verify_recycling.py.')
     tables=("limo_vehicle","limo_attachment","limo_vehicle_cover")
     with database.connect() as connection:
         baseline={name:connection.execute("SELECT * FROM "+name+" ORDER BY id").fetchall() for name in tables}

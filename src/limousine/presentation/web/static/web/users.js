@@ -9,7 +9,7 @@
     note:'تعطيل الحساب أو حذفه ينهي جلساته. الحساب المحذوف يبقى محفوظًا ويمكن استعادته. حساب الأدمن محمي.',
     active:'مفعّل', disabled:'معطّل', deleted:'محذوف', admin:'أدمن', member:'عضو', disable:'تعطيل الدخول', enable:'تفعيل الدخول',
     remove:'حذف منطقي', restore:'استعادة الحساب', failed:'تعذّر تحميل الفريق أو تحديث الحساب. أعد المحاولة.', retry:'إعادة المحاولة', saved:'تم تحديث الحساب.', protected:'حساب الإدارة',
-    navVehicles:'السيارات', teamAccess:'الفريق', brandSub:'إدارة السيارات', skip:'انتقل إلى المحتوى', memberAccess:'فريق مكتبك', loading:'جارٍ تحميل الفريق…', signOut:'تسجيل الخروج' };
+    navDrivers:'سجل الشوفيرين', navTrash:'المحذوفات', navReports:'طباعة البيانات', navVehicles: 'السيارات', teamAccess:'الفريق', brandSub:'إدارة السيارات', skip:'انتقل إلى المحتوى', memberAccess:'فريق مكتبك', loading:'جارٍ تحميل الفريق…', signOut:'تسجيل الخروج' };
   const make = (tag,value,cls) => { const el=document.createElement(tag); el.textContent=value; if(cls)el.className=cls; return el; };
   const message=document.getElementById('team-message'), list=document.getElementById('team-list');
   let busy=false, users=[], messageKey='';

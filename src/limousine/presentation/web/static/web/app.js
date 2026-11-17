@@ -7,21 +7,23 @@
   document.querySelectorAll('[data-i18n-aria]').forEach(el => { en[el.dataset.i18nAria] = el.getAttribute('aria-label'); });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { en[el.dataset.i18nPlaceholder] = el.placeholder; });
   Object.assign(en, {
+    deleteVehicle:'Delete vehicle', confirmDeleteVehicle:'Move vehicle {plate} and its visible files to deleted items? Only the administrator can restore it.', vehicleDeleted:'Vehicle moved to deleted items.', filters:'Filters', doneFilters:'Done', printResults:'Print results', ownerFilterSummary:'{owner} · {shown} matching vehicles (of {total} total)',
+    filterSummary: 'Showing {shown} of {total} vehicles',
     title: 'H SPACE | Vehicles', teamAccess: 'Team', switchArabic: 'Switch to Arabic', switchEnglish: 'Switch to English',
     lightMode: 'Switch to light mode', darkMode: 'Switch to dark mode', vehicleCount: '{count} vehicles', vehicleCountOne: '1 vehicle',
     added: 'Added {date}', attachments: '{count} attachments', openVehicle: 'Open vehicle',
     saveUnavailable: 'Saving is unavailable until the local database is connected.', saving: 'Saving…', saved: 'Changes saved.',
     unavailable: 'Vehicle storage is unavailable. Please try again.',
     requestFailed: 'Something went wrong. Please try again.', notFound: 'This vehicle could not be found.',
-    invalidPlate: 'Enter a plate number of up to 64 characters.',
-    invalidDetails: 'Check the vehicle type and the length of each field.',
+    invalidPlate: 'Use English digits and optional hyphens between digits, up to 64 characters.',
+    invalidDetails: 'Check the allowed characters and length of each field.',
     invalidFile: 'This file is unsupported, damaged, or exceeds the allowed image dimensions. Check the format and limits below.',
     fileTooLarge: 'Each file must be no larger than 10 MB.',
     download: 'Download {name}', viewPhoto: 'View photo: {name}',
     viewFile: 'View', cardPhoto: 'Card photo', changeCardPhoto: 'Change card photo',
     deleteAttachment: 'Delete', deleteNamed: 'Delete {name}', removeCardPhoto: 'Remove card photo',
-    confirmDelete: 'Permanently delete "{name}"? This cannot be undone.',
-    confirmRemoveCover: 'Remove the card photo for {plate}? This cannot be undone.',
+    confirmDelete: 'Move "{name}" to deleted items? Only the administrator can restore it.',
+    confirmRemoveCover: 'Move the card photo for {plate} to deleted items? Only the administrator can restore it.',
     deleting: 'Deleting…', deleted: 'Attachment deleted.', coverDeleted: 'Card photo removed.',
     coverSaving: 'Saving card photo…', coverSaved: 'Card photo saved.',
     uploading: 'Uploading {current} of {total}…', uploadComplete: '{count} attachments added.',
@@ -30,7 +32,9 @@
     languageChanged: 'Language changed to English.', lightEnabled: 'Light mode enabled.', darkEnabled: 'Dark mode enabled.'
   });
   const ar = {
-    heroAccent: 'كل التفاصيل قدامك.', navVehicles: 'السيارات', title: 'H SPACE | السيارات', skip: 'انتقل إلى المحتوى', brandSub: 'إدارة السيارات', vehicles: 'سياراتك.',
+    ownerNameHint:'اختار مالكًا موجودًا أو اكتب اسمًا جديدًا. أحرف عربية أو إنجليزية ومسافات فقط.', deleteVehicle:'حذف السيارة', confirmDeleteVehicle:'نقل السيارة {plate} وملفاتها الظاهرة إلى المحذوفات؟ الاسترجاع للأدمن فقط.', vehicleDeleted:'تم نقل السيارة إلى المحذوفات.', filters:'الفلاتر', doneFilters:'تم', printResults:'طباعة النتائج', ownerFilterSummary:'{owner} · {shown} سيارة مطابقة (من أصل {total})',
+    filterVehicles: 'فلترة السيارات', allOwners: 'كل المالكين', allModels: 'كل الموديلات', allTypes: 'كل الأنواع', clearFilters: 'مسح الفلاتر', filterSummary: 'عرض {shown} من أصل {total} سيارة',
+    heroAccent: 'كل التفاصيل قدامك.', navDrivers:'سجل الشوفيرين', navTrash:'المحذوفات', navReports:'طباعة البيانات', navVehicles: 'السيارات', title: 'H SPACE | السيارات', skip: 'انتقل إلى المحتوى', brandSub: 'إدارة السيارات', vehicles: 'سياراتك.',
     workspace: 'مساحة عملك', teamAccess: 'إدارة الفريق', vehicleCollection: 'مجموعة السيارات', footerTagline: 'لكل تفصيل مكانه.',
     listDescription: 'لكل تفصيل مكانه. ولكل سيارة مساحتها.', addVehicle: 'إضافة سيارة',
     databaseTitle: 'تخزين السيارات غير متاح حاليًا',
@@ -38,10 +42,13 @@
     retry: 'إعادة المحاولة', search: 'البحث بالنمرة أو النوع', searchPlaceholder: 'ابحث بالنمرة أو النوع…',
     loading: 'جارٍ تحميل السيارات…', loadFailed: 'تعذّر تحميل السيارات', loadFailedDescription: 'تحقّق من الاتصال ثم أعد المحاولة.',
     emptyTitle: 'سياراتك رح تظهر هون', emptyDescription: 'أضف أول سيارة لتجمع بياناتها وصورها وملفاتها في مكان واحد.',
-    noResults: 'لا توجد سيارات مطابقة', trySearch: 'جرّب رقم سيارة آخر.', backToVehicles: 'العودة للسيارات',
+    noResults: 'لا توجد سيارات مطابقة', trySearch: 'جرّب بحثًا آخر أو امسح الفلاتر.', backToVehicles: 'العودة للسيارات',
     vehicleRecord: 'ملف السيارة', loadingDetails: 'جارٍ تحميل السيارة…', vehicleInformation: 'بيانات السيارة',
-    plateNumber: 'نمرة السيارة', vehicleType: 'نوع السيارة', driverName: 'اسم الشوفير',
-    chassisNumber: 'رقم الشصي', manufactureYear: 'سنة التصنيع', signOut: 'تسجيل الخروج', saveChanges: 'حفظ التعديلات',
+    ownerName: 'اسم المالك', ownerPhone: 'رقم تلفون المالك', driverPhone: 'رقم تلفون الشوفير',
+    nameRule: 'أحرف عربية أو إنجليزية ومسافات فقط.', phoneRule: 'أرقام فقط.', digitsRule: 'أرقام إنجليزية فقط (0–9).',
+    chassisRule: 'أحرف إنجليزية أو أرقام إنجليزية أو الاثنان معًا.', plateRule: 'أرقام إنجليزية؛ تُسمح الشرطة بين مجموعات الأرقام.',
+    plateNumber: 'رقم المركبة', vehicleType: 'نوع المركبة', driverName: 'اسم الشوفير',
+    chassisNumber: 'رقم الشصي', manufactureYear: 'موديل المركبة', signOut: 'تسجيل الخروج', saveChanges: 'حفظ التعديلات',
     photos: 'الصور', photoDescription: 'الصور الخاصة بهذه السيارة.', addPhotos: 'إضافة صور', noPhotos: 'لم تُضف صور بعد.',
     photoHint: 'JPG أو PNG أو WebP · حتى 10 ميجابايت و25 مليون بكسل للصورة', files: 'الملفات', fileDescription: 'المستندات الخاصة بهذه السيارة.',
     addFiles: 'إضافة ملفات', noFiles: 'لم تُضف ملفات بعد.', fileHint: 'PDF أو TXT أو DOCX أو XLSX · حتى 10 ميجابايت للملف',
@@ -51,14 +58,14 @@
     added: 'أُضيفت في {date}', attachments: '{count} مرفق', openVehicle: 'فتح السيارة',
     saveUnavailable: 'الحفظ غير متاح قبل اتصال قاعدة البيانات المحلية.', saving: 'جارٍ الحفظ…', saved: 'تم حفظ التعديلات.',
     unavailable: 'تخزين السيارات غير متاح حاليًا. أعد المحاولة.', requestFailed: 'حدث خطأ. أعد المحاولة.',
-    notFound: 'لم نتمكّن من العثور على هذه السيارة.', invalidPlate: 'أدخل نمرة سيارة لا تتجاوز 64 حرفًا.',
-    invalidDetails: 'تحقّق من نوع السيارة وأطوال الخانات المدخلة.',
+    notFound: 'لم نتمكّن من العثور على هذه السيارة.', invalidPlate: 'استخدم أرقامًا إنجليزية وشرطة بين الأرقام فقط، حتى 64 خانة.',
+    invalidDetails: 'تحقّق من الأحرف والأرقام المسموحة وطول كل خانة.',
     invalidFile: 'الملف غير مدعوم أو تالف أو أبعاد الصورة أكبر من المسموح. تحقّق من الصيغة والحدود المذكورة.', fileTooLarge: 'حجم كل ملف يجب ألا يتجاوز 10 ميجابايت.',
     download: 'تنزيل {name}', viewPhoto: 'عرض الصورة: {name}', uploading: 'جارٍ رفع {current} من {total}…',
     viewFile: 'عرض', cardPhoto: 'صورة البطاقة', changeCardPhoto: 'تغيير صورة البطاقة',
     deleteAttachment: 'حذف', deleteNamed: 'حذف {name}', removeCardPhoto: 'حذف صورة البطاقة',
-    confirmDelete: 'حذف "{name}" نهائيًا؟ لا يمكن التراجع عن الحذف.',
-    confirmRemoveCover: 'حذف صورة بطاقة السيارة {plate}؟ لا يمكن التراجع عن الحذف.',
+    confirmDelete: 'نقل "{name}" إلى المحذوفات؟ الاسترجاع للأدمن فقط.',
+    confirmRemoveCover: 'نقل صورة بطاقة السيارة {plate} إلى المحذوفات؟ الاسترجاع للأدمن فقط.',
     deleting: 'جارٍ الحذف…', deleted: 'تم حذف المرفق.', coverDeleted: 'تم حذف صورة البطاقة.',
     coverSaving: 'جارٍ حفظ صورة البطاقة…', coverSaved: 'تم حفظ صورة البطاقة.',
     uploadComplete: 'تمت إضافة {count} مرفق.', partialUpload: 'تمت إضافة {count} مرفق. {error}',
@@ -82,8 +89,20 @@
   let listRequest = 0;
   let detailRequest = 0;
   const messages = new Map();
-  const detailFields = { plate_number: 'detail-plate', vehicle_type: 'detail-type',
+  const detailFields = { owner_name: 'detail-owner', owner_phone: 'detail-owner-phone', driver_phone: 'detail-driver-phone', plate_number: 'detail-plate', vehicle_type: 'detail-type',
     driver_name: 'detail-driver', chassis_number: 'detail-chassis', manufacture_year: 'detail-year' };
+  function validateForm(formId, mapping, original = null) {
+    Object.entries(mapping).forEach(([name, id]) => {
+      const input = $(id);
+      const value = input.value.trim();
+      const key = original && value === (original[name] || '') ? '' : HSpaceVehicleValidation.error(name, value);
+      input.setCustomValidity(key ? t(key) : '');
+      if (key) input.setAttribute('aria-invalid', 'true');
+      else input.removeAttribute('aria-invalid');
+    });
+    return $(formId).reportValidity();
+  }
+  ['new-type', 'new-plate'].forEach(id => $(id).addEventListener('input', () => { $(id).setCustomValidity(''); $(id).removeAttribute('aria-invalid'); }));
   function detailValues() {
     return Object.fromEntries(Object.entries(detailFields).map(([name, id]) => [name, $(id).value.trim()]));
   }
@@ -171,14 +190,53 @@
     $('language-label').textContent = language === 'ar' ? 'English' : 'العربية';
     $('language-label').lang = language === 'ar' ? 'en' : 'ar';
     $('language-toggle').setAttribute('aria-label', t(language === 'ar' ? 'switchEnglish' : 'switchArabic'));
-    updateThemeButton(); renderList(); renderDetail(false); updateAddState();
-    messages.forEach((_, id) => renderMessage(id));
+    updateThemeButton(); renderFilters(); renderList(); renderDetail(false); updateAddState();
+    messages.forEach((_, id) => renderMessage(id)); window.dispatchEvent(new Event('hspace:language'));
+  }
+  const filterInputs = {owner_name:'filter-owner', manufacture_year:'filter-model', vehicle_type:'filter-type'};
+  const filterAllLabels = {owner_name:'allOwners', manufacture_year:'allModels', vehicle_type:'allTypes'};
+  function selectedFilters() {
+    return Object.fromEntries(Object.entries(filterInputs).map(([field, id]) => [field, $(id).value]));
+  }
+  let ownerNames = [];
+  let ownerSuggestionsLoading = false;
+  function renderOwnerSuggestions() {
+    $('owner-suggestions').replaceChildren(...ownerNames.filter(name => !HSpaceVehicleValidation.error('owner_name', name)).map(name => {
+      const option = document.createElement('option'); option.value = name; return option;
+    }));
+  }
+  async function loadOwnerSuggestions() {
+    if (ownerSuggestionsLoading) return;
+    ownerSuggestionsLoading = true;
+    try {
+      const payload = await api('/api/vehicles/');
+      ownerNames = HSpaceVehicleFilters.options(payload.vehicles, 'owner_name', language);
+      renderOwnerSuggestions();
+    } catch (_) { /* Suggestions are optional; the detail form stays usable. */ }
+    finally { ownerSuggestionsLoading = false; }
+  }
+  function renderFilters() {
+    Object.entries(filterInputs).forEach(([field, id]) => {
+      const select = $(id), selected = select.value;
+      const values = HSpaceVehicleFilters.options(vehicles, field, language);
+      // Keep a selected value after a refresh even when it no longer matches any car.
+      if (selected && !values.includes(selected)) values.push(selected);
+      const all = document.createElement('option'); all.value = ''; all.textContent = t(filterAllLabels[field]);
+      const choices = values.map(value => { const option = document.createElement('option'); option.value = value; option.textContent = value; option.dir = field === 'manufacture_year' ? 'ltr' : 'auto'; return option; });
+      select.replaceChildren(all, ...choices); select.value = selected;
+    });
   }
   function renderList() {
     show('list-loading', listState === 'loading'); show('list-error', listState === 'error');
     show('connection-notice', listState === 'unavailable');
-    const query = $('vehicle-search').value.trim().toLocaleLowerCase();
-    const filtered = vehicles.filter(vehicle => `${vehicle.vehicle_type} ${vehicle.plate_number}`.toLocaleLowerCase().includes(query));
+    const selected = selectedFilters();
+    const filtered = HSpaceSearch.search(HSpaceVehicleFilters.apply(vehicles, selected), $('vehicle-search').value);
+    Object.values(filterInputs).forEach(id => { $(id).disabled = listState !== 'ready'; });
+    $('clear-filters').disabled = !Object.values(selected).some(Boolean);
+    $('filter-summary').textContent = listState === 'ready' ? t(selected.owner_name ? 'ownerFilterSummary' : 'filterSummary', {owner:selected.owner_name, shown:filtered.length, total:vehicles.length}) : '';
+    const active = Object.values(selected).filter(Boolean).length;
+    $('filter-active-count').hidden = !active; $('filter-active-count').textContent = String(active);
+    $('print-results').disabled = listState !== 'ready' || !filtered.length;
     const empty = !vehicles.length && ['ready', 'unavailable'].includes(listState);
     show('empty-fleet', empty);
     $('empty-description').textContent = t(listState === 'unavailable' ? 'emptyDisconnected' : 'emptyDescription');
@@ -199,21 +257,29 @@
       const open = element('span', 'open-label', t('openVehicle')); open.append(icon('arrow'));
       footer.append(element('span', '', t('attachments', { count: vehicle.attachment_count })), open);
       body.append(footer); link.append(image, body);
-      const button = element('button', 'button secondary small card-photo-button', t(vehicle.cover_url ? 'changeCardPhoto' : 'cardPhoto'));
+      const photoLabel = t(vehicle.cover_url ? 'changeCardPhoto' : 'cardPhoto') + ': ' + vehicle.plate_number;
+      const button = element('button', 'icon-button card-photo-button');
+      button.title = photoLabel;
       button.type = 'button'; button.disabled = coverBusy;
       button.prepend(icon('photo'));
-      button.setAttribute('aria-label', `${button.textContent}: ${vehicle.plate_number}`);
+      button.setAttribute('aria-label', photoLabel);
       const input = document.createElement('input'); input.type = 'file'; input.hidden = true;
       input.accept = 'image/jpeg,image/png,image/webp';
       button.addEventListener('click', () => input.click());
       input.addEventListener('change', () => saveCardPhoto(vehicle.id, input.files[0]));
-      card.append(link, button, input);
-      if (vehicle.cover_url) {
-        const remove = element('button', 'button ghost small remove-cover-button danger', t('removeCardPhoto'));
-        remove.type = 'button'; remove.disabled = coverBusy;
-        remove.setAttribute('aria-label', `${t('removeCardPhoto')}: ${vehicle.plate_number}`);
-        remove.addEventListener('click', () => removeCardPhoto(vehicle)); card.append(remove);
-      }
+      const actions = element('div', 'vehicle-card-actions');
+      actions.append(button); card.append(link, actions, input);
+      const removeVehicle = element('button', 'icon-button danger remove-vehicle-button');
+      removeVehicle.append(icon('trash')); removeVehicle.title = t('deleteVehicle') + ': ' + vehicle.plate_number;
+      removeVehicle.type = 'button'; removeVehicle.disabled = coverBusy; removeVehicle.setAttribute('aria-label', t('deleteVehicle') + ': ' + vehicle.plate_number);
+      removeVehicle.addEventListener('click', async () => {
+        if (coverBusy || !window.confirm(t('confirmDeleteVehicle', {plate:vehicle.plate_number}))) return;
+        coverBusy = true; renderList();
+        try { await api('/api/vehicles/' + vehicle.id + '/', {method:'DELETE'}); vehicles = vehicles.filter(item => item.id !== vehicle.id); renderFilters(); message('cover-message','vehicleDeleted','success'); }
+        catch(error) { message('cover-message',errorKey(error),'error'); }
+        finally { coverBusy = false; renderList(); }
+      });
+      actions.append(removeVehicle);
       return card;
     }) : [];
     document.dispatchEvent(new Event('hspace:cards-changed'));
@@ -226,11 +292,12 @@
       const payload = await api('/api/vehicles/');
       if (request !== listRequest) return;
       vehicles = payload.vehicles; listState = 'ready'; storageReady = true;
+      ownerNames = HSpaceVehicleFilters.options(vehicles, 'owner_name', language); renderOwnerSuggestions();
     } catch (error) {
       if (request !== listRequest) return;
       vehicles = []; listState = error.status === 503 ? 'unavailable' : 'error';
     }
-    renderList(); updateAddState();
+    renderFilters(); renderList(); updateAddState();
   }
   async function saveCardPhoto(id, file) {
     if (!file || coverBusy) return;
@@ -244,16 +311,6 @@
       const payload = await api(`/api/vehicles/${id}/cover/`, { method: 'POST', body });
       vehicles = vehicles.map(vehicle => vehicle.id === id ? payload.vehicle : vehicle);
       message('cover-message', 'coverSaved', 'success');
-    } catch (error) { message('cover-message', errorKey(error), 'error'); }
-    finally { coverBusy = false; renderList(); }
-  }
-  async function removeCardPhoto(vehicle) {
-    if (coverBusy || !window.confirm(t('confirmRemoveCover', { plate: vehicle.plate_number }))) return;
-    coverBusy = true; renderList(); message('cover-message', 'deleting');
-    try {
-      await api(`/api/vehicles/${vehicle.id}/cover/`, { method: 'DELETE' });
-      vehicles = vehicles.map(item => item.id === vehicle.id ? { ...item, cover_url: null } : item);
-      message('cover-message', 'coverDeleted', 'success');
     } catch (error) { message('cover-message', errorKey(error), 'error'); }
     finally { coverBusy = false; renderList(); }
   }
@@ -285,10 +342,8 @@
         document.createTextNode(' · '), element('bdi', '', currentVehicle.plate_number));
     } else $('detail-title').textContent = t('vehicleRecord');
     $('detail-created').textContent = currentVehicle ? t('added', { date: date(currentVehicle.created_at) }) : '';
-    $('record-id').textContent = currentVehicle ? `#${currentVehicle.id}` : '';
-    $('record-id').hidden = !currentVehicle;
     if (!currentVehicle) return;
-    if (resetInput) Object.entries(detailFields).forEach(([name, id]) => { $(id).value = currentVehicle[name] || ''; });
+    if (resetInput) Object.entries(detailFields).forEach(([name, id]) => { $(id).value = currentVehicle[name] || ''; $(id).setCustomValidity(''); $(id).removeAttribute('aria-invalid'); });
     const photos = currentVehicle.attachments.filter(file => file.kind === 'image');
     const files = currentVehicle.attachments.filter(file => file.kind !== 'image');
     show('photos-empty', !photos.length); show('files-empty', !files.length);
@@ -355,7 +410,7 @@
       const payload = await api(`/api/vehicles/${id}/`);
       if (request !== detailRequest || id !== activeDetailId) return;
       currentVehicle = payload.vehicle; detailState = 'ready'; renderDetail(resetInput);
-      if (resetInput) document.dispatchEvent(new Event('hspace:detail-ready'));
+      if (resetInput) document.dispatchEvent(new CustomEvent('hspace:detail-ready',{detail:{vehicle:currentVehicle}}));
       document.title = `${currentVehicle.plate_number} | ${t('title')}`;
       if (resetInput) $('detail-title').focus({ preventScroll: true });
     } catch (error) {
@@ -370,7 +425,7 @@
     activeDetailId = match ? Number(match[1]) : null;
     show('list-view', !activeDetailId); show('detail-view', !!activeDetailId);
     message('information-message', ''); message('upload-message', '');
-    if (activeDetailId) loadDetail(activeDetailId);
+    if (activeDetailId) { loadDetail(activeDetailId); loadOwnerSuggestions(); }
     else {
       detailRequest++; document.title = t('title'); loadVehicles();
       if (previousDetailId !== null) $('list-title').focus({ preventScroll: true });
@@ -389,12 +444,17 @@
   $('add-dialog').addEventListener('cancel', event => { if (addBusy) event.preventDefault(); });
   ['retry-connection', 'retry-list'].forEach(id => $(id).addEventListener('click', loadVehicles));
   $('vehicle-search').addEventListener('input', renderList);
+  $('close-filters').addEventListener('click', () => { $('filter-popover').open = false; $('filter-popover').querySelector('summary').focus(); });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && $('filter-popover').open) { $('filter-popover').open = false; $('filter-popover').querySelector('summary').focus(); } });
+  document.addEventListener('click', event => { if (!$('filter-popover').contains(event.target)) $('filter-popover').open = false; });
+  $('print-results').addEventListener('click', () => { if (!$('print-results').disabled) location.assign('/reports/vehicles/' + HSpaceVehicleFilters.reportHash(selectedFilters(), $('vehicle-search').value)); });
+  Object.values(filterInputs).forEach(id => $(id).addEventListener('change', renderList));
+  $('clear-filters').addEventListener('click', () => { Object.values(filterInputs).forEach(id => { $(id).value = ''; }); renderList(); });
   $('add-form').addEventListener('submit', async event => {
     event.preventDefault(); if (!storageReady || addBusy) return;
     const plate = $('new-plate').value.trim();
     const type = $('new-type').value.trim();
-    if (!plate || plate.length > 64) { message('add-message', 'invalidPlate', 'error'); return; }
-    if (!type || type.length > 120) { message('add-message', 'invalidDetails', 'error'); return; }
+    if (!validateForm('add-form', {plate_number: 'new-plate', vehicle_type: 'new-type'})) return;
     addBusy = true; updateAddState(); message('add-message', '');
     try {
       const payload = await api('/api/vehicles/', { method: 'POST', body: JSON.stringify({ plate_number: plate, vehicle_type: type }) });
@@ -402,17 +462,18 @@
     } catch (error) { message('add-message', errorKey(error), 'error'); }
     finally { addBusy = false; updateAddState(); }
   });
-  Object.values(detailFields).forEach(id => $(id).addEventListener('input', () => { message('information-message', ''); updateDetailControls(); }));
+  Object.values(detailFields).forEach(id => $(id).addEventListener('input', () => { $(id).setCustomValidity(''); $(id).removeAttribute('aria-invalid'); message('information-message', ''); updateDetailControls(); }));
   $('vehicle-information-form').addEventListener('submit', async event => {
     event.preventDefault(); if (!currentVehicle || informationBusy || uploadBusy || deleteBusy) return;
-    const id = currentVehicle.id; const fields = detailValues();
-    if (!fields.plate_number || fields.plate_number.length > 64) { message('information-message', 'invalidPlate', 'error'); return; }
-    if (!fields.vehicle_type) { message('information-message', 'invalidDetails', 'error'); return; }
+    const id = currentVehicle.id;
+    if (!validateForm('vehicle-information-form', detailFields, currentVehicle)) return;
+    const fields = Object.fromEntries(Object.entries(detailValues()).filter(([name, value]) => value !== (currentVehicle[name] || '')));
+    if (!Object.keys(fields).length) return;
     informationBusy = true; updateDetailControls(); message('information-message', '');
     try {
       const payload = await api(`/api/vehicles/${id}/`, { method: 'PATCH', body: JSON.stringify(fields) });
       if (activeDetailId !== id) return;
-      currentVehicle = payload.vehicle; renderDetail(true); message('information-message', 'saved', 'success');
+      currentVehicle = payload.vehicle; renderDetail(true); loadOwnerSuggestions(); message('information-message', 'saved', 'success');
       document.title = `${currentVehicle.plate_number} | ${t('title')}`;
     } catch (error) { if (activeDetailId === id) message('information-message', errorKey(error), 'error'); }
     finally { informationBusy = false; updateDetailControls(); }
@@ -448,6 +509,7 @@
   }
   $('photo-input').addEventListener('change', () => upload($('photo-input')));
   $('file-input').addEventListener('change', () => upload($('file-input')));
+  document.addEventListener('hspace:driver-updated', event => { if (currentVehicle && currentVehicle.id === event.detail.vehicle.id) { currentVehicle = event.detail.vehicle; renderDetail(true); } });
   window.addEventListener('hashchange', route);
   applyLanguage(); route();
 })();

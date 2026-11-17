@@ -9,6 +9,12 @@ class FileCleanup:
     def __init__(self, database, store):
         self.database, self.store = database, store
 
+    def discard(self, key):
+        # An uncertain commit must never unlink a referenced (even deleted) file.
+        with self.database.connect() as connection:
+            connection.execute('INSERT INTO hspace_file_cleanup(storage_key) VALUES (%s) ON CONFLICT DO NOTHING', (key,))
+        return self.process(key)
+
     def process(self, key):
         try:
             with self.database.connect() as connection:

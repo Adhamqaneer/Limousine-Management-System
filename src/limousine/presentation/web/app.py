@@ -11,6 +11,9 @@ from starlette.responses import JSONResponse, RedirectResponse, FileResponse, Re
 from starlette.staticfiles import StaticFiles
 from limousine.config.runtime import load_settings, ROOT
 from limousine.application.vehicles import VehicleService
+from limousine.application.recycling import RecyclingService
+from limousine.application.drivers import DriverService
+from limousine.infrastructure.drivers import PostgresDriverRepository
 from limousine.application.accounts import AccountService
 from limousine.domain.vehicles import DomainError, NotFound
 from limousine.domain.accounts import AccessDenied
@@ -36,6 +39,7 @@ def attachment_payload(item):
 def vehicle_payload(item, detailed=False):
     payload = {"id": item.id, "plate_number": item.plate_number, "vehicle_type": item.vehicle_type,
         "driver_name": item.driver_name, "chassis_number": item.chassis_number, "manufacture_year": item.manufacture_year,
+        "owner_name": item.owner_name, "owner_phone": item.owner_phone, "driver_phone": item.driver_phone,
         "created_at": item.created_at.isoformat(), "attachment_count": len(item.attachments),
         "cover_url": f"/api/vehicles/{item.id}/cover/" if item.cover else None}
     if detailed:
@@ -58,7 +62,7 @@ async def vehicle_fields(request, creating=False):
         payload = json.loads(body)
     except (ValueError, UnicodeDecodeError):
         raise DomainError("Invalid JSON.") from None
-    allowed = {"plate_number", "vehicle_type", "driver_name", "chassis_number", "manufacture_year"}
+    allowed = {"plate_number", "vehicle_type", "driver_name", "chassis_number", "manufacture_year", "owner_name", "owner_phone", "driver_phone"}
     if not isinstance(payload, dict) or not payload or set(payload) - allowed:
         raise DomainError("Provide only the agreed vehicle fields.")
     if creating and not {"plate_number", "vehicle_type"}.issubset(payload):
@@ -79,6 +83,8 @@ def create_app(settings=None):
     app.state.accounts = PostgresAccountRepository(app.state.database)
     app.state.account_service = AccountService(app.state.accounts)
     app.state.vehicles = VehicleService(PostgresVehicleRepository(app.state.database))
+    app.state.recycling = RecyclingService(PostgresVehicleRepository(app.state.database))
+    app.state.drivers = DriverService(PostgresDriverRepository(app.state.database))
     app.state.store = LocalAttachmentStore(settings.media_root)
     app.state.cleanup = FileCleanup(app.state.database, app.state.store)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.allowed_hosts))
@@ -196,6 +202,10 @@ def create_app(settings=None):
         set_csrf_cookie(response, csrf_token(settings), settings)
         return response
 
+    @app.get("/reports/vehicles/", name="vehicle_report")
+    def vehicle_report(request: Request, user=Depends(current_user)):
+        return render_page(request, "vehicle_report.html", user=user)
+
     @app.get("/api/vehicles/")
     def vehicles(user=Depends(current_user)):
         return {"vehicles": [vehicle_payload(item) for item in app.state.vehicles.list_vehicles()]}
@@ -204,7 +214,7 @@ def create_app(settings=None):
     async def add_vehicle(request: Request, user=Depends(current_user)):
         require_csrf(request)
         fields = await vehicle_fields(request, True)
-        vehicle = await run_in_threadpool(app.state.vehicles.create_vehicle, **fields)
+        vehicle = await run_in_threadpool(app.state.vehicles.create_vehicle, actor=user, **fields)
         return {"vehicle": vehicle_payload(vehicle, True)}
 
     @app.get("/api/vehicles/{vehicle_id}/")
@@ -218,7 +228,7 @@ def create_app(settings=None):
         vehicle = await run_in_threadpool(app.state.vehicles.update_vehicle, vehicle_id, **fields)
         return {"vehicle": vehicle_payload(vehicle, True)}
 
-    def store_upload(vehicle_id, upload, cover):
+    def store_upload(vehicle_id, upload, cover, actor):
         service, store = app.state.vehicles, app.state.store
         service.get_vehicle(vehicle_id)
         try:
@@ -229,49 +239,102 @@ def create_app(settings=None):
             return error("invalid_file", str(exc), 400)
         try:
             if cover:
-                _, old = service.replace_cover(vehicle_id, storage_key=saved.storage_key, original_name=saved.original_name, size=saved.size)
+                service.replace_cover(vehicle_id, storage_key=saved.storage_key, original_name=saved.original_name, size=saved.size, actor=actor)
             else:
-                item = service.add_attachment(vehicle_id, storage_key=saved.storage_key, original_name=saved.original_name, size=saved.size, kind=saved.kind)
-                old = None
+                item = service.add_attachment(vehicle_id, storage_key=saved.storage_key, original_name=saved.original_name, size=saved.size, kind=saved.kind, actor=actor)
         except Exception:
             try:
-                store.delete(saved.storage_key)
-            except OSError:
+                app.state.cleanup.discard(saved.storage_key)
+            except (OSError, psycopg.Error):
                 logger.warning("Failed to clean an unsuccessful upload.")
             raise
-        if old:
-            app.state.cleanup.process(old)
         return JSONResponse({"vehicle": vehicle_payload(service.get_vehicle(vehicle_id), True)} if cover else {"attachment": attachment_payload(item)}, status_code=201)
 
-    async def upload_request(vehicle_id, request, cover):
+    async def upload_request(vehicle_id, request, cover, actor):
         require_csrf(request)
         async with request.form(max_files=1, max_fields=1) as form:
             upload = form.get("file")
             if len(form) != 1 or len(form.getlist("file")) != 1 or not hasattr(upload, "file"):
                 raise DomainError("Choose exactly one file.")
-            return await run_in_threadpool(store_upload, vehicle_id, upload, cover)
+            return await run_in_threadpool(store_upload, vehicle_id, upload, cover, actor)
 
     @app.post("/api/vehicles/{vehicle_id}/attachments/")
     async def upload_attachment(vehicle_id: int, request: Request, user=Depends(current_user)):
-        return await upload_request(vehicle_id, request, False)
+        return await upload_request(vehicle_id, request, False, user)
 
     @app.post("/api/vehicles/{vehicle_id}/cover/")
     async def upload_cover(vehicle_id: int, request: Request, user=Depends(current_user)):
-        return await upload_request(vehicle_id, request, True)
+        return await upload_request(vehicle_id, request, True, user)
 
     @app.delete("/api/vehicles/{vehicle_id}/attachments/{attachment_id}/", status_code=204)
     def delete_attachment(vehicle_id: int, attachment_id: int, request: Request, user=Depends(current_user)):
         require_csrf(request)
-        key = app.state.vehicles.delete_attachment(vehicle_id, attachment_id)
-        app.state.cleanup.process(key)
+        app.state.vehicles.delete_attachment(vehicle_id, attachment_id, actor=user)
         return Response(status_code=204)
 
     @app.delete("/api/vehicles/{vehicle_id}/cover/", status_code=204)
     def delete_cover(vehicle_id: int, request: Request, user=Depends(current_user)):
         require_csrf(request)
-        key = app.state.vehicles.delete_cover(vehicle_id)
-        app.state.cleanup.process(key)
+        app.state.vehicles.delete_cover(vehicle_id, actor=user)
         return Response(status_code=204)
+
+    @app.delete('/api/vehicles/{vehicle_id}/', status_code=204)
+    def delete_vehicle(vehicle_id: int, request: Request, user=Depends(current_user)):
+        require_csrf(request)
+        app.state.recycling.delete_vehicle(vehicle_id, user)
+        return Response(status_code=204)
+
+    @app.get('/recycle-bin/')
+    def recycle_bin(request: Request, user=Depends(administrator)):
+        return render_page(request, 'recycle_bin.html', user=user)
+
+    @app.get('/api/recycle-bin/')
+    def deleted_items(user=Depends(administrator)):
+        return {'items': app.state.recycling.list_deleted(user)}
+
+    @app.post('/api/recycle-bin/{kind}/{item_id}/restore/', status_code=204)
+    def restore_item(kind: str, item_id: int, request: Request, user=Depends(administrator)):
+        require_csrf(request)
+        app.state.recycling.restore_item(kind, item_id, user)
+        return Response(status_code=204)
+
+    @app.get('/api/activity/')
+    def activity(before: int | None = None, user=Depends(administrator)):
+        if before is not None and before < 1:
+            raise DomainError('Invalid activity cursor.')
+        return {'events': app.state.recycling.list_activity(user, before)}
+
+    @app.get('/drivers/')
+    def driver_history_page(request: Request,user=Depends(current_user)):
+        return render_page(request,'drivers.html',user=user)
+
+    @app.get('/api/drivers/')
+    def driver_history(vehicle_id:int|None=None,q:str='',on_date:str|None=None,user=Depends(current_user)):
+        return {'assignments':app.state.drivers.history(vehicle_id,q,on_date)}
+
+    @app.get('/api/vehicles/{vehicle_id}/drivers/')
+    def vehicle_drivers(vehicle_id:int,user=Depends(current_user)):
+        return {'assignments':app.state.drivers.history(vehicle_id),'corrections':app.state.drivers.corrections(vehicle_id)}
+
+    async def driver_request(vehicle_id,request,user,correcting):
+        require_csrf(request)
+        body=await request.body()
+        if len(body)>4096:raise DomainError('Driver form is too large.')
+        import json
+        try:payload=json.loads(body)
+        except (ValueError,UnicodeDecodeError):raise DomainError('Invalid driver form.') from None
+        if not isinstance(payload,dict) or set(payload)!={'driver_name','driver_phone','started_on'}:raise DomainError('Provide driver name, phone and start date only.')
+        method=app.state.drivers.correct if correcting else app.state.drivers.assign
+        await run_in_threadpool(method,vehicle_id,payload['driver_name'],payload['driver_phone'],payload['started_on'],user)
+        return {'vehicle':vehicle_payload(app.state.vehicles.get_vehicle(vehicle_id),True)}
+
+    @app.post('/api/vehicles/{vehicle_id}/drivers/')
+    async def assign_driver(vehicle_id:int,request:Request,user=Depends(current_user)):
+        return await driver_request(vehicle_id,request,user,False)
+
+    @app.patch('/api/vehicles/{vehicle_id}/drivers/current/')
+    async def correct_driver(vehicle_id:int,request:Request,user=Depends(current_user)):
+        return await driver_request(vehicle_id,request,user,True)
 
     def file_response(key, filename, preview):
         path = app.state.store.path(key)

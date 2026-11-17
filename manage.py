@@ -35,7 +35,7 @@ def main():
         return 0 if result.wasSuccessful() else 1
     elif args.command == "check":
         from limousine.presentation.web.app import app
-        for name in ("login.html", "home.html", "document_preview.html", "users.html"):
+        for name in ("login.html", "home.html", "document_preview.html", "users.html", "vehicle_report.html", "recycle_bin.html", "drivers.html"):
             from limousine.presentation.web.rendering import templates
             templates.get_template("web/" + name)
         print(f"FastAPI loaded; {len(app.routes)} routes and all templates checked.")

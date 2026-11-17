@@ -49,18 +49,18 @@ class MemoryVehicleRepository:
 
 
 class PlateNumberTests(SimpleTestCase):
-    def test_preserves_flexible_formats_and_leading_zeroes(self):
-        self.assertEqual(normalize_plate_number("  00123 - أ  "), "00123 - أ")
+    def test_preserves_hyphens_and_leading_zeroes(self):
+        self.assertEqual(normalize_plate_number("  00123-50  "), "00123-50")
 
     def test_rejects_empty_nontext_and_multiline_values(self):
         for value in ("", "   ", None, 123, "12\n34", "12\t34", "\x00123"):
             with self.subTest(value=value), self.assertRaises(DomainError):
                 normalize_plate_number(value)
 
-    def test_enforces_length_without_inventing_a_plate_format(self):
-        self.assertEqual(normalize_plate_number("أ" * 64), "أ" * 64)
+    def test_enforces_length_and_agreed_plate_format(self):
+        self.assertEqual(normalize_plate_number("1" * 64), "1" * 64)
         with self.assertRaises(DomainError):
-            normalize_plate_number("أ" * 65)
+            normalize_plate_number("1" * 65)
 
 
 class VehicleUseCaseTests(SimpleTestCase):
@@ -114,10 +114,10 @@ class VehicleUseCaseTests(SimpleTestCase):
         self.assertEqual(self.repository.attachments, {})
 
     def test_agreed_text_fields_preserve_zeroes_and_partial_edits(self):
-        car = self.service.create_vehicle("001", "  Sedan  ", chassis_number=" 0007 ", manufacture_year="٢٠٢٠")
-        edited = self.service.update_vehicle(car.id, driver_name="  أحمد  ")
-        self.assertEqual((edited.vehicle_type, edited.chassis_number, edited.manufacture_year, edited.driver_name),
-                         ("Sedan", "0007", "٢٠٢٠", "أحمد"))
+        car = self.service.create_vehicle("001", "  Sedan  ", chassis_number=" 0007 ", manufacture_year="2020")
+        edited = self.service.update_vehicle(car.id, owner_name="  أحمد  ")
+        self.assertEqual((edited.vehicle_type, edited.chassis_number, edited.manufacture_year, edited.owner_name),
+                         ("Sedan", "0007", "2020", "أحمد"))
 
     def test_type_is_required_and_other_fields_must_be_single_line_text(self):
         for fields in ({"vehicle_type": " "}, {"vehicle_type": "Sedan", "driver_name": "a\nb"},
@@ -126,3 +126,34 @@ class VehicleUseCaseTests(SimpleTestCase):
             with self.subTest(fields=fields), self.assertRaises(DomainError):
                 self.service.create_vehicle("001", **fields)
         self.assertEqual(self.repository.vehicles, {})
+
+    def test_eight_fields_round_trip_without_losing_leading_zeroes(self):
+        car = self.service.create_vehicle("050-001", "تويوتا كامري", owner_name="Adham qaneer",
+            owner_phone="٠٧٩٠٠١", driver_name="أحمد قنير", driver_phone="0079001",
+            chassis_number="JT001a", manufacture_year="002024")
+        self.assertEqual((car.owner_name, car.owner_phone, car.driver_phone, car.chassis_number, car.manufacture_year),
+                         ("Adham qaneer", "٠٧٩٠٠١", "0079001", "JT001a", "002024"))
+        for chassis in ("ABC", "00123", "JT001a", ""):
+            self.assertEqual(self.service.update_vehicle(car.id, chassis_number=chassis).chassis_number, chassis)
+
+    def test_character_rules_reject_invalid_changes_atomically(self):
+        car = self.service.create_vehicle("50-1746", "Camry")
+        invalid = {"owner_name": ["Adham1", "Αdh am", "أحمد!", "َ"],
+            "driver_name": ["John-Doe", "Driver2"], "vehicle_type": ["Camry2024", "سيارة!"],
+            "owner_phone": ["+96279", "079 123", "abc"], "driver_phone": ["٠٧٩", "１２３", "+123"],
+            "manufacture_year": ["٢٠٢٤", "2024a"], "chassis_number": ["ABC-123", "ش123", "Ａ1", "١٢٣"],
+            "plate_number": ["-12", "12-", "1--2", "١٢-٣", "12 34", "ABC"]}
+        for field, values in invalid.items():
+            for value in values:
+                with self.subTest(field=field, value=value), self.assertRaises(DomainError):
+                    self.service.update_vehicle(car.id, **{field: value, "owner_name": value if field == "owner_name" else "New owner"})
+        self.assertEqual(self.service.get_vehicle(car.id), car)
+
+    def test_legacy_values_survive_unrelated_partial_edit(self):
+        car = self.repository.create_vehicle("OLD A", vehicle_type="Camry 2024", chassis_number="old-chassis")
+        edited = self.service.update_vehicle(car.id, owner_phone="00123")
+        self.assertEqual((edited.plate_number, edited.vehicle_type, edited.chassis_number), ("OLD A", "Camry 2024", "old-chassis"))
+
+    def test_names_allow_arabic_marks_and_english_spaces(self):
+        for name in ("مُحَمَّد", "Abd Alhameed", "أحمد Adham"):
+            self.assertEqual(self.service.create_vehicle("123", name, owner_name=name).owner_name, name)
