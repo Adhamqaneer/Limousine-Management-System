@@ -20,4 +20,10 @@ const cases = [
 ];
 for (const [query, expected] of cases) assert.deepEqual(Array.from(context.HSpaceSearch.search(cars, query), car => car.id), expected, query);
 assert.equal(JSON.stringify(cars), original);
+// Cached comparisons must not hide later edits to the same record object.
+const updated = {id:5,vehicle_type:'Camry',plate_number:'000-123'};
+assert.equal(context.HSpaceSearch.search([updated], 'Camry').length, 1);
+updated.vehicle_type = 'Accord'; updated.plate_number = '000-456';
+assert.equal(context.HSpaceSearch.search([updated], 'Camry').length, 0);
+assert.equal(context.HSpaceSearch.search([updated], 'Accord 456').length, 1);
 module.exports = { passed: cases.length, nonmutating: true };

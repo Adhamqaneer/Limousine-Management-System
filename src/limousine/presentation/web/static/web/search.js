@@ -22,6 +22,16 @@
     return previous[b.length];
   }
   const compactPlate = value => normalize(value).replace(/[\s\-–—]/g, '');
+  const cache = new WeakMap();
+  function prepared(vehicle) {
+    let data = cache.get(vehicle);
+    if (!data || data.rawType !== vehicle.vehicle_type || data.rawPlate !== vehicle.plate_number) {
+      const type = normalize(vehicle.vehicle_type), plate = normalize(vehicle.plate_number);
+      data = {rawType:vehicle.vehicle_type, rawPlate:vehicle.plate_number, type, plate, words:type.match(/[\p{L}\p{N}]+/gu) || []};
+      cache.set(vehicle, data);
+    }
+    return data;
+  }
   function search(vehicles, input) {
     const query = normalize(input);
     if (!query) return vehicles.slice();
@@ -30,13 +40,12 @@
     if (!tokens.length) return [];
     const ranked = [];
     vehicles.forEach((vehicle, index) => {
-      const type = normalize(vehicle.vehicle_type), plate = normalize(vehicle.plate_number);
+      const {type,plate,words}=prepared(vehicle);
       if (/^[\d\s\-–—]+$/.test(query)) {
         const needle = compactPlate(query), haystack = compactPlate(plate);
         if (needle && haystack.includes(needle)) ranked.push({ vehicle, score: haystack === needle ? -1 : 0, index });
         return;
       }
-      const words = type.match(/[\p{L}\p{N}]+/gu) || [];
       let score = 0;
       for (const token of tokens) {
         if (words.includes(token) || plate === token) continue;

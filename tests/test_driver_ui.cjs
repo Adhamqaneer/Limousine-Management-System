@@ -6,20 +6,22 @@ function page(globalPage){
   class Node{
     constructor(tag='div'){this.tagName=tag;this.children=[];this.handlers={};this.dataset={};this.value='';this.classes=new Set();this.classList={toggle:(name,on)=>on?this.classes.add(name):this.classes.delete(name)};}
     append(...children){this.children.push(...children);}replaceChildren(...children){this.children=children;}
-    addEventListener(name,fn){this.handlers[name]=fn;}setAttribute(name,value){this[name]=value;}showModal(){this.open=true;}close(){this.open=false;}
+    addEventListener(name,fn){this.handlers[name]=fn;}setAttribute(name,value){this[name]=value;}showModal(){this.open=true;}close(){this.open=false;}focus(){document.activeElement=this;}
   }
   for(const id of ['csrf-token','driver-status','driver-search','print-driver-history','report-paper','driver-report-head','driver-report-body','driver-report-scope','driver-search-form','driver-query','driver-on-date','driver-print-dialog','driver-print-with','driver-print-without','driver-print-cancel','change-driver','correct-driver','all-driver-history','vehicle-driver-history','driver-corrections','driver-dialog-title','new-driver-name','new-driver-phone','driver-start','driver-form-message','driver-dialog','cancel-driver','driver-form','save-driver'])nodes.set(id,new Node());
+  for(const field of ['driver_name','driver_phone','started_on'])nodes.set('error-'+field,new Node());
   nodes.get('csrf-token').value='csrf';nodes.get('change-driver').parentElement=new Node();
   const original={id:1,vehicle_id:1,driver_name:'Old Driver',driver_phone:'00123',started_on:null,ended_on:null,is_current:true,plate_number:'050-001',vehicle_type:'Camry',created_by_name:'Member',created_at:'2026-01-01T10:00:00Z'};
-  let rows=[original],printed=0,fail=false;
+  let rows=[original],printed=0,fail=false,validationError=null;
   const document={body:{dataset:globalPage?{driverHistory:'true'}:{}},documentElement:{lang:'en'},getElementById:id=>nodes.get(id),createElement:tag=>new Node(tag),querySelectorAll:()=>[],addEventListener:(name,fn)=>{events[name]=fn;},dispatchEvent:event=>{dispatched.push(event);}};
   const context={document,Intl,Date,URLSearchParams,location:{hash:globalPage?'':'#vehicle/1',search:'',assign:()=>{}},window:{addEventListener:(name,fn)=>{events[name]=fn;},print:()=>printed++},CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}},fetch:async(url,options)=>{
     calls.push([url,options]);if(fail)return {ok:false,status:503};
+    if(options.method&&validationError)return {ok:false,status:400,json:async()=>({error:validationError})};
     if(options.method){const payload=JSON.parse(options.body);if(options.method==='POST'){rows=rows.map(row=>({...row,is_current:false,ended_on:payload.started_on}));rows.unshift({...original,...payload,id:2});}else rows=rows.map(row=>row.is_current?{...row,...payload}:row);return {ok:true,status:200,json:async()=>({vehicle:{id:1,...payload}})};}
     return {ok:true,status:200,json:async()=>({assignments:rows,corrections:[]})};
   }};
   vm.runInNewContext(source,context);
-  return {nodes,events,calls,dispatched,document,setFail:value=>{fail=value;},printed:()=>printed};
+  return {nodes,events,calls,dispatched,document,setFail:value=>{fail=value;},setValidation:value=>{validationError=value;},printed:()=>printed};
 }
 async function main(){
   const g=page(true),get=id=>g.nodes.get(id);await tick();
@@ -42,6 +44,17 @@ async function main(){
   input('change-driver').handlers.click();assert.equal(input('driver-start').required,true);
   input('new-driver-name').value='New Driver';input('new-driver-phone').value='0079';input('driver-start').value='2022-01-01';await input('driver-form').handlers.submit({preventDefault(){}});
   assert.equal(input('vehicle-driver-history').children.length,2);assert.ok(h.calls.some(([url,options])=>url.endsWith('/drivers/')&&options.method==='POST'));
-  console.log('Driver UI correction/assignment, CSRF, current synchronization, name/date search, both print modes, RTL and error gating passed.');
+  const record=input('vehicle-driver-history').children[0];
+  assert.equal(record.children[1].dir,'ltr');assert.equal(record.children[2].dir,'ltr');
+  for(const [field,reason,id] of [['driver_phone','phoneRule','new-driver-phone'],['started_on','overlapStart','driver-start']]){
+    input('change-driver').handlers.click();input('new-driver-name').value='Keep this name';input('new-driver-phone').value='+123';
+    h.setValidation({field,reason});await input('driver-form').handlers.submit({preventDefault(){}});
+    assert.ok(input('driver-dialog').open);assert.equal(h.document.activeElement,input(id));assert.equal(input(id)['aria-invalid'],'true');
+    assert.ok(input('error-'+field).textContent);assert.equal(input('new-driver-name').value,'Keep this name');
+    input(id).handlers.input();assert.equal(input(id)['aria-invalid'],'false');assert.equal(input('error-'+field).textContent,'');
+  }
+  h.document.documentElement.lang='ar';h.events['hspace:language']();h.setValidation({field:'driver_phone',reason:'phoneRule'});
+  await input('driver-form').handlers.submit({preventDefault(){}});assert.match(input('error-driver_phone').textContent,/أرقام/);
+  console.log('Driver UI correction/assignment, CSRF, current synchronization, RTL isolation, field errors/focus/input retention, both print modes and error gating passed.');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

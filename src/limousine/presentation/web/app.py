@@ -1,6 +1,7 @@
 """FastAPI HTTP adaptation; business rules and persistence stay outside routes."""
 import logging
 from pathlib import PurePosixPath
+from typing import Literal
 from uuid import UUID
 import psycopg
 from fastapi import FastAPI, Request, Depends, HTTPException
@@ -13,6 +14,8 @@ from limousine.config.runtime import load_settings, ROOT
 from limousine.application.vehicles import VehicleService
 from limousine.application.recycling import RecyclingService
 from limousine.application.drivers import DriverService
+from limousine.domain.drivers import DriverValidationError
+from limousine.domain.attachments import AttachmentNameConflict, AttachmentNameError
 from limousine.infrastructure.drivers import PostgresDriverRepository
 from limousine.application.accounts import AccountService
 from limousine.domain.vehicles import DomainError, NotFound
@@ -22,9 +25,11 @@ from limousine.infrastructure.file_cleanup import FileCleanup
 from limousine.infrastructure.accounts import PostgresAccountRepository
 from limousine.infrastructure.vehicle_repository import PostgresVehicleRepository
 from limousine.infrastructure.attachments import LocalAttachmentStore, AttachmentTooLarge, MAX_ATTACHMENT_BYTES
+from limousine.infrastructure.attachment_archive import build_attachment_archive
 from limousine.infrastructure.document_preview import office_preview, PreviewUnavailable
 from .security import current_user, administrator, AuthenticationRequired, require_csrf, csrf_token, set_csrf_cookie, SESSION_COOKIE
 from .rendering import render_page
+from .downloads import ArchiveResponse
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +124,12 @@ def create_app(settings=None):
 
     @app.exception_handler(DomainError)
     async def domain_error(request, exc):
+        if isinstance(exc, AttachmentNameConflict):
+            return error('attachment_name_conflict', str(exc), 409)
+        if isinstance(exc, AttachmentNameError):
+            return error('invalid_attachment_name', str(exc), 400)
+        if isinstance(exc,DriverValidationError):
+            return JSONResponse({'error':{'code':'driver_validation','message':str(exc),'field':exc.field,'reason':exc.reason}},status_code=400)
         return error("file_too_large" if isinstance(exc, AttachmentTooLarge) else "validation_error", str(exc),
                      413 if isinstance(exc, AttachmentTooLarge) else 400)
 
@@ -355,6 +366,32 @@ def create_app(settings=None):
     def download(vehicle_id: int, attachment_id: int, user=Depends(current_user)):
         item = app.state.vehicles.get_attachment(vehicle_id, attachment_id)
         return file_response(item.storage_key, item.original_name, False)
+
+    @app.get('/api/vehicles/{vehicle_id}/attachments/archive/{kind}/')
+    def download_archive(vehicle_id: int, kind: Literal['photos', 'files'], user=Depends(current_user)):
+        batch = app.state.vehicles.prepare_attachment_download(vehicle_id, 'image' if kind == 'photos' else 'file')
+        archive = build_attachment_archive(batch.attachments, app.state.store)
+        return ArchiveResponse(archive, f'HSPACE-{batch.plate_number}-{kind}.zip')
+
+    @app.patch('/api/vehicles/{vehicle_id}/attachments/{attachment_id}/')
+    async def rename_attachment(vehicle_id: int, attachment_id: int, request: Request, user=Depends(current_user)):
+        require_csrf(request)
+        if request.headers.get('content-type', '').split(';')[0] != 'application/json':
+            raise DomainError('Send the attachment name as JSON.')
+        body = await request.body()
+        if len(body) > 4096:
+            raise DomainError('The attachment name is too large.')
+        import json
+        try:
+            payload = json.loads(body)
+        except (ValueError, UnicodeDecodeError):
+            raise DomainError('Invalid attachment name.') from None
+        if (not isinstance(payload, dict) or set(payload) != {'name', 'expected_name'} or
+            not isinstance(payload['expected_name'], str) or len(payload['expected_name']) > 255):
+            raise DomainError('Provide the attachment name and its previous name.')
+        item = await run_in_threadpool(app.state.vehicles.rename_attachment, vehicle_id, attachment_id,
+                                      payload['name'], payload['expected_name'], actor=user)
+        return {'attachment': attachment_payload(item)}
 
     @app.api_route("/api/vehicles/{vehicle_id}/attachments/{attachment_id}/preview/", methods=["GET", "HEAD"])
     def preview(vehicle_id: int, attachment_id: int, request: Request, user=Depends(current_user)):

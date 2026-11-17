@@ -1,7 +1,9 @@
 """The first vehicle use cases; persistence is supplied through a repository."""
 
+from dataclasses import dataclass
 from typing import Protocol
 from limousine.domain.recycling import require_actor
+from limousine.domain.attachments import renamed_attachment_name, AttachmentNameConflict
 
 from limousine.domain.vehicles import Attachment, DomainError, NotFound, Vehicle, VehicleCover, normalize_plate_number, normalize_vehicle_fields
 
@@ -16,8 +18,15 @@ class VehicleRepository(Protocol):
     ) -> Attachment: ...
     def get_attachment(self, vehicle_id: int, attachment_id: int) -> Attachment: ...
     def delete_attachment(self, vehicle_id: int, attachment_id: int, *, actor) -> None: ...
+    def rename_attachment(self, vehicle_id: int, attachment_id: int, original_name: str, *, expected_name: str, actor) -> Attachment: ...
     def delete_cover(self, vehicle_id: int, *, actor) -> None: ...
     def replace_cover(self, cover: VehicleCover, *, actor) -> tuple[VehicleCover, None]: ...
+
+
+@dataclass(frozen=True)
+class AttachmentDownload:
+    plate_number: str
+    attachments: tuple[Attachment, ...]
 
 
 class VehicleService:
@@ -31,6 +40,15 @@ class VehicleService:
 
     def get_vehicle(self, vehicle_id: int) -> Vehicle:
         return self.repository.get_vehicle(vehicle_id)
+
+    def prepare_attachment_download(self, vehicle_id: int, kind: str) -> AttachmentDownload:
+        if kind not in ('image', 'file'):
+            raise DomainError('Choose photos or files for the download.')
+        vehicle = self.repository.get_vehicle(vehicle_id)
+        attachments = tuple(item for item in vehicle.attachments if item.kind == kind)
+        if not attachments or any(item.vehicle_id != vehicle_id for item in attachments):
+            raise NotFound('No matching attachments exist for this vehicle.')
+        return AttachmentDownload(vehicle.plate_number, attachments)
 
     def create_vehicle(self, plate_number: str, vehicle_type: str, *, actor=None, **fields: str) -> Vehicle:
         return self.repository.create_vehicle(
@@ -86,6 +104,14 @@ class VehicleService:
     def delete_attachment(self, vehicle_id: int, attachment_id: int, *, actor):
         require_actor(actor)
         return self.repository.delete_attachment(vehicle_id, attachment_id, actor=actor)
+
+    def rename_attachment(self, vehicle_id, attachment_id, name, expected_name, *, actor):
+        require_actor(actor)
+        item = self.get_attachment(vehicle_id, attachment_id)
+        if expected_name != item.original_name:
+            raise AttachmentNameConflict('The attachment name changed. Refresh and try again.')
+        original_name = renamed_attachment_name(name, item.original_name)
+        return self.repository.rename_attachment(vehicle_id, attachment_id, original_name, expected_name=expected_name, actor=actor)
 
     def delete_cover(self, vehicle_id: int, *, actor):
         require_actor(actor)

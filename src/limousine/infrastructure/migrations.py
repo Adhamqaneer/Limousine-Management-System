@@ -63,7 +63,7 @@ def migrate(database):
         raise ValueError("Local migrations are restricted to the configured limousine_local database.")
     with database.connect() as connection:
         exists = connection.execute("SELECT to_regclass('public.hspace_schema_migration') AS name").fetchone()["name"]
-        upgrade = exists and not connection.execute("SELECT 1 FROM hspace_schema_migration WHERE version=5").fetchone()
+        upgrade = exists and not connection.execute("SELECT 1 FROM hspace_schema_migration WHERE version=6").fetchone()
     backup = backup_database(settings) if upgrade else None
     with database.connect() as connection:
         connection.execute("SELECT pg_advisory_xact_lock(72730804)")
@@ -172,5 +172,12 @@ def migrate(database):
                 CREATE TRIGGER hspace_guard_current_driver BEFORE UPDATE OF driver_name,driver_phone ON limo_vehicle
                     FOR EACH ROW EXECUTE FUNCTION hspace_driver_current_guard();
                 INSERT INTO hspace_schema_migration(version) VALUES (5);
+            """)
+        if not connection.execute("SELECT 1 FROM hspace_schema_migration WHERE version=6").fetchone():
+            connection.execute("""
+                ALTER TABLE hspace_activity DROP CONSTRAINT hspace_activity_action_check;
+                ALTER TABLE hspace_activity ADD CONSTRAINT hspace_activity_action_check
+                    CHECK(action IN ('CREATE','DELETE','RESTORE','RENAME'));
+                INSERT INTO hspace_schema_migration(version) VALUES (6);
             """)
     return backup

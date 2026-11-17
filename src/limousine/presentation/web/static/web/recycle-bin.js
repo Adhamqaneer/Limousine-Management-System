@@ -5,17 +5,17 @@
   Object.assign(en, {restore:'Restore', unknown:'Unknown (older record)', createdBy:'Added by', deletedBy:'Deleted by',
     vehicle:'Vehicle', attachment:'Attachment', cover:'Card photo', empty:'No deleted items.', noHistory:'No recorded activity yet.',
     failed:'Could not complete the request. Refresh and try again.', saved:'Item restored.', parentDeleted:'Restore the vehicle first.',
-    confirmRestore:'Restore {label}?', CREATE:'Added', DELETE:'Deleted', RESTORE:'Restored', replaced:'Replaced card photo',
+    confirmRestore:'Restore {label}?', CREATE:'Added', DELETE:'Deleted', RESTORE:'Restored', RENAME:'Renamed', replaced:'Replaced card photo',
     removeCurrentPhoto:'Remove current card photo', confirmCurrentPhoto:'Move the current card photo for {plate} to deleted items? You can then restore an older photo.', currentPhotoRemoved:'Current card photo moved to deleted items.',
     coverConflict:'Remove the current card photo before restoring an older photo.', loading:'Loading…', signOut:'Sign out'});
   const ar = {navDrivers:'سجل الشوفيرين', navTrash:'المحذوفات', navReports:'طباعة البيانات', navVehicles:'السيارات', teamAccess:'إدارة الفريق', brandSub:'إدارة السيارات', skip:'انتقل إلى المحتوى', signOut:'تسجيل الخروج',
     trashTitle:'المحذوفات', trashDescription:'الملفات محفوظة. الاسترجاع للأدمن فقط.', refreshTrash:'تحديث', deletedTitle:'الاسترجاع',
     restoreNote:'استرجع السيارة أولًا. الملفات المحذوفة بشكل منفصل تظل محذوفة. لاسترجاع صورة كارد قديمة، احذف الصورة الحالية أولًا.',
-    activityTitle:'سجل العمليات', historyNote:'تُسجل الإضافات والحذف والاسترجاع الجديدة. هوية من أضاف السجلات القديمة غير معروفة.', olderActivity:'تحميل عمليات أقدم',
+    activityTitle:'سجل العمليات', historyNote:'تُسجل الإضافات وتغيير الأسماء والحذف والاسترجاع الجديدة. هوية من أضاف السجلات القديمة غير معروفة.', olderActivity:'تحميل عمليات أقدم',
     restore:'استرجاع', unknown:'غير معروف (سجل قديم)', createdBy:'أضافه', deletedBy:'حذفه', vehicle:'سيارة', attachment:'مرفق', cover:'صورة الكارد',
     empty:'لا توجد محذوفات.', noHistory:'لا توجد عمليات مسجلة بعد.', failed:'تعذّر إكمال الطلب. حدّث الصفحة وحاول مجددًا.', saved:'تم الاسترجاع.', parentDeleted:'استرجع السيارة أولًا.',
     removeCurrentPhoto:'حذف صورة الكارد الحالية', confirmCurrentPhoto:'نقل صورة الكارد الحالية للسيارة {plate} إلى المحذوفات؟ بعدها بتقدر تسترجع صورة قديمة.', currentPhotoRemoved:'تم نقل صورة الكارد الحالية إلى المحذوفات.',
-    confirmRestore:'استرجاع {label}؟', CREATE:'إضافة', DELETE:'حذف', RESTORE:'استرجاع', replaced:'استبدال صورة الكارد', coverConflict:'احذف صورة الكارد الحالية قبل استرجاع صورة قديمة.', loading:'جارٍ التحميل…'};
+    confirmRestore:'استرجاع {label}؟', CREATE:'إضافة', DELETE:'حذف', RESTORE:'استرجاع', RENAME:'تغيير الاسم', replaced:'استبدال صورة الكارد', coverConflict:'احذف صورة الكارد الحالية قبل استرجاع صورة قديمة.', loading:'جارٍ التحميل…'};
   let items = [], events = [], busy = false, more = false, messageKey = '';
   const t = key => (document.documentElement.lang === 'ar' ? ar[key] : en[key]) ?? en[key] ?? key;
   const make = (tag, text, cls='') => { const node = document.createElement(tag); node.textContent=text; node.className=cls; return node; };

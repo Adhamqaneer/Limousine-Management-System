@@ -4,13 +4,30 @@ from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 from limousine.config.runtime import Settings
 from limousine.application.drivers import DriverService
-from limousine.domain.drivers import driver_date,validate_boundary
+from limousine.domain.drivers import DriverValidationError,driver_date,validate_boundary
 from limousine.domain.vehicles import DomainError
 from limousine.presentation.web.app import create_app
 from limousine.presentation.web.security import current_user
 from tests.test_accounts import MEMBER
 
 class DriverRuleTests(TestCase):
+    def test_invalid_input_has_stable_field_and_reason(self):
+        service=DriverService(MagicMock(),today=lambda:date(2022,1,1))
+        cases=[
+            ('Driver1','123','2021-01-01','driver_name','nameRule'),
+            ('Driver','+123','2021-01-01','driver_phone','phoneRule'),
+            ('Driver','123',None,'started_on','startRequired'),
+            ('Driver','123','2021-02-30','started_on','dateInvalid'),
+            ('Driver','123','2022-01-02','started_on','futureStart'),
+        ]
+        for name,phone,start,field,reason in cases:
+            with self.subTest(reason=reason),self.assertRaises(DriverValidationError) as result:
+                service.assign(1,name,phone,start,MEMBER)
+            self.assertEqual((result.exception.field,result.exception.reason),(field,reason))
+        with self.assertRaises(DriverValidationError) as result:
+            validate_boundary(date(2021,1,1),date(2022,1,1))
+        self.assertEqual((result.exception.field,result.exception.reason),('started_on','overlapStart'))
+
     def test_dates_and_period_boundaries(self):
         self.assertIsNone(driver_date(None))
         self.assertEqual(driver_date('2022-01-01'),date(2022,1,1))
@@ -66,3 +83,12 @@ class DriverHttpTests(TestCase):
         repo=MagicMock()
         with self.assertRaises(DomainError):VehicleService(repo).update_vehicle(1,driver_phone='0079')
         repo.update_vehicle.assert_not_called()
+
+    def test_validation_error_identifies_the_driver_field(self):
+        from limousine.domain.drivers import DriverValidationError
+        self.app.dependency_overrides[current_user]=lambda:MEMBER
+        self.service.assign.side_effect=DriverValidationError('driver_phone','phoneRule','Use English digits.')
+        response=self.client.post('/api/vehicles/1/drivers/',json={'driver_name':'Driver','driver_phone':'+123','started_on':'2022-01-01'},headers=self.headers)
+        self.assertEqual(response.status_code,400)
+        self.assertEqual(response.json()['error']['field'],'driver_phone')
+        self.assertEqual(response.json()['error']['reason'],'phoneRule')

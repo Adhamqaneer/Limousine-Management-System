@@ -8,7 +8,7 @@ The ui-ux-pro-max design-system searches were reviewed. Their full palette/typog
 
 ## Background and composition
 
-- Asset: src/limousine/presentation/web/static/web/hspace-camry-studio.png.
+- Asset: src/limousine/presentation/web/static/web/hspace-camry-studio.webp; lossless, pixel-identical conversion of the retained source PNG.
 - AI-generated graphite Toyota Camry, orange portal/curved road, dark architectural studio.
 - Sign-in uses a full scene, calm form area and strong story hierarchy. Mirroring is presentational CSS only.
 - Interior uses a cinematic list hero and a subdued ambient background beneath opaque data surfaces.
@@ -34,6 +34,8 @@ Normal checked text pairs exceed 4.5:1; checked input boundaries exceed 3:1. Com
 ## Typography, spacing and interaction
 
 Use local Bahnschrift/Segoe UI for display and Segoe UI/Tahoma/Arial for UI, with no external font dependency. Base text is 16px; form inputs are 16px on small screens. Use a 4/8px spacing rhythm, 44px minimum controls, 20–24px main radii, 10–12px control radii and 180ms state transitions.
+
+Vehicle lookup takes priority over the cinematic banner: search/filters precede it and its minimum height is 190px on desktop, 170px on tablets and 140px on phones, growing with content. Compact detail hints use 13px. Mobile filter fields stack in one column. Destructive card controls use the error token at rest, a distinct border and extra separation from gallery actions. Numeric plate-match highlighting keeps LTR isolation and the primary/primary-text contrast pair. Keyboard focus survives card replacement/removal and returning from a detail view.
 
 Favor short, visible primary actions. Wrap names and filenames; never put essential actions behind hover. Keep keyboard focus visible and preserve native form/dialog semantics. Respect prefers-reduced-motion. The Show/Hide password control keeps autocomplete and paste available.
 

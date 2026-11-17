@@ -2,6 +2,7 @@
 from psycopg import sql
 from limousine.domain.vehicles import Attachment, NotFound, Vehicle, VehicleCover, DomainError
 from limousine.domain.recycling import require_actor, validate_kind
+from limousine.domain.attachments import AttachmentNameConflict
 from limousine.infrastructure.drivers import seed_driver
 
 def attachment(row):
@@ -133,6 +134,23 @@ class PostgresVehicleRepository:
             if not row:
                 raise NotFound('Card photo not found.')
             self._event(connection,actor,'cover',row['id'],vehicle_id,'DELETE',row['original_name'])
+
+    def rename_attachment(self, vehicle_id, attachment_id, original_name, *, expected_name, actor):
+        require_actor(actor)
+        with self.database.connect() as connection:
+            self._lock_vehicle(connection, vehicle_id)
+            row = connection.execute('SELECT * FROM limo_attachment WHERE vehicle_id=%s AND id=%s AND NOT is_deleted FOR UPDATE',
+                                     (vehicle_id, attachment_id)).fetchone()
+            if not row:
+                raise NotFound('Attachment not found for this vehicle.')
+            if row['original_name'] != expected_name:
+                raise AttachmentNameConflict('The attachment name changed. Refresh and try again.')
+            if original_name == row['original_name']:
+                return attachment(row)
+            updated = connection.execute('UPDATE limo_attachment SET original_name=%s WHERE vehicle_id=%s AND id=%s AND NOT is_deleted RETURNING *',
+                                         (original_name, vehicle_id, attachment_id)).fetchone()
+            self._event(connection, actor, 'attachment', attachment_id, vehicle_id, 'RENAME', original_name)
+            return attachment(updated)
 
     def list_deleted(self):
         result = []

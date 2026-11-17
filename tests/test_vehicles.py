@@ -47,6 +47,15 @@ class MemoryVehicleRepository:
             raise NotFound("Attachment not found for this vehicle.")
         return attachment
 
+    def rename_attachment(self, vehicle_id, attachment_id, original_name, *, expected_name, actor):
+        from limousine.domain.attachments import AttachmentNameConflict
+        item = self.get_attachment(vehicle_id, attachment_id)
+        if item.original_name != expected_name:
+            raise AttachmentNameConflict('Changed name.')
+        updated = replace(item, original_name=original_name)
+        self.attachments[attachment_id] = updated
+        return updated
+
 
 class PlateNumberTests(SimpleTestCase):
     def test_preserves_hyphens_and_leading_zeroes(self):

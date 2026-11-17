@@ -7,6 +7,7 @@
   document.querySelectorAll('[data-i18n-aria]').forEach(el => { en[el.dataset.i18nAria] = el.getAttribute('aria-label'); });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { en[el.dataset.i18nPlaceholder] = el.placeholder; });
   Object.assign(en, {
+    renameNamed:'Rename {name}', renameSaved:'Attachment name updated.', invalidAttachmentName:'Enter a name without path/reserved characters, up to 180 characters including its extension.', renameConflict:'Someone changed this name. Close this window and open Rename again to review the current name.',
     deleteVehicle:'Delete vehicle', confirmDeleteVehicle:'Move vehicle {plate} and its visible files to deleted items? Only the administrator can restore it.', vehicleDeleted:'Vehicle moved to deleted items.', filters:'Filters', doneFilters:'Done', printResults:'Print results', ownerFilterSummary:'{owner} · {shown} matching vehicles (of {total} total)',
     filterSummary: 'Showing {shown} of {total} vehicles',
     title: 'H SPACE | Vehicles', teamAccess: 'Team', switchArabic: 'Switch to Arabic', switchEnglish: 'Switch to English',
@@ -32,6 +33,8 @@
     languageChanged: 'Language changed to English.', lightEnabled: 'Light mode enabled.', darkEnabled: 'Dark mode enabled.'
   });
   const ar = {
+    renameAttachment:'تغيير اسم المرفق', fileName:'اسم الملف', renameHint:'اكتب الاسم فقط. امتداد الملف ثابت ولا يتغيّر.', renameSave:'حفظ الاسم', renameNamed:'تغيير اسم {name}', renameSaved:'تم تغيير اسم المرفق.', invalidAttachmentName:'اكتب اسمًا بدون رموز المسارات والرموز المحجوزة، حتى 180 خانة مع الامتداد.', renameConflict:'غيّر مستخدم آخر الاسم. أغلق هذا المربع وافتح التعديل من جديد لمراجعة الاسم الحالي.',
+    downloadPhotos:'تنزيل كل الصور (ZIP)', downloadFiles:'تنزيل كل الملفات (ZIP)',
     ownerNameHint:'اختار مالكًا موجودًا أو اكتب اسمًا جديدًا. أحرف عربية أو إنجليزية ومسافات فقط.', deleteVehicle:'حذف السيارة', confirmDeleteVehicle:'نقل السيارة {plate} وملفاتها الظاهرة إلى المحذوفات؟ الاسترجاع للأدمن فقط.', vehicleDeleted:'تم نقل السيارة إلى المحذوفات.', filters:'الفلاتر', doneFilters:'تم', printResults:'طباعة النتائج', ownerFilterSummary:'{owner} · {shown} سيارة مطابقة (من أصل {total})',
     filterVehicles: 'فلترة السيارات', allOwners: 'كل المالكين', allModels: 'كل الموديلات', allTypes: 'كل الأنواع', clearFilters: 'مسح الفلاتر', filterSummary: 'عرض {shown} من أصل {total} سيارة',
     heroAccent: 'كل التفاصيل قدامك.', navDrivers:'سجل الشوفيرين', navTrash:'المحذوفات', navReports:'طباعة البيانات', navVehicles: 'السيارات', title: 'H SPACE | السيارات', skip: 'انتقل إلى المحتوى', brandSub: 'إدارة السيارات', vehicles: 'سياراتك.',
@@ -76,6 +79,7 @@
   try { if (localStorage.getItem('limousine.language') === 'ar') language = 'ar'; } catch (_) {}
   let vehicles = [];
   let currentVehicle = null;
+  const vehicleDrafts = new Map();
   let storageReady = false;
   let listState = 'loading';
   let detailState = 'loading';
@@ -85,6 +89,8 @@
   let uploadBusy = false;
   let coverBusy = false;
   let deleteBusy = false;
+  let renameBusy = false;
+  let renameTarget = null;
   let activeDetailId = null;
   let listRequest = 0;
   let detailRequest = 0;
@@ -149,6 +155,8 @@
   }
   function errorKey(error) {
     const code = error.code || '';
+    if (code === 'invalid_attachment_name') return 'invalidAttachmentName';
+    if (code === 'attachment_name_conflict') return 'renameConflict';
     if (['storage_unavailable', 'database_unavailable'].includes(code)) return 'unavailable';
     if (['not_found', 'vehicle_not_found', 'attachment_not_found'].includes(code)) return 'notFound';
     if (['invalid_plate', 'invalid_plate_number'].includes(code)) return 'invalidPlate';
@@ -226,7 +234,29 @@
       select.replaceChildren(all, ...choices); select.value = selected;
     });
   }
+  const cardCache = new Map();
+  function plateLabel(plateNumber) {
+    const plate = element('bdi'); plate.dir = 'ltr';
+    const query = HSpaceSearch.normalize($('vehicle-search').value).replace(/[\s\-–—]/g, '');
+    const positions = [];
+    let digits = '';
+    for (let i = 0; i < plateNumber.length; i++) {
+      const digit = HSpaceSearch.normalize(plateNumber[i]);
+      if (/^[0-9]$/.test(digit)) { digits += digit; positions.push(i); }
+    }
+    const match = /^[0-9]+$/.test(query) ? digits.indexOf(query) : -1;
+    if (match >= 0) {
+      const start = positions[match], end = positions[match + query.length - 1] + 1;
+      plate.append(document.createTextNode(plateNumber.slice(0, start)),
+        element('mark', '', plateNumber.slice(start, end)), document.createTextNode(plateNumber.slice(end)));
+    } else plate.textContent = plateNumber;
+    return plate;
+  }
+  let cardFocus = null;
   function renderList() {
+    const focused = document.activeElement;
+    const focusedCard = focused?.closest?.('.vehicle-card');
+    if (focusedCard) cardFocus = {id:focusedCard.dataset.vehicleId, action:focused.dataset.action || 'open', index:Array.from($('vehicle-grid').children).indexOf(focusedCard)};
     show('list-loading', listState === 'loading'); show('list-error', listState === 'error');
     show('connection-notice', listState === 'unavailable');
     const selected = selectedFilters();
@@ -243,14 +273,21 @@
     show('no-results', listState === 'ready' && vehicles.length > 0 && !filtered.length);
     $('vehicle-count').textContent = listState === 'ready' ? t(filtered.length === 1 ? 'vehicleCountOne' : 'vehicleCount', { count: filtered.length }) : '';
     const cards = listState === 'ready' ? filtered.map(vehicle => {
-      const card = element('article', 'vehicle-card');
+      const cached = cardCache.get(vehicle.id);
+      if (cached && cached.vehicle === vehicle && cached.language === language) {
+        cached.card.querySelector('h2').replaceChildren(plateLabel(vehicle.plate_number));
+        cached.card.querySelectorAll('button').forEach(button => { button.disabled = coverBusy; });
+        return cached.card;
+      }
+      const card = element('article', 'vehicle-card'); card.dataset.vehicleId = String(vehicle.id);
       const link = element('a', 'vehicle-card-link'); link.href = `#vehicle/${vehicle.id}`;
       link.setAttribute('aria-label', `${t('openVehicle')}: ${vehicle.vehicle_type} ${vehicle.plate_number}`);
       const image = element('div', 'vehicle-image');
       if (vehicle.cover_url) { const img = document.createElement('img'); img.src = vehicle.cover_url; img.alt = ''; img.loading = 'lazy'; image.append(img); }
       else image.append(icon('car'));
       const body = element('div', 'vehicle-body'); const title = element('h2');
-      title.append(element('bdi', '', vehicle.plate_number));
+      const plate = plateLabel(vehicle.plate_number);
+      title.append(plate);
       const type = element('p', 'vehicle-kind'); type.append(element('bdi', '', vehicle.vehicle_type));
       body.append(type, title, element('p', 'vehicle-meta', t('added', { date: date(vehicle.created_at) })));
       const footer = element('div', 'vehicle-card-footer');
@@ -259,18 +296,18 @@
       body.append(footer); link.append(image, body);
       const photoLabel = t(vehicle.cover_url ? 'changeCardPhoto' : 'cardPhoto') + ': ' + vehicle.plate_number;
       const button = element('button', 'icon-button card-photo-button');
-      button.title = photoLabel;
+      button.title = photoLabel; button.dataset.action = 'photo';
       button.type = 'button'; button.disabled = coverBusy;
       button.prepend(icon('photo'));
       button.setAttribute('aria-label', photoLabel);
       const input = document.createElement('input'); input.type = 'file'; input.hidden = true;
       input.accept = 'image/jpeg,image/png,image/webp';
       button.addEventListener('click', () => input.click());
-      input.addEventListener('change', () => saveCardPhoto(vehicle.id, input.files[0]));
+      input.addEventListener('change', () => { const file=input.files[0];input.value='';saveCardPhoto(vehicle.id,file); });
       const actions = element('div', 'vehicle-card-actions');
       actions.append(button); card.append(link, actions, input);
       const removeVehicle = element('button', 'icon-button danger remove-vehicle-button');
-      removeVehicle.append(icon('trash')); removeVehicle.title = t('deleteVehicle') + ': ' + vehicle.plate_number;
+      removeVehicle.dataset.action = 'delete'; removeVehicle.append(icon('trash')); removeVehicle.title = t('deleteVehicle') + ': ' + vehicle.plate_number;
       removeVehicle.type = 'button'; removeVehicle.disabled = coverBusy; removeVehicle.setAttribute('aria-label', t('deleteVehicle') + ': ' + vehicle.plate_number);
       removeVehicle.addEventListener('click', async () => {
         if (coverBusy || !window.confirm(t('confirmDeleteVehicle', {plate:vehicle.plate_number}))) return;
@@ -280,10 +317,22 @@
         finally { coverBusy = false; renderList(); }
       });
       actions.append(removeVehicle);
+      cardCache.set(vehicle.id,{vehicle,language,card});
       return card;
     }) : [];
     document.dispatchEvent(new Event('hspace:cards-changed'));
-    $('vehicle-grid').replaceChildren(...cards);
+    const retained = new Set(vehicles.map(vehicle => vehicle.id));
+    for (const id of cardCache.keys()) if (!retained.has(id)) cardCache.delete(id);
+    if (cards.length !== $('vehicle-grid').children.length || cards.some((card, index) => card !== $('vehicle-grid').children[index])) $('vehicle-grid').replaceChildren(...cards);
+    if (cardFocus && !coverBusy && listState === 'ready') {
+      // Do not steal focus if the user moved to search, navigation or another view while waiting.
+      if (!activeDetailId && (focusedCard || !focused || focused === document.body)) {
+        const card = cards.find(item => item.dataset.vehicleId === cardFocus.id) || cards[Math.min(cardFocus.index || 0, cards.length - 1)];
+        const target = card?.querySelector('[data-action="' + cardFocus.action + '"]') || card?.querySelector('a') || $('vehicle-search');
+        target.focus({ preventScroll: true });
+      }
+      cardFocus = null;
+    }
   }
   async function loadVehicles() {
     const request = ++listRequest;
@@ -305,7 +354,7 @@
     if (!['jpg', 'jpeg', 'png', 'webp'].includes(file.name.split('.').pop().toLowerCase())) {
       message('cover-message', 'invalidFile', 'error'); return;
     }
-    coverBusy = true; renderList(); message('cover-message', 'coverSaving');
+    cardFocus = {id:String(id),action:'photo'}; coverBusy = true; renderList(); message('cover-message', 'coverSaving');
     try {
       const body = new FormData(); body.append('file', file);
       const payload = await api(`/api/vehicles/${id}/cover/`, { method: 'POST', body });
@@ -338,8 +387,9 @@
     show('detail-content', detailState === 'ready' && !!currentVehicle);
     $('detail-error-text').textContent = detailError ? t(detailError) : '';
     if (currentVehicle) {
+      const plate = element('bdi', '', currentVehicle.plate_number); plate.dir = 'ltr';
       $('detail-title').replaceChildren(element('bdi', '', currentVehicle.vehicle_type),
-        document.createTextNode(' · '), element('bdi', '', currentVehicle.plate_number));
+        document.createTextNode(' · '), plate);
     } else $('detail-title').textContent = t('vehicleRecord');
     $('detail-created').textContent = currentVehicle ? t('added', { date: date(currentVehicle.created_at) }) : '';
     if (!currentVehicle) return;
@@ -358,30 +408,51 @@
       button.setAttribute('aria-label', t('deleteNamed', { name: file.name }));
       button.addEventListener('click', () => deleteAttachment(currentVehicle.id, file)); return button;
     }
+    function preview(file, photo = false) {
+      const link = element('a', 'button secondary small', t('viewFile'));
+      link.href = file.preview_url; link.target = '_blank'; link.rel = 'noopener';
+      link.setAttribute('aria-label', photo ? t('viewPhoto', { name: file.name }) : `${t('viewFile')}: ${file.name}`);
+      return link;
+    }
+    function fileName(file) {
+      const line = element('div', 'attachment-name');
+      const name = element('bdi', 'filename', file.name); name.title = file.name;
+      const edit = element('button', 'icon-button attachment-rename'); edit.type = 'button';
+      edit.dataset.attachmentId = String(file.id);
+      edit.title = t('renameNamed', { name: file.name }); edit.setAttribute('aria-label', edit.title);
+      edit.append(icon('pencil')); edit.addEventListener('click', () => openRename(file));
+      line.append(name, edit); return line;
+    }
     $('photo-grid').replaceChildren(...photos.map(file => {
-      const card = element('div', 'photo-card'); const link = element('a', 'photo-link');
+      const row = element('div', 'file-row photo-row'); const link = element('a', 'photo-link');
       link.href = file.preview_url; link.target = '_blank'; link.rel = 'noopener';
       link.setAttribute('aria-label', t('viewPhoto', { name: file.name }));
-      const img = document.createElement('img'); img.src = file.preview_url; img.alt = file.name; img.loading = 'lazy'; link.append(img);
-      const caption = element('div', 'photo-caption'); const name = element('bdi', 'filename', file.name); name.title = file.name;
-      const actions = element('div', 'file-actions'); actions.append(download(file), remove(file));
-      caption.append(name, actions); card.append(link, caption); return card;
+      const img = document.createElement('img'); img.src = file.preview_url; img.alt = ''; img.loading = 'lazy'; img.width = 64; img.height = 48; link.append(img);
+      const info = element('div', 'file-info');
+      info.append(fileName(file), element('span', 'file-meta', `${fileSize(file.size)} · ${date(file.uploaded_at)}`));
+      const actions = element('div', 'file-actions'); actions.append(preview(file, true), download(file), remove(file));
+      row.append(link, info, actions); return row;
     }));
     $('file-list').replaceChildren(...files.map(file => {
       const row = element('div', 'file-row'); const info = element('div', 'file-info');
-      const name = element('bdi', 'filename', file.name); name.title = file.name;
-      info.append(name, element('span', 'file-meta', `${fileSize(file.size)} · ${date(file.uploaded_at)}`));
+      info.append(fileName(file), element('span', 'file-meta', `${fileSize(file.size)} · ${date(file.uploaded_at)}`));
       const actions = element('div', 'file-actions');
-      const preview = element('a', 'button secondary small', t('viewFile'));
-      preview.href = file.preview_url; preview.target = '_blank'; preview.rel = 'noopener';
-      preview.setAttribute('aria-label', `${t('viewFile')}: ${file.name}`);
-      actions.append(preview, download(file), remove(file)); row.append(icon('file'), info, actions); return row;
+      actions.append(preview(file), download(file), remove(file)); row.append(icon('file'), info, actions); return row;
     }));
     updateDetailControls();
   }
   function updateDetailControls() {
-    const busy = informationBusy || uploadBusy || deleteBusy;
+    const busy = informationBusy || uploadBusy || deleteBusy || renameBusy;
+    for (const [section, kind] of [['photos', 'image'], ['files', 'file']]) {
+      const link = $('download-' + section);
+      const available = !busy && detailState === 'ready' && currentVehicle?.attachments.some(file => file.kind === kind);
+      link.setAttribute('aria-disabled', String(!available));
+      link.tabIndex = available ? 0 : -1;
+      if (available) link.href = `/api/vehicles/${currentVehicle.id}/attachments/archive/${section}/`;
+      else link.removeAttribute('href');
+    }
     document.querySelectorAll('.attachment-delete').forEach(button => { button.disabled = busy; });
+    document.querySelectorAll('.attachment-rename').forEach(button => { button.disabled = busy; });
     Object.values(detailFields).forEach(id => { $(id).disabled = busy; });
     const unchanged = currentVehicle && Object.entries(detailValues()).every(([name, value]) => value === (currentVehicle[name] || ''));
     $('save-information').disabled = busy || !currentVehicle || unchanged;
@@ -390,7 +461,7 @@
     $('add-photos').disabled = busy; $('add-files').disabled = busy;
   }
   async function deleteAttachment(id, file) {
-    if (deleteBusy || uploadBusy || informationBusy || !window.confirm(t('confirmDelete', { name: file.name }))) return;
+    if (deleteBusy || uploadBusy || informationBusy || renameBusy || !window.confirm(t('confirmDelete', { name: file.name }))) return;
     deleteBusy = true; updateDetailControls(); message('upload-message', 'deleting');
     try {
       await api(`/api/vehicles/${id}/attachments/${file.id}/`, { method: 'DELETE' });
@@ -410,6 +481,13 @@
       const payload = await api(`/api/vehicles/${id}/`);
       if (request !== detailRequest || id !== activeDetailId) return;
       currentVehicle = payload.vehicle; detailState = 'ready'; renderDetail(resetInput);
+      if (resetInput && vehicleDrafts.has(id)) {
+        const previous = vehicleDrafts.get(id);
+        const merged = HSpaceDraft.merge(previous.original, previous.values, currentVehicle);
+        Object.entries(detailFields).forEach(([key, inputId]) => { $(inputId).value = merged[key]; });
+        vehicleDrafts.delete(id); // The visible form now owns this draft until navigation.
+        updateDetailControls();
+      }
       if (resetInput) document.dispatchEvent(new CustomEvent('hspace:detail-ready',{detail:{vehicle:currentVehicle}}));
       document.title = `${currentVehicle.plate_number} | ${t('title')}`;
       if (resetInput) $('detail-title').focus({ preventScroll: true });
@@ -419,18 +497,26 @@
       if (resetInput) $('detail-title').focus({ preventScroll: true });
     }
   }
+  let listScroll = 0;
   function route() {
+    $('rename-dialog').close(); renameTarget = null;
+    if (currentVehicle && activeDetailId) {
+      const values = Object.fromEntries(Object.entries(detailFields).map(([key, id]) => [key, $(id).value]));
+      if (Object.entries(values).some(([key, value]) => value.trim() !== (currentVehicle[key] || ''))) vehicleDrafts.set(activeDetailId, { original: currentVehicle, values });
+      else vehicleDrafts.delete(activeDetailId);
+    }
     const previousDetailId = activeDetailId;
     const match = window.location.hash.match(/^#vehicle\/(\d+)$/);
+    if (!previousDetailId && match) listScroll = window.scrollY;
     activeDetailId = match ? Number(match[1]) : null;
     show('list-view', !activeDetailId); show('detail-view', !!activeDetailId);
     message('information-message', ''); message('upload-message', '');
     if (activeDetailId) { loadDetail(activeDetailId); loadOwnerSuggestions(); }
     else {
-      detailRequest++; document.title = t('title'); loadVehicles();
-      if (previousDetailId !== null) $('list-title').focus({ preventScroll: true });
+      detailRequest++; document.title = t('title'); loadVehicles().then(() => { if (!activeDetailId && previousDetailId) window.scrollTo(0,listScroll); });
+      if (previousDetailId !== null) $('vehicle-search').focus({ preventScroll: true });
     }
-    window.scrollTo(0, 0);
+    if (activeDetailId || !previousDetailId) window.scrollTo(0, 0);
   }
   $('language-toggle').addEventListener('click', () => {
     language = language === 'en' ? 'ar' : 'en'; savePreference('language', language); applyLanguage(); announce(t('languageChanged'));
@@ -443,7 +529,8 @@
   ['close-dialog', 'cancel-add'].forEach(id => $(id).addEventListener('click', () => $('add-dialog').close()));
   $('add-dialog').addEventListener('cancel', event => { if (addBusy) event.preventDefault(); });
   ['retry-connection', 'retry-list'].forEach(id => $(id).addEventListener('click', loadVehicles));
-  $('vehicle-search').addEventListener('input', renderList);
+  let searchFrame = null;
+  $('vehicle-search').addEventListener('input', () => { if(searchFrame!==null)cancelAnimationFrame(searchFrame); searchFrame=requestAnimationFrame(() => { searchFrame=null;renderList(); }); });
   $('close-filters').addEventListener('click', () => { $('filter-popover').open = false; $('filter-popover').querySelector('summary').focus(); });
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && $('filter-popover').open) { $('filter-popover').open = false; $('filter-popover').querySelector('summary').focus(); } });
   document.addEventListener('click', event => { if (!$('filter-popover').contains(event.target)) $('filter-popover').open = false; });
@@ -464,7 +551,7 @@
   });
   Object.values(detailFields).forEach(id => $(id).addEventListener('input', () => { $(id).setCustomValidity(''); $(id).removeAttribute('aria-invalid'); message('information-message', ''); updateDetailControls(); }));
   $('vehicle-information-form').addEventListener('submit', async event => {
-    event.preventDefault(); if (!currentVehicle || informationBusy || uploadBusy || deleteBusy) return;
+    event.preventDefault(); if (!currentVehicle || informationBusy || uploadBusy || deleteBusy || renameBusy) return;
     const id = currentVehicle.id;
     if (!validateForm('vehicle-information-form', detailFields, currentVehicle)) return;
     const fields = Object.fromEntries(Object.entries(detailValues()).filter(([name, value]) => value !== (currentVehicle[name] || '')));
@@ -472,17 +559,71 @@
     informationBusy = true; updateDetailControls(); message('information-message', '');
     try {
       const payload = await api(`/api/vehicles/${id}/`, { method: 'PATCH', body: JSON.stringify(fields) });
+      vehicleDrafts.delete(id);
       if (activeDetailId !== id) return;
       currentVehicle = payload.vehicle; renderDetail(true); loadOwnerSuggestions(); message('information-message', 'saved', 'success');
       document.title = `${currentVehicle.plate_number} | ${t('title')}`;
     } catch (error) { if (activeDetailId === id) message('information-message', errorKey(error), 'error'); }
     finally { informationBusy = false; updateDetailControls(); }
   });
+  function focusRename(id) {
+    Array.from(document.querySelectorAll('.attachment-rename')).find(button => button.dataset.attachmentId === String(id))?.focus({ preventScroll: true });
+  }
+  function openRename(file) {
+    if (!currentVehicle || informationBusy || uploadBusy || deleteBusy || renameBusy) return;
+    const dot = file.name.lastIndexOf('.'), extension = dot > 0 ? file.name.slice(dot) : '';
+    renameTarget = { vehicleId: currentVehicle.id, file };
+    $('rename-current').textContent = file.name; $('rename-extension').textContent = extension;
+    $('rename-name').value = extension ? file.name.slice(0, -extension.length) : file.name;
+    $('rename-name').maxLength = 180 - extension.length;
+    $('rename-name').removeAttribute('aria-invalid'); message('rename-message', '');
+    $('rename-dialog').showModal(); $('rename-name').focus();
+  }
+  $('cancel-rename').addEventListener('click', () => {
+    const id = renameTarget?.file.id; $('rename-dialog').close(); renameTarget = null; if (id) focusRename(id);
+  });
+  $('rename-dialog').addEventListener('cancel', event => { if (renameBusy) event.preventDefault(); });
+  $('rename-dialog').addEventListener('close', () => {
+    if (!$('rename-dialog').open && renameTarget && !renameBusy) { focusRename(renameTarget.file.id); renameTarget = null; }
+  });
+  $('rename-name').addEventListener('input', () => { $('rename-name').removeAttribute('aria-invalid'); message('rename-message', ''); });
+  $('rename-form').addEventListener('submit', async event => {
+    event.preventDefault(); if (!renameTarget || renameBusy) return;
+    const target = renameTarget, name = $('rename-name').value.trim();
+    if (!name) { message('rename-message', 'invalidAttachmentName', 'error'); $('rename-name').setAttribute('aria-invalid', 'true'); $('rename-name').focus(); return; }
+    renameBusy = true; let saved = false;
+    updateDetailControls(); $('rename-name').disabled = true; $('cancel-rename').disabled = true; $('save-rename').disabled = true;
+    $('save-rename').setAttribute('aria-busy', 'true'); message('rename-message', 'saving');
+    try {
+      const result = await api(`/api/vehicles/${target.vehicleId}/attachments/${target.file.id}/`, { method:'PATCH', body:JSON.stringify({ name, expected_name:target.file.name }) });
+      if (activeDetailId === target.vehicleId && currentVehicle) {
+        currentVehicle = { ...currentVehicle, attachments:currentVehicle.attachments.map(file => file.id === target.file.id ? result.attachment : file) };
+        renderDetail(false); message('upload-message', 'renameSaved', 'success'); saved = true;
+      }
+    } catch (error) {
+      if (activeDetailId === target.vehicleId && $('rename-dialog').open) {
+        if (error.code === 'attachment_name_conflict') {
+          try {
+            const result = await api(`/api/vehicles/${target.vehicleId}/`);
+            if (activeDetailId === target.vehicleId && currentVehicle) {
+              currentVehicle = { ...currentVehicle, attachments:result.vehicle.attachments, attachment_count:result.vehicle.attachment_count }; renderDetail(false);
+            }
+          } catch (_) { /* Keep the entered name available if refreshing fails. */ }
+        }
+        message('rename-message', errorKey(error), 'error'); $('rename-name').setAttribute('aria-invalid', 'true');
+      }
+    } finally {
+      renameBusy = false; $('rename-name').disabled = false; $('cancel-rename').disabled = false; $('save-rename').disabled = false;
+      $('save-rename').setAttribute('aria-busy', 'false'); updateDetailControls();
+    }
+    if (saved) { $('rename-dialog').close(); renameTarget = null; focusRename(target.file.id); }
+    else if ($('rename-dialog').open) $('rename-name').focus();
+  });
   $('add-photos').addEventListener('click', () => $('photo-input').click());
   $('add-files').addEventListener('click', () => $('file-input').click());
   async function upload(input) {
     const selected = [...input.files]; input.value = '';
-    if (!selected.length || !currentVehicle || uploadBusy || informationBusy || deleteBusy) return;
+    if (!selected.length || !currentVehicle || uploadBusy || informationBusy || deleteBusy || renameBusy) return;
     if (selected.some(file => file.size > 10 * 1024 * 1024)) { message('upload-message', 'fileTooLarge', 'error'); return; }
     const extensions = input.id === 'photo-input' ? ['jpg', 'jpeg', 'png', 'webp'] : ['pdf', 'txt', 'docx', 'xlsx'];
     if (selected.some(file => !extensions.includes(file.name.split('.').pop().toLowerCase()))) { message('upload-message', 'invalidFile', 'error'); return; }
@@ -509,7 +650,20 @@
   }
   $('photo-input').addEventListener('change', () => upload($('photo-input')));
   $('file-input').addEventListener('change', () => upload($('file-input')));
-  document.addEventListener('hspace:driver-updated', event => { if (currentVehicle && currentVehicle.id === event.detail.vehicle.id) { currentVehicle = event.detail.vehicle; renderDetail(true); } });
+  document.addEventListener('hspace:driver-updated', event => {
+    if (currentVehicle && currentVehicle.id === event.detail.vehicle.id) {
+      const draft = Object.fromEntries(Object.entries(detailFields).map(([key, id]) => [key, $(id).value]));
+      const merged = HSpaceDraft.merge(currentVehicle, draft, event.detail.vehicle);
+      currentVehicle = event.detail.vehicle;
+      Object.entries(detailFields).forEach(([key, id]) => { $(id).value = merged[key]; });
+      renderDetail(false);
+    }
+  });
+  window.addEventListener('beforeunload', event => {
+    if (vehicleDrafts.size || activeDetailId && currentVehicle && Object.entries(detailValues()).some(([key, value]) => value !== (currentVehicle[key] || ''))) {
+      event.preventDefault(); event.returnValue = '';
+    }
+  });
   window.addEventListener('hashchange', route);
   applyLanguage(); route();
 })();

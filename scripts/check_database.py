@@ -56,7 +56,7 @@ def main():
                     and not missing and not report["missing_required_constraints"] and not any(report["files"].values())
                     and not report['missing_retention_triggers'] and not report['missing_deletion_constraints']
                     and not report['missing_driver_triggers'] and not report['driver_state_mismatches']
-                    and report["schema_versions"] == [1, 2, 3, 4, 5])
+                    and report["schema_versions"] == [1, 2, 3, 4, 5, 6])
     print(json.dumps(report, indent=2))
     return 0 if report["ok"] else 1
 

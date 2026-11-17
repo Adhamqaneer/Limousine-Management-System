@@ -2,7 +2,7 @@
 from typing import Protocol
 from datetime import date
 from limousine.domain.recycling import require_actor
-from limousine.domain.drivers import driver_details, driver_date
+from limousine.domain.drivers import driver_details, driver_date, DriverValidationError
 from limousine.domain.vehicles import DomainError
 
 class DriverRepository(Protocol):
@@ -15,7 +15,7 @@ class DriverService:
 
     def _start(self, value, *, required=False):
         start=driver_date(value,required=required)
-        if start is not None and start>self.today():raise DomainError('A driver start date cannot be in the future.')
+        if start is not None and start>self.today():raise DriverValidationError('started_on','futureStart','A driver start date cannot be in the future.')
         return start
 
     def assign(self, vehicle_id, name, phone, started_on, actor):
