@@ -1,72 +1,677 @@
-
 <!doctype html>
 <html lang="en" dir="ltr" data-theme="dark">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#18181b">
-  <title>H SPACE | Vehicles</title>
-  <link rel="icon" type="image/svg+xml" href="{{ static('web/brand-mark.svg') }}">
-  <script src="{{ static('web/appearance.js') }}"></script>
-  <link rel="stylesheet" href="{{ static('web/app.css') }}">
-  <script src="{{ static('web/search.js') }}" defer></script>
-  <script src="{{ static('web/vehicle-filters.js') }}" defer></script>
-  <script src="{{ static('web/vehicle-validation.js') }}" defer></script>
-<script src="{{ static('web/ui-state.js') }}" defer></script>
-<script src="{{ static('web/app.js') }}" defer></script>
-<script src="{{ static('web/drivers.js') }}" defer></script>
-<script src="{{ static('web/interactions.js') }}" defer></script>
-</head>
-<body class="workspace-page">
-  {% include 'web/_icons.html' %}
-  <a class="skip-link" href="#main-content" data-i18n="skip">Skip to content</a>
-  {% include 'web/_header.html' %}
-  <main class="container" id="main-content">
-    <section id="list-view" aria-labelledby="list-title">
-      <div class="list-toolbar"><div class="collection-label"><svg class="icon"><use href="#car"/></svg><span data-i18n="vehicleCollection">Vehicle collection</span><span class="count-label" id="vehicle-count" aria-live="polite"></span></div><div class="list-search-tools"><label class="search-field"><svg class="icon"><use href="#search"/></svg><span class="sr-only" data-i18n="search">Search by plate number or type</span><input id="vehicle-search" type="search" placeholder="Search by plate number or type…" data-i18n-placeholder="searchPlaceholder" autocomplete="off"></label><details class="filter-popover" id="filter-popover"><summary class="button secondary filter-toggle"><svg class="icon" aria-hidden="true"><use href="#filter"/></svg><span data-i18n="filters">Filters</span><span id="filter-active-count" class="filter-badge" hidden></span></summary>      <fieldset class="vehicle-filters" id="vehicle-filters"><legend data-i18n="filterVehicles">Filter vehicles</legend><div class="filter-fields">
-        <div class="field"><label for="filter-owner" data-i18n="ownerName">Owner name</label><select id="filter-owner" disabled><option value="" data-i18n="allOwners">All owners</option></select></div>
-        <div class="field"><label for="filter-model" data-i18n="manufactureYear">Vehicle model</label><select id="filter-model" disabled><option value="" data-i18n="allModels">All models</option></select></div>
-        <div class="field"><label for="filter-type" data-i18n="vehicleType">Vehicle type</label><select id="filter-type" disabled><option value="" data-i18n="allTypes">All types</option></select></div>
-        <button type="button" class="button secondary" id="clear-filters" disabled data-i18n="clearFilters">Clear filters</button>
-      </div><button type="button" class="button primary small filter-done" id="close-filters" data-i18n="doneFilters">Done</button></fieldset></details><button type="button" class="button secondary" id="print-results" disabled><svg class="icon" aria-hidden="true"><use href="#printer"/></svg><span data-i18n="printResults">Print results</span></button></div></div><p class="filter-summary muted" id="filter-summary" role="status" aria-live="polite"></p>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#18181b" />
+    <title>H SPACE | Vehicles</title>
+    <link rel="icon" type="image/svg+xml" href="{{ static('web/brand-mark.svg') }}" />
+    <script src="{{ static('web/appearance.js') }}"></script>
+    <link rel="stylesheet" href="{{ static('web/app.css') }}" />
+    <script src="{{ static('web/search.js') }}" defer></script>
+    <script src="{{ static('web/vehicle-filters.js') }}" defer></script>
+    <script src="{{ static('web/vehicle-validation.js') }}" defer></script>
+    <script src="{{ static('web/ui-state.js') }}" defer></script>
+    <script src="{{ static('web/app.js') }}" defer></script>
+    <script src="{{ static('web/drivers.js') }}" defer></script>
+    <script src="{{ static('web/driver-files.js') }}" defer></script>
+    <script src="{{ static('web/interactions.js') }}" defer></script>
+  </head>
+  <body class="workspace-page">
+    {% include 'web/_icons.html' %}
+    <a class="skip-link" href="#main-content" data-i18n="skip">Skip to content</a>
+    {% include 'web/_header.html' %}
+    <main class="container" id="main-content">
+      <section id="list-view" aria-labelledby="list-title">
+        <div class="list-toolbar">
+          <div class="collection-label">
+            <svg class="icon"><use href="#car" /></svg
+            ><span data-i18n="vehicleCollection">Vehicle collection</span
+            ><span class="count-label" id="vehicle-count" aria-live="polite"></span>
+          </div>
+          <div class="list-search-tools">
+            <label class="search-field"
+              ><svg class="icon"><use href="#search" /></svg
+              ><span class="sr-only" data-i18n="search">Search by plate number or type</span
+              ><input
+                id="vehicle-search"
+                type="search"
+                placeholder="Search by plate number or type…"
+                data-i18n-placeholder="searchPlaceholder"
+                autocomplete="off"
+            /></label>
+            <details class="filter-popover" id="filter-popover">
+              <summary class="button secondary filter-toggle">
+                <svg class="icon" aria-hidden="true"><use href="#filter" /></svg
+                ><span data-i18n="filters">Filters</span
+                ><span id="filter-active-count" class="filter-badge" hidden></span>
+              </summary>
+              <fieldset class="vehicle-filters" id="vehicle-filters">
+                <legend data-i18n="filterVehicles">Filter vehicles</legend>
+                <div class="filter-fields">
+                  <div class="field">
+                    <label for="filter-owner" data-i18n="ownerName">Owner name</label
+                    ><select id="filter-owner" disabled>
+                      <option value="" data-i18n="allOwners">All owners</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="filter-model" data-i18n="manufactureYear">Vehicle model</label
+                    ><select id="filter-model" disabled>
+                      <option value="" data-i18n="allModels">All models</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="filter-type" data-i18n="vehicleType">Vehicle type</label
+                    ><select id="filter-type" disabled>
+                      <option value="" data-i18n="allTypes">All types</option>
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    class="button secondary"
+                    id="clear-filters"
+                    disabled
+                    data-i18n="clearFilters"
+                  >
+                    Clear filters
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  class="button primary small filter-done"
+                  id="close-filters"
+                  data-i18n="doneFilters"
+                >
+                  Done
+                </button>
+              </fieldset>
+            </details>
+            <button type="button" class="button secondary" id="print-results" disabled>
+              <svg class="icon" aria-hidden="true"><use href="#printer" /></svg
+              ><span data-i18n="printResults">Print results</span>
+            </button>
+          </div>
+        </div>
+        <p class="filter-summary muted" id="filter-summary" role="status" aria-live="polite"></p>
 
-
-      <div class="page-heading fleet-heading"><div><h1 id="list-title" tabindex="-1"><span data-i18n="vehicles">Your vehicles.</span><span class="hero-accent" data-i18n="heroAccent">All in view.</span></h1><p class="muted" data-i18n="listDescription">Every detail, beautifully in place.</p></div><button id="add-vehicle" type="button" class="button primary"><svg class="icon"><use href="#plus"/></svg><span data-i18n="addVehicle">Add vehicle</span></button><span class="fleet-heading-signature" aria-hidden="true">H SPACE <span>↗</span></span></div>
-      <div id="connection-notice" class="notice" role="status" hidden><svg class="icon"><use href="#info"/></svg><div><strong data-i18n="databaseTitle">Vehicle storage is unavailable</strong><p data-i18n="databaseDescription">Please try again when the local database is available.</p></div><button class="button small secondary" id="retry-connection" type="button" data-i18n="retry">Try again</button></div>
-      <div id="list-loading" class="empty-state" role="status"><span class="spinner" aria-hidden="true"></span><p data-i18n="loading">Loading vehicles…</p></div>
-      <div id="list-error" role="alert" aria-atomic="true" class="empty-state" hidden><span class="empty-icon"><svg class="icon"><use href="#info"/></svg></span><h2 data-i18n="loadFailed">Couldn't load vehicles</h2><p class="muted" data-i18n="loadFailedDescription">Check the connection and try again.</p><button class="button secondary" id="retry-list" type="button" data-i18n="retry">Try again</button></div>
-      <div id="empty-fleet" class="empty-state" hidden><span class="empty-icon"><svg class="icon"><use href="#car"/></svg></span><h2 data-i18n="emptyTitle">Your vehicles will appear here</h2><p class="muted" id="empty-description" data-i18n="emptyDescription">Add your first vehicle to keep its information, photos and files together.</p><button class="button secondary" id="empty-add" type="button"><svg class="icon"><use href="#plus"/></svg><span data-i18n="addVehicle">Add vehicle</span></button></div>
-      <div id="no-results" class="empty-state" hidden><h2 data-i18n="noResults">No matching vehicles</h2><p class="muted" data-i18n="trySearch">Try another search or clear the filters.</p></div>
-      <p id="cover-message" class="form-message" role="status"></p>
-      <div id="vehicle-grid" class="vehicle-grid"></div>
-    </section>
-    <section id="detail-view" aria-labelledby="detail-title" hidden>
-      <a class="back-link" href="#vehicles"><svg class="icon directional"><use href="#arrow"/></svg><span data-i18n="backToVehicles">Back to vehicles</span></a>
-      <div class="page-heading detail-heading"><div class="detail-title-row"><h1 id="detail-title" dir="auto" tabindex="-1"></h1><div class="record-signature" aria-hidden="true">{% include 'web/_brand.html' %}</div></div><p class="muted" id="detail-created"></p></div>
-      <div id="detail-loading" class="empty-state" role="status"><span class="spinner" aria-hidden="true"></span><p data-i18n="loadingDetails">Loading vehicle…</p></div>
-      <div id="detail-error" class="notice error" role="alert" hidden><svg class="icon"><use href="#info"/></svg><p id="detail-error-text"></p></div>
-      <div id="detail-content" hidden>
-        <section class="panel" aria-labelledby="information-title"><div class="panel-heading"><span class="section-icon" aria-hidden="true"><svg class="icon"><use href="#car"/></svg></span><h2 id="information-title" data-i18n="vehicleInformation">Vehicle information</h2></div><form id="vehicle-information-form" class="information-form" novalidate><div class="information-fields">
-<div class="field"><label for="detail-owner" data-i18n="ownerName">Owner name</label><input id="detail-owner" list="owner-suggestions" name="owner_name" maxlength="200" dir="auto" inputmode="text" autocomplete="off" aria-describedby="hint-owner"><datalist id="owner-suggestions"></datalist><span class="field-hint" id="hint-owner" data-i18n="ownerNameHint">Choose an existing owner or enter a new name. Arabic or English letters and spaces only.</span></div>
-<div class="field"><label for="detail-owner-phone" data-i18n="ownerPhone">Owner phone number</label><input id="detail-owner-phone" name="owner_phone" maxlength="32" dir="ltr" inputmode="tel" autocomplete="off" aria-describedby="hint-owner-phone"><span class="field-hint" id="hint-owner-phone" data-i18n="phoneRule">Digits only.</span></div>
-<div class="field"><label for="detail-driver" data-i18n="driverName">Driver name</label><input id="detail-driver" readonly name="driver_name" maxlength="200" dir="auto" inputmode="text" autocomplete="off" aria-describedby="hint-driver"><span class="field-hint" id="hint-driver" data-driver-i18n="currentDriverHint">Use the driver actions below to change or correct this value.</span></div>
-<div class="field"><label for="detail-driver-phone" data-i18n="driverPhone">Driver phone number</label><input id="detail-driver-phone" readonly name="driver_phone" maxlength="32" dir="ltr" inputmode="tel" autocomplete="off" aria-describedby="hint-driver-phone"><span class="field-hint" id="hint-driver-phone" data-driver-i18n="currentDriverHint">Use the driver actions below to change or correct this value.</span></div>
-<div class="field"><label for="detail-type" data-i18n="vehicleType">Vehicle type</label><input id="detail-type" name="vehicle_type" maxlength="120" dir="auto" inputmode="text" autocomplete="off" aria-describedby="hint-type" required><span class="field-hint" id="hint-type" data-i18n="nameRule">Arabic or English letters and spaces only.</span></div>
-<div class="field"><label for="detail-year" data-i18n="manufactureYear">Vehicle model</label><input id="detail-year" name="manufacture_year" maxlength="32" dir="ltr" inputmode="numeric" autocomplete="off" aria-describedby="hint-year"><span class="field-hint" id="hint-year" data-i18n="digitsRule">English digits only (0–9).</span></div>
-<div class="field"><label for="detail-chassis" data-i18n="chassisNumber">Chassis number</label><input id="detail-chassis" name="chassis_number" maxlength="120" dir="ltr" inputmode="text" autocomplete="off" aria-describedby="hint-chassis"><span class="field-hint" id="hint-chassis" data-i18n="chassisRule">English letters and/or digits (A–Z, a–z, 0–9).</span></div>
-<div class="field"><label for="detail-plate" data-i18n="plateNumber">Vehicle number</label><input id="detail-plate" name="plate_number" maxlength="64" dir="ltr" inputmode="numeric" autocomplete="off" aria-describedby="hint-plate" required><span class="field-hint" id="hint-plate" data-i18n="plateRule">English digits; hyphens allowed between digit groups.</span></div>
-</div><div class="form-actions"><p id="information-message" class="form-message" role="status"></p><button class="button primary" id="save-information" type="submit" data-i18n="saveChanges">Save changes</button></div></form></section>
-<section class="panel driver-panel" aria-labelledby="driver-section-title"><div class="panel-heading"><h2 id="driver-section-title" data-driver-i18n="driverHistory">Driver history</h2><div class="driver-actions"><button class="button secondary small" id="change-driver" type="button" data-driver-i18n="changeDriver">Change driver</button><button class="button secondary small" id="correct-driver" type="button" data-driver-i18n="correctDriver">Correct current driver</button><a class="button secondary small" id="all-driver-history" href="/drivers/" data-driver-i18n="searchHistory">Search / print history</a></div></div><p id="driver-status" class="form-message" role="status"></p><div id="vehicle-driver-history" class="driver-records"></div><details><summary data-driver-i18n="corrections">Correction history</summary><div id="driver-corrections"></div></details></section>
-        <section class="panel attachment-panel" aria-labelledby="photos-title"><div class="panel-heading"><span class="section-icon" aria-hidden="true"><svg class="icon"><use href="#photo"/></svg></span><div><h2 id="photos-title" data-i18n="photos">Photos</h2><p class="muted section-description" data-i18n="photoDescription">Photos belonging to this vehicle.</p></div><div class="attachment-section-actions"><a id="download-photos" class="button secondary small" aria-disabled="true" tabindex="-1" download target="_blank" rel="noopener"><svg class="icon" aria-hidden="true"><use href="#download"/></svg><span data-i18n="downloadPhotos">Download all photos (ZIP)</span></a><button id="add-photos" class="button secondary small" type="button"><svg class="icon"><use href="#plus"/></svg><span data-i18n="addPhotos">Add photos</span></button></div><input id="photo-input" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden></div><p id="photos-empty" class="section-empty" data-i18n="noPhotos">No photos added yet.</p><div id="photo-grid" class="photo-grid"></div><p class="upload-hint" data-i18n="photoHint">JPG, PNG or WebP · Up to 10 MB and 25 MP per photo</p></section>
-        <section class="panel attachment-panel" aria-labelledby="files-title"><div class="panel-heading"><span class="section-icon" aria-hidden="true"><svg class="icon"><use href="#file"/></svg></span><div><h2 id="files-title" data-i18n="files">Files</h2><p class="muted section-description" data-i18n="fileDescription">Documents belonging to this vehicle.</p></div><div class="attachment-section-actions"><a id="download-files" class="button secondary small" aria-disabled="true" tabindex="-1" download target="_blank" rel="noopener"><svg class="icon" aria-hidden="true"><use href="#download"/></svg><span data-i18n="downloadFiles">Download all files (ZIP)</span></a><button id="add-files" class="button secondary small" type="button"><svg class="icon"><use href="#plus"/></svg><span data-i18n="addFiles">Add files</span></button></div><input id="file-input" type="file" accept=".pdf,.txt,.docx,.xlsx" multiple hidden></div><p id="files-empty" class="section-empty" data-i18n="noFiles">No files added yet.</p><div id="file-list" class="file-list"></div><p class="upload-hint" data-i18n="fileHint">PDF, TXT, DOCX or XLSX · Up to 10 MB per file</p></section>
-        <p id="upload-message" class="upload-message" role="status" tabindex="-1"></p>
+        <div class="page-heading fleet-heading">
+          <div>
+            <h1 id="list-title" tabindex="-1">
+              <span data-i18n="vehicles">Your vehicles.</span
+              ><span class="hero-accent" data-i18n="heroAccent">All in view.</span>
+            </h1>
+            <p class="muted" data-i18n="listDescription">Every detail, beautifully in place.</p>
+          </div>
+          <button id="add-vehicle" type="button" class="button primary">
+            <svg class="icon"><use href="#plus" /></svg
+            ><span data-i18n="addVehicle">Add vehicle</span></button
+          ><span class="fleet-heading-signature" aria-hidden="true">H SPACE <span>↗</span></span>
+        </div>
+        <div id="connection-notice" class="notice" role="status" hidden>
+          <svg class="icon"><use href="#info" /></svg>
+          <div>
+            <strong data-i18n="databaseTitle">Vehicle storage is unavailable</strong>
+            <p data-i18n="databaseDescription">
+              Please try again when the local database is available.
+            </p>
+          </div>
+          <button
+            class="button small secondary"
+            id="retry-connection"
+            type="button"
+            data-i18n="retry"
+          >
+            Try again
+          </button>
+        </div>
+        <div id="list-loading" class="empty-state" role="status">
+          <span class="spinner" aria-hidden="true"></span>
+          <p data-i18n="loading">Loading vehicles…</p>
+        </div>
+        <div id="list-error" role="alert" aria-atomic="true" class="empty-state" hidden>
+          <span class="empty-icon"
+            ><svg class="icon"><use href="#info" /></svg
+          ></span>
+          <h2 data-i18n="loadFailed">Couldn't load vehicles</h2>
+          <p class="muted" data-i18n="loadFailedDescription">Check the connection and try again.</p>
+          <button class="button secondary" id="retry-list" type="button" data-i18n="retry">
+            Try again
+          </button>
+        </div>
+        <div id="empty-fleet" class="empty-state" hidden>
+          <span class="empty-icon"
+            ><svg class="icon"><use href="#car" /></svg
+          ></span>
+          <h2 data-i18n="emptyTitle">Your vehicles will appear here</h2>
+          <p class="muted" id="empty-description" data-i18n="emptyDescription">
+            Add your first vehicle to keep its information, photos and files together.
+          </p>
+          <button class="button secondary" id="empty-add" type="button">
+            <svg class="icon"><use href="#plus" /></svg
+            ><span data-i18n="addVehicle">Add vehicle</span>
+          </button>
+        </div>
+        <div id="no-results" class="empty-state" hidden>
+          <h2 data-i18n="noResults">No matching vehicles</h2>
+          <p class="muted" data-i18n="trySearch">Try another search or clear the filters.</p>
+        </div>
+        <p id="cover-message" class="form-message" role="status"></p>
+        <div id="vehicle-grid" class="vehicle-grid"></div>
+      </section>
+      <section id="detail-view" aria-labelledby="detail-title" hidden>
+        <a class="back-link" href="#vehicles"
+          ><svg class="icon directional"><use href="#arrow" /></svg
+          ><span data-i18n="backToVehicles">Back to vehicles</span></a
+        >
+        <div class="page-heading detail-heading">
+          <div class="detail-title-row">
+            <h1 id="detail-title" dir="auto" tabindex="-1"></h1>
+            {% include 'web/_record_signature.html' %}
+          </div>
+          <p class="muted" id="detail-created"></p>
+        </div>
+        <div id="detail-loading" class="empty-state" role="status">
+          <span class="spinner" aria-hidden="true"></span>
+          <p data-i18n="loadingDetails">Loading vehicle…</p>
+        </div>
+        <div id="detail-error" class="notice error" role="alert" hidden>
+          <svg class="icon"><use href="#info" /></svg>
+          <p id="detail-error-text"></p>
+        </div>
+        <div id="detail-content" hidden>
+          <section class="panel" aria-labelledby="information-title">
+            <div class="panel-heading">
+              <span class="section-icon" aria-hidden="true"
+                ><svg class="icon"><use href="#car" /></svg
+              ></span>
+              <h2 id="information-title" data-i18n="vehicleInformation">Vehicle information</h2>
+            </div>
+            <form id="vehicle-information-form" class="information-form" novalidate>
+              <div class="information-fields">
+                <div class="field">
+                  <label for="detail-plate" data-i18n="plateNumber">Vehicle number</label
+                  ><input
+                    id="detail-plate"
+                    name="plate_number"
+                    maxlength="64"
+                    dir="ltr"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    aria-describedby="hint-plate"
+                    required
+                  /><span class="field-hint" id="hint-plate" data-i18n="plateRule"
+                    >English digits; hyphens allowed between digit groups.</span
+                  >
+                </div>
+                <div class="field">
+                  <label for="detail-owner" data-i18n="ownerName">Owner name</label
+                  ><input
+                    id="detail-owner"
+                    list="owner-suggestions"
+                    name="owner_name"
+                    maxlength="200"
+                    dir="auto"
+                    inputmode="text"
+                    autocomplete="off"
+                    aria-describedby="hint-owner"
+                  /><datalist id="owner-suggestions"></datalist
+                  ><span class="field-hint" id="hint-owner" data-i18n="ownerNameHint"
+                    >Choose an existing owner or enter a new name. Arabic or English letters and
+                    spaces only.</span
+                  >
+                </div>
+                <div class="field">
+                  <label for="detail-driver" data-i18n="driverName">Driver name</label
+                  ><input
+                    id="detail-driver"
+                    readonly
+                    name="driver_name"
+                    maxlength="200"
+                    dir="auto"
+                    inputmode="text"
+                    autocomplete="off"
+                    aria-describedby="hint-driver"
+                  /><span class="field-hint" id="hint-driver" data-driver-i18n="currentDriverHint"
+                    >Use the driver actions below to change or correct this value.</span
+                  >
+                </div>
+                <div class="field">
+                  <label for="detail-type" data-i18n="vehicleType">Vehicle type</label
+                  ><input
+                    id="detail-type"
+                    name="vehicle_type"
+                    maxlength="120"
+                    dir="auto"
+                    inputmode="text"
+                    autocomplete="off"
+                    aria-describedby="hint-type"
+                    required
+                  /><span class="field-hint" id="hint-type" data-i18n="nameRule"
+                    >Arabic or English letters and spaces only.</span
+                  >
+                </div>
+                <div class="field">
+                  <label for="detail-year" data-i18n="manufactureYear">Vehicle model</label
+                  ><input
+                    id="detail-year"
+                    name="manufacture_year"
+                    maxlength="32"
+                    dir="ltr"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    aria-describedby="hint-year"
+                  /><span class="field-hint" id="hint-year" data-i18n="digitsRule"
+                    >English digits only (0–9).</span
+                  >
+                </div>
+                <div class="field">
+                  <label for="detail-chassis" data-i18n="chassisNumber">Chassis number</label
+                  ><input
+                    id="detail-chassis"
+                    name="chassis_number"
+                    maxlength="120"
+                    dir="ltr"
+                    inputmode="text"
+                    autocomplete="off"
+                    aria-describedby="hint-chassis"
+                  /><span class="field-hint" id="hint-chassis" data-i18n="chassisRule"
+                    >English letters and/or digits (A–Z, a–z, 0–9).</span
+                  >
+                </div>
+                <div class="field">
+                  <label for="detail-owner-phone" data-i18n="ownerPhone">Owner phone number</label
+                  ><input
+                    id="detail-owner-phone"
+                    name="owner_phone"
+                    maxlength="32"
+                    dir="ltr"
+                    inputmode="tel"
+                    autocomplete="off"
+                    aria-describedby="hint-owner-phone"
+                  /><span class="field-hint" id="hint-owner-phone" data-i18n="phoneRule"
+                    >Digits only.</span
+                  >
+                </div>
+                <div class="field">
+                  <label for="detail-driver-phone" data-i18n="driverPhone"
+                    >Driver phone number</label
+                  ><input
+                    id="detail-driver-phone"
+                    readonly
+                    name="driver_phone"
+                    maxlength="32"
+                    dir="ltr"
+                    inputmode="tel"
+                    autocomplete="off"
+                    aria-describedby="hint-driver-phone"
+                  /><span
+                    class="field-hint"
+                    id="hint-driver-phone"
+                    data-driver-i18n="currentDriverHint"
+                    >Use the driver actions below to change or correct this value.</span
+                  >
+                </div>
+              </div>
+              <div class="form-actions">
+                <p id="information-message" class="form-message" role="status"></p>
+                <button
+                  class="button primary"
+                  id="save-information"
+                  type="submit"
+                  data-i18n="saveChanges"
+                >
+                  Save changes
+                </button>
+              </div>
+            </form>
+          </section>
+          <section class="panel driver-panel" aria-labelledby="driver-section-title">
+            <div class="panel-heading">
+              <h2 id="driver-section-title" data-driver-i18n="driverHistory">Driver history</h2>
+              <div class="driver-actions">
+                <button
+                  class="button secondary small"
+                  id="change-driver"
+                  type="button"
+                  data-driver-i18n="changeDriver"
+                >
+                  Change driver</button
+                ><button
+                  class="button secondary small"
+                  id="correct-driver"
+                  type="button"
+                  data-driver-i18n="correctDriver"
+                >
+                  Correct current driver</button
+                ><a
+                  class="button secondary small"
+                  id="all-driver-history"
+                  href="/drivers/"
+                  data-driver-i18n="searchHistory"
+                  >Search / print history</a
+                >
+              </div>
+            </div>
+            <p id="driver-status" class="form-message" role="status"></p>
+            <div id="vehicle-driver-history" class="driver-records"></div>
+            <details>
+              <summary data-driver-i18n="corrections">Correction history</summary>
+              <div id="driver-corrections"></div>
+            </details>
+          </section>
+          <section class="panel attachment-panel" aria-labelledby="photos-title">
+            <div class="panel-heading">
+              <span class="section-icon" aria-hidden="true"
+                ><svg class="icon"><use href="#photo" /></svg
+              ></span>
+              <div>
+                <h2 id="photos-title" data-i18n="photos">Photos</h2>
+                <p class="muted section-description" data-i18n="photoDescription">
+                  Photos belonging to this vehicle.
+                </p>
+              </div>
+              <div class="attachment-section-actions">
+                <a
+                  id="download-photos"
+                  class="button secondary small"
+                  aria-disabled="true"
+                  tabindex="-1"
+                  download
+                  target="_blank"
+                  rel="noopener"
+                  ><svg class="icon" aria-hidden="true"><use href="#download" /></svg
+                  ><span data-i18n="downloadPhotos">Download all photos (ZIP)</span></a
+                ><button id="add-photos" class="button secondary small" type="button">
+                  <svg class="icon"><use href="#plus" /></svg
+                  ><span data-i18n="addPhotos">Add photos</span>
+                </button>
+              </div>
+              <input
+                id="photo-input"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                hidden
+              />
+            </div>
+            <p id="photos-empty" class="section-empty" data-i18n="noPhotos">No photos added yet.</p>
+            <div id="photo-grid" class="photo-grid"></div>
+            <p class="upload-hint" data-i18n="photoHint">
+              JPG, PNG or WebP · Up to 10 MB and 25 MP per photo
+            </p>
+          </section>
+          <section class="panel attachment-panel" aria-labelledby="files-title">
+            <div class="panel-heading">
+              <span class="section-icon" aria-hidden="true"
+                ><svg class="icon"><use href="#file" /></svg
+              ></span>
+              <div>
+                <h2 id="files-title" data-i18n="files">Files</h2>
+                <p class="muted section-description" data-i18n="fileDescription">
+                  Documents belonging to this vehicle.
+                </p>
+              </div>
+              <div class="attachment-section-actions">
+                <a
+                  id="download-files"
+                  class="button secondary small"
+                  aria-disabled="true"
+                  tabindex="-1"
+                  download
+                  target="_blank"
+                  rel="noopener"
+                  ><svg class="icon" aria-hidden="true"><use href="#download" /></svg
+                  ><span data-i18n="downloadFiles">Download all files (ZIP)</span></a
+                ><button id="add-files" class="button secondary small" type="button">
+                  <svg class="icon"><use href="#plus" /></svg
+                  ><span data-i18n="addFiles">Add files</span>
+                </button>
+              </div>
+              <input id="file-input" type="file" accept=".pdf,.txt,.docx,.xlsx" multiple hidden />
+            </div>
+            <p id="files-empty" class="section-empty" data-i18n="noFiles">No files added yet.</p>
+            <div id="file-list" class="file-list"></div>
+            <p class="upload-hint" data-i18n="fileHint">
+              PDF, TXT, DOCX or XLSX · Up to 10 MB per file
+            </p>
+          </section>
+          <p id="upload-message" class="upload-message" role="status" tabindex="-1"></p>
+        </div>
+      </section>
+    </main>
+    <dialog id="add-dialog" aria-labelledby="add-title">
+      <div class="dialog-heading">
+        <div>
+          <h2 id="add-title" data-i18n="addVehicle">Add vehicle</h2>
+          <p class="muted" data-i18n="addDescription">
+            Enter the vehicle type and plate number, then complete the details on its page.
+          </p>
+        </div>
+        <button
+          id="close-dialog"
+          class="icon-button"
+          type="button"
+          aria-label="Close"
+          data-i18n-aria="close"
+        >
+          <svg class="icon"><use href="#close" /></svg>
+        </button>
       </div>
-    </section>
-  </main>
-  <dialog id="add-dialog" aria-labelledby="add-title"><div class="dialog-heading"><div><h2 id="add-title" data-i18n="addVehicle">Add vehicle</h2><p class="muted" data-i18n="addDescription">Enter the vehicle type and plate number, then complete the details on its page.</p></div><button id="close-dialog" class="icon-button" type="button" aria-label="Close" data-i18n-aria="close"><svg class="icon"><use href="#close"/></svg></button></div><form id="add-form" novalidate><div class="field"><label for="new-type" data-i18n="vehicleType">Vehicle type</label><input id="new-type" name="vehicle_type" maxlength="120" required dir="auto" autocomplete="off"></div><div class="field"><label for="new-plate" data-i18n="plateNumber">Vehicle number</label><input id="new-plate" name="plate_number" maxlength="64" inputmode="numeric" required placeholder="e.g. 12-34567" data-i18n-placeholder="plateExample" dir="ltr" autocomplete="off"></div><p class="form-message" id="add-message" role="status"></p><div class="dialog-actions"><button class="button secondary" id="cancel-add" type="button" data-i18n="cancel">Cancel</button><button class="button primary" id="save-vehicle" type="submit" data-i18n="saveVehicle">Add vehicle</button></div></form></dialog>
-  <dialog id="rename-dialog" aria-labelledby="rename-title"><h2 id="rename-title" data-i18n="renameAttachment">Rename attachment</h2><p class="muted"><bdi id="rename-current"></bdi></p><form id="rename-form" novalidate><div class="field"><label for="rename-name" data-i18n="fileName">File name</label><div class="rename-name-input"><input id="rename-name" maxlength="180" dir="auto" autocomplete="off" required aria-describedby="rename-hint rename-message"><bdi id="rename-extension" dir="ltr"></bdi></div><span class="field-hint" id="rename-hint" data-i18n="renameHint">Enter the name only. The file extension stays unchanged.</span></div><p id="rename-message" class="form-message" role="alert"></p><div class="dialog-actions"><button type="button" class="button secondary" id="cancel-rename" data-i18n="cancel">Cancel</button><button type="submit" class="button primary" id="save-rename" data-i18n="renameSave">Save name</button></div></form></dialog>
-  <footer class="app-footer"><span>H SPACE <span class="footer-divider">/</span> <span data-i18n="brandSub">Vehicle management</span></span><span data-i18n="footerTagline">A place for every detail.</span></footer>
-  <div id="announcement" class="sr-only" role="status" aria-live="polite"></div>
-  <noscript><p class="notice">Enable JavaScript to manage vehicles. / فعّل JavaScript لإدارة السيارات.</p></noscript>
-<input type="hidden" id="csrf-token" value="{{ csrf_token }}"><dialog id="driver-dialog" aria-labelledby="driver-dialog-title"><h2 id="driver-dialog-title"></h2><form id="driver-form"><div class="field"><label for="new-driver-name" data-driver-i18n="name">Driver name</label><input aria-describedby="error-driver_name" id="new-driver-name" maxlength="200" required dir="auto"><span class="field-error" id="error-driver_name" aria-live="polite"></span></div><div class="field"><label for="new-driver-phone" data-driver-i18n="phone">Driver phone</label><input aria-describedby="driver-phone-hint error-driver_phone" id="new-driver-phone" maxlength="32" inputmode="tel" dir="ltr"><span class="field-hint" id="driver-phone-hint" data-driver-i18n="phoneHint">English digits only; keep the leading zero.</span><span class="field-error" id="error-driver_phone" aria-live="polite"></span></div><div class="field"><label for="driver-start" data-driver-i18n="start">Start date</label><input aria-describedby="error-started_on" id="driver-start" type="date" dir="ltr"><span class="field-error" id="error-started_on" aria-live="polite"></span><span class="field-hint" data-driver-i18n="startHint">Changing drivers requires a date. For an older current record, leave an unknown start date empty when correcting.</span></div><p class="form-message" id="driver-form-message" role="status"></p><div class="dialog-actions"><button type="button" class="button secondary" id="cancel-driver" data-driver-i18n="cancel">Cancel</button><button type="submit" class="button primary" id="save-driver" data-driver-i18n="save">Save</button></div></form></dialog></body>
+      <form id="add-form" novalidate>
+        <div class="field">
+          <label for="new-type" data-i18n="vehicleType">Vehicle type</label
+          ><input
+            id="new-type"
+            name="vehicle_type"
+            maxlength="120"
+            required
+            dir="auto"
+            autocomplete="off"
+          />
+        </div>
+        <div class="field">
+          <label for="new-plate" data-i18n="plateNumber">Vehicle number</label
+          ><input
+            id="new-plate"
+            name="plate_number"
+            maxlength="64"
+            inputmode="numeric"
+            required
+            placeholder="e.g. 12-34567"
+            data-i18n-placeholder="plateExample"
+            dir="ltr"
+            autocomplete="off"
+          />
+        </div>
+        <p class="form-message" id="add-message" role="status"></p>
+        <div class="dialog-actions">
+          <button class="button secondary" id="cancel-add" type="button" data-i18n="cancel">
+            Cancel</button
+          ><button class="button primary" id="save-vehicle" type="submit" data-i18n="saveVehicle">
+            Add vehicle
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="rename-dialog" aria-labelledby="rename-title">
+      <h2 id="rename-title" data-i18n="renameAttachment">Rename attachment</h2>
+      <p class="muted"><bdi id="rename-current"></bdi></p>
+      <form id="rename-form" novalidate>
+        <div class="field">
+          <label for="rename-name" data-i18n="fileName">File name</label>
+          <div class="rename-name-input">
+            <input
+              id="rename-name"
+              maxlength="180"
+              dir="auto"
+              autocomplete="off"
+              required
+              aria-describedby="rename-hint rename-message"
+            /><bdi id="rename-extension" dir="ltr"></bdi>
+          </div>
+          <span class="field-hint" id="rename-hint" data-i18n="renameHint"
+            >Enter the name only. The file extension stays unchanged.</span
+          >
+        </div>
+        <p id="rename-message" class="form-message" role="alert"></p>
+        <div class="dialog-actions">
+          <button type="button" class="button secondary" id="cancel-rename" data-i18n="cancel">
+            Cancel</button
+          ><button type="submit" class="button primary" id="save-rename" data-i18n="renameSave">
+            Save name
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="driver-end-dialog" aria-labelledby="driver-end-title">
+      <h2 id="driver-end-title" data-driver-i18n="endPeriod">End period</h2>
+      <p><bdi id="driver-end-name"></bdi></p>
+      <p class="muted" data-driver-i18n="endHint">
+        Keep the driver and documents in history; clear the current driver until a new one is
+        assigned.
+      </p>
+      <form id="driver-end-form" novalidate>
+        <div class="field">
+          <label for="driver-last-worked" data-driver-i18n="lastWorked">Last working day</label
+          ><input
+            id="driver-last-worked"
+            type="date"
+            dir="ltr"
+            required
+            aria-describedby="driver-end-message"
+          />
+        </div>
+        <p id="driver-end-message" class="form-message" role="alert"></p>
+        <div class="dialog-actions">
+          <button
+            id="driver-end-cancel"
+            type="button"
+            class="button secondary"
+            data-driver-i18n="cancel"
+          >
+            Cancel</button
+          ><button
+            id="driver-end-save"
+            type="submit"
+            class="button primary"
+            data-driver-i18n="endPeriod"
+          >
+            End period
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="driver-files-dialog" aria-labelledby="driver-files-title">
+      <div class="dialog-heading">
+        <h2 id="driver-files-title" data-driver-file-i18n="title">Driver attachments</h2>
+        <button
+          id="driver-files-close"
+          type="button"
+          class="button secondary small"
+          data-driver-file-i18n="close"
+        >
+          Close
+        </button>
+      </div>
+      <p><bdi id="driver-files-name"></bdi></p>
+      <p class="field-hint" data-driver-file-i18n="hint">
+        Identity, licence and other documents stay with this driver period, including after it ends.
+      </p>
+      <div class="driver-files-toolbar">
+        <button
+          id="driver-files-add"
+          type="button"
+          class="button primary small"
+          data-driver-file-i18n="add"
+        >
+          Add photo / file</button
+        ><button
+          id="driver-files-refresh"
+          type="button"
+          class="button secondary small"
+          data-driver-file-i18n="refresh"
+        >
+          Refresh</button
+        ><input
+          id="driver-files-input"
+          type="file"
+          accept=".jpg,.jpeg,.png,.webp,.pdf,.txt,.docx,.xlsx"
+          multiple
+          hidden
+        />
+      </div>
+      <p id="driver-files-status" role="status" class="form-message"></p>
+      <p id="driver-files-empty" class="section-empty" data-driver-file-i18n="empty" hidden>
+        No attachments for this driver period.
+      </p>
+      <div id="driver-files-list" class="file-list"></div>
+    </dialog>
+    <footer class="app-footer">
+      <span
+        >H SPACE <span class="footer-divider">/</span>
+        <span data-i18n="brandSub">Vehicle management</span></span
+      ><span data-i18n="footerTagline">A place for every detail.</span>
+    </footer>
+    <div id="announcement" class="sr-only" role="status" aria-live="polite"></div>
+    <noscript
+      ><p class="notice">
+        Enable JavaScript to manage vehicles. / فعّل JavaScript لإدارة السيارات.
+      </p></noscript
+    >
+    <input type="hidden" id="csrf-token" value="{{ csrf_token }}" />
+    <dialog id="driver-dialog" aria-labelledby="driver-dialog-title">
+      <h2 id="driver-dialog-title"></h2>
+      <form id="driver-form">
+        <div class="field">
+          <label for="new-driver-name" data-driver-i18n="name">Driver name</label
+          ><input
+            aria-describedby="error-driver_name"
+            id="new-driver-name"
+            maxlength="200"
+            required
+            dir="auto"
+          /><span class="field-error" id="error-driver_name" aria-live="polite"></span>
+        </div>
+        <div class="field">
+          <label for="new-driver-phone" data-driver-i18n="phone">Driver phone</label
+          ><input
+            aria-describedby="driver-phone-hint error-driver_phone"
+            id="new-driver-phone"
+            maxlength="32"
+            inputmode="tel"
+            dir="ltr"
+          /><span class="field-hint" id="driver-phone-hint" data-driver-i18n="phoneHint"
+            >English digits only; keep the leading zero.</span
+          ><span class="field-error" id="error-driver_phone" aria-live="polite"></span>
+        </div>
+        <div class="field">
+          <label for="driver-start" data-driver-i18n="start">Start date</label
+          ><input
+            aria-describedby="error-started_on"
+            id="driver-start"
+            type="date"
+            dir="ltr"
+          /><span class="field-error" id="error-started_on" aria-live="polite"></span
+          ><span class="field-hint" data-driver-i18n="startHint"
+            >Changing drivers requires a date. For an older current record, leave an unknown start
+            date empty when correcting.</span
+          >
+        </div>
+        <p class="form-message" id="driver-form-message" role="status"></p>
+        <div class="dialog-actions">
+          <button
+            type="button"
+            class="button secondary"
+            id="cancel-driver"
+            data-driver-i18n="cancel"
+          >
+            Cancel</button
+          ><button type="submit" class="button primary" id="save-driver" data-driver-i18n="save">
+            Save
+          </button>
+        </div>
+      </form>
+    </dialog>
+  </body>
 </html>

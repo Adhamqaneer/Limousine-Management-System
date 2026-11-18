@@ -28,7 +28,11 @@ def _xml(archive, name):
         raise PreviewUnavailable("Document part exceeds preview limits.")
     with archive.open(name) as source:
         content = source.read(MAX_XML_BYTES + 1)
-    if len(content) > MAX_XML_BYTES or b"<!DOCTYPE" in content.upper() or b"<!ENTITY" in content.upper():
+    if (
+        len(content) > MAX_XML_BYTES
+        or b"<!DOCTYPE" in content.upper()
+        or b"<!ENTITY" in content.upper()
+    ):
         raise PreviewUnavailable("Unsupported XML structure.")
     return ET.fromstring(content, parser=ET.XMLParser(target=_NoDTD()))
 
@@ -75,13 +79,18 @@ def _excel(archive):
         if len(entries) > 10000:
             raise PreviewUnavailable("Shared string table exceeds preview limits.")
         strings = [_text(item, SHEET + "t") for item in entries]
-    relations = {item.get("Id"): item.get("Target") for item in _xml(archive, "xl/_rels/workbook.xml.rels")
-                 if item.get("TargetMode") != "External"}
+    relations = {
+        item.get("Id"): item.get("Target")
+        for item in _xml(archive, "xl/_rels/workbook.xml.rels")
+        if item.get("TargetMode") != "External"
+    }
     sheets = _xml(archive, "xl/workbook.xml").findall(SHEET + "sheets/" + SHEET + "sheet")
     blocks = []
     truncated = len(sheets) > 5
     for sheet in sheets[:5]:
-        target = relations.get(sheet.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"))
+        target = relations.get(
+            sheet.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id")
+        )
         if not target:
             raise PreviewUnavailable("Worksheet is missing.")
         name = posixpath.normpath(target.lstrip("/") if target.startswith("/") else "xl/" + target)
@@ -111,7 +120,9 @@ def _excel(archive):
                 values[index] = value[:MAX_CELL_TEXT]
                 width = max(width, index + 1)
             table.append(values)
-        blocks.append({"heading": sheet.get("name", "")[:150], "rows": [row[:width] for row in table]})
+        blocks.append(
+            {"heading": sheet.get("name", "")[:150], "rows": [row[:width] for row in table]}
+        )
     return {"blocks": blocks, "truncated": truncated}
 
 
@@ -121,5 +132,13 @@ def office_preview(source, extension):
             if len(archive.infolist()) > 5000:
                 raise PreviewUnavailable("Archive exceeds preview limits.")
             return _word(archive) if extension == ".docx" else _excel(archive)
-    except (zipfile.BadZipFile, KeyError, ET.ParseError, ValueError, RuntimeError, OSError, OverflowError) as error:
+    except (
+        zipfile.BadZipFile,
+        KeyError,
+        ET.ParseError,
+        ValueError,
+        RuntimeError,
+        OSError,
+        OverflowError,
+    ) as error:
         raise PreviewUnavailable("Preview unavailable; download the original document.") from error

@@ -1,9 +1,6 @@
-# Local configuration, database wallets, and credentials
+# Local configuration and credentials
 .env
 .env.*
-!.env.example
-wallet/
-Wallet_*/
 *.pem
 *.key
 *.p12

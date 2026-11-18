@@ -1,18 +1,19 @@
 """Exercise documentation enforcement against real temporary Git histories."""
 
-from contextlib import redirect_stderr, redirect_stdout
 import importlib.util
 import io
 import json
 import os
-from pathlib import Path
 import subprocess
+from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location(
-    "readme_check", Path(__file__).resolve().parents[1] / "scripts/check_readme.py",
+    "readme_check",
+    Path(__file__).resolve().parents[1] / "scripts/check_readme.py",
 )
 readme_check = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(readme_check)
@@ -30,19 +31,36 @@ class ReadmeCheckTests(TestCase):
         self.commit()
 
     def git(self, *args):
-        return subprocess.run(["git", *args], cwd=self.repo, check=True, text=True, capture_output=True).stdout.strip()
+        return subprocess.run(
+            ["git", *args], cwd=self.repo, check=True, text=True, capture_output=True
+        ).stdout.strip()
 
     def commit(self):
         self.git("add", ".")
-        self.git("-c", "commit.gpgsign=false", "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "--quiet", "-m", "test fixture")
+        self.git(
+            "-c",
+            "commit.gpgsign=false",
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.invalid",
+            "commit",
+            "--quiet",
+            "-m",
+            "test fixture",
+        )
         return self.git("rev-parse", "HEAD")
 
     def check(self, args=(), event=None, event_name="push"):
-        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "", "GITHUB_EVENT_PATH": ""}), redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+        with patch.dict(
+            os.environ, {"GITHUB_EVENT_NAME": "", "GITHUB_EVENT_PATH": ""}
+        ), redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
             if event is not None:
                 path = self.repo / "event.json"
                 path.write_text(json.dumps(event), encoding="utf-8")
-                with patch.dict(os.environ, {"GITHUB_EVENT_NAME": event_name, "GITHUB_EVENT_PATH": str(path)}):
+                with patch.dict(
+                    os.environ, {"GITHUB_EVENT_NAME": event_name, "GITHUB_EVENT_PATH": str(path)}
+                ):
                     return readme_check.main(list(args), repo_root=self.repo)
             return readme_check.main(list(args), repo_root=self.repo)
 

@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('runserver', 'check', 'test', 'collectstatic', 'migrate')]
+    [ValidateSet('runserver', 'check', 'test', 'migrate')]
     [string]$Command = 'runserver',
     [int]$Port = 8000
 )

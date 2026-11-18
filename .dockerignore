@@ -1,15 +1,12 @@
 .git
 .env
 .env.*
-!.env.example
 .venv
 .runtime
 .deps
 .local
 __pycache__
 *.pyc
-wallet
-Wallet_*
 *.pem
 *.key
 *.p12

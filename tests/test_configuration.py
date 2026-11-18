@@ -1,5 +1,7 @@
 from unittest import TestCase
+
 from limousine.config.runtime import Settings
+
 
 class ConfigurationTests(TestCase):
     def test_partial_postgres_configuration_is_rejected_without_secret(self):
@@ -14,7 +16,23 @@ class ConfigurationTests(TestCase):
         with self.assertRaises(ValueError):
             Settings(production=True).validate()
         with self.assertRaises(ValueError):
-            Settings(db_name="db",db_user="app",db_password="private",secret="x"*64,
-                     production=True,allowed_hosts=("*",)).validate()
-        self.assertTrue(Settings(db_name="db",db_user="app",db_password="private",secret="x"*64,
-                                 production=True,allowed_hosts=("office.example",)).validate().production)
+            Settings(
+                db_name="db",
+                db_user="app",
+                db_password="private",
+                secret="x" * 64,
+                production=True,
+                allowed_hosts=("*",),
+            ).validate()
+        self.assertTrue(
+            Settings(
+                db_name="db",
+                db_user="app",
+                db_password="private",
+                secret="x" * 64,
+                production=True,
+                allowed_hosts=("office.example",),
+            )
+            .validate()
+            .production
+        )

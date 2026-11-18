@@ -1,9 +1,9 @@
 """Agreed vehicle fields, independent of frameworks and persistence."""
 
+import re
+import unicodedata
 from dataclasses import dataclass
 from datetime import datetime
-import unicodedata
-import re
 
 
 class DomainError(ValueError):
@@ -24,12 +24,21 @@ def normalize_plate_number(value: str) -> str:
     if len(value) > 64:
         raise DomainError("The plate number must be 64 characters or fewer.")
     if not re.fullmatch(r"[0-9]+(?:-[0-9]+)*", value):
-        raise DomainError("Use English digits, with optional hyphens between digits, for the vehicle number.")
+        raise DomainError(
+            "Use English digits, with optional hyphens between digits, for the vehicle number."
+        )
     return value
 
 
-VEHICLE_TEXT_FIELDS = {"owner_name": 200, "owner_phone": 32, "driver_name": 200,
-                       "driver_phone": 32, "vehicle_type": 120, "manufacture_year": 32, "chassis_number": 120}
+VEHICLE_TEXT_FIELDS = {
+    "owner_name": 200,
+    "owner_phone": 32,
+    "driver_name": 200,
+    "driver_phone": 32,
+    "vehicle_type": 120,
+    "manufacture_year": 32,
+    "chassis_number": 120,
+}
 
 
 def is_vehicle_name(value):
@@ -37,11 +46,16 @@ def is_vehicle_name(value):
     has_letter = False
     for char in value:
         category = unicodedata.category(char)
-        arabic = any(start <= ord(char) <= end for start, end in ((0x600, 0x6ff), (0x750, 0x77f), (0x8a0, 0x8ff)))
-        letter = char.isascii() and char.isalpha() or arabic and category.startswith("L")
-        if letter:
+        is_arabic_character = any(
+            start <= ord(char) <= end
+            for start, end in ((0x600, 0x6FF), (0x750, 0x77F), (0x8A0, 0x8FF))
+        )
+        is_english_letter = char.isascii() and char.isalpha()
+        is_arabic_letter = is_arabic_character and category.startswith("L")
+        is_arabic_mark = is_arabic_character and category.startswith("M")
+        if is_english_letter or is_arabic_letter:
             has_letter = True
-        elif char != " " and not (arabic and category.startswith("M") and has_letter):
+        elif char != " " and not (is_arabic_mark and has_letter):
             return False
     return has_letter
 
@@ -62,8 +76,12 @@ def normalize_vehicle_fields(fields):
             raise DomainError("Vehicle fields must be a single line of text.")
         if value:
             if name in ("owner_name", "driver_name", "vehicle_type") and not is_vehicle_name(value):
-                raise DomainError("Names and vehicle type accept Arabic or English letters and spaces only.")
-            if name == "owner_phone" and not re.fullmatch(r"[0-9\u0660-\u0669\u06f0-\u06f9]+", value):
+                raise DomainError(
+                    "Names and vehicle type accept Arabic or English letters and spaces only."
+                )
+            if name == "owner_phone" and not re.fullmatch(
+                r"[0-9\u0660-\u0669\u06f0-\u06f9]+", value
+            ):
                 raise DomainError("The owner phone accepts digits only.")
             if name in ("driver_phone", "manufacture_year") and not re.fullmatch(r"[0-9]+", value):
                 raise DomainError("Driver phone and vehicle model accept English digits only.")
@@ -82,6 +100,7 @@ class Attachment:
     kind: str
     size: int
     created_at: datetime
+    driver_assignment_id: int | None = None
 
 
 @dataclass(frozen=True)

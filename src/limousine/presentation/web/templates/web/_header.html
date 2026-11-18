@@ -1,10 +1,82 @@
 <header class="app-header">
-  <div class="header-brand-group"><a class="brand" href="/" aria-label="H SPACE">{% include 'web/_brand.html' %}</a><span class="workspace-label" data-i18n="brandSub">Vehicle management</span></div>
-  {% if user %}<nav class="main-nav" aria-label="Main navigation"><a href="/" class="nav-link{% if request.url.path == '/' %} active{% endif %}" {% if request.url.path == '/' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#car"/></svg><span data-i18n="navVehicles">Vehicles</span></a><a href="/reports/vehicles/" class="nav-link{% if request.url.path == '/reports/vehicles/' %} active{% endif %}" {% if request.url.path == '/reports/vehicles/' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#printer"/></svg><span data-i18n="navReports">Print data</span></a><a href="/drivers/" {% if request.url.path == '/drivers/' %}aria-current="page"{% endif %} class="nav-link{% if request.url.path == '/drivers/' %} active{% endif %}"><svg class="icon" aria-hidden="true"><use href="#car"/></svg><span data-i18n="navDrivers">Driver history</span></a>{% if user.role == "ADMIN" %}<a href="/recycle-bin/" {% if request.url.path == '/recycle-bin/' %}aria-current="page"{% endif %} class="nav-link{% if request.url.path == '/recycle-bin/' %} active{% endif %}"><svg class="icon" aria-hidden="true"><use href="#trash"/></svg><span data-i18n="navTrash">Deleted items</span></a><a href="/users/" class="nav-link{% if request.url.path == '/users/' %} active{% endif %}" {% if request.url.path == '/users/' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#shield"/></svg><span data-i18n="teamAccess">Team</span></a>{% endif %}</nav>{% endif %}
+  <div class="header-brand-group">
+    <a class="brand" href="/" aria-label="H SPACE">{% include 'web/_brand.html' %}</a
+    ><span class="workspace-label" data-i18n="brandSub">Vehicle management</span>
+  </div>
+  {% if user %}
+    <nav class="main-nav" aria-label="Main navigation">
+      <a
+        href="/"
+        class="{{ 'nav-link active' if request.url.path == '/' else 'nav-link' }}"
+        {% if request.url.path == '/' %}aria-current="page"{% endif %}
+        ><svg class="icon" aria-hidden="true"><use href="#car" /></svg
+        ><span data-i18n="navVehicles">Vehicles</span></a
+      ><a
+        href="/reports/vehicles/"
+        class="{{ 'nav-link active' if request.url.path == '/reports/vehicles/' else 'nav-link' }}"
+        {% if request.url.path == '/reports/vehicles/' %}aria-current="page"{% endif %}
+        ><svg class="icon" aria-hidden="true"><use href="#printer" /></svg
+        ><span data-i18n="navReports">Print data</span></a
+      ><a
+        href="/drivers/"
+        {% if request.url.path == '/drivers/' %}aria-current="page"{% endif %}
+        class="{{ 'nav-link active' if request.url.path == '/drivers/' else 'nav-link' }}"
+        ><svg class="icon" aria-hidden="true"><use href="#car" /></svg
+        ><span data-i18n="navDrivers">Driver history</span></a
+      ><a
+        href="/office/"
+        class="{{ 'nav-link active' if request.url.path == '/office/' else 'nav-link' }}"
+        {% if request.url.path == '/office/' %}aria-current="page"{% endif %}
+        ><svg class="icon" aria-hidden="true"><use href="#file" /></svg
+        ><span data-i18n="navOffice">Office files</span></a
+      >{% if user.role == "ADMIN" %}
+        <a
+          href="/recycle-bin/"
+          {% if request.url.path == '/recycle-bin/' %}aria-current="page"{% endif %}
+          class="{{ 'nav-link active' if request.url.path == '/recycle-bin/' else 'nav-link' }}"
+          ><svg class="icon" aria-hidden="true"><use href="#trash" /></svg
+          ><span data-i18n="navTrash">Deleted items</span></a
+        ><a
+          href="/users/"
+          class="{{ 'nav-link active' if request.url.path == '/users/' else 'nav-link' }}"
+          {% if request.url.path == '/users/' %}aria-current="page"{% endif %}
+          ><svg class="icon" aria-hidden="true"><use href="#shield" /></svg
+          ><span data-i18n="teamAccess">Team</span></a
+        >
+      {% endif %}
+    </nav>
+  {% endif %}
   <div class="header-actions">
-    {% if user %}<div class="user-identity"><span class="user-avatar" aria-hidden="true">{{ user.username[0]|upper }}</span><span class="signed-in-user" dir="auto">{{ user.username }}</span></div>{% endif %}
-    <button id="language-toggle" class="button language-button" type="button" aria-label="Switch to Arabic"><svg class="icon" aria-hidden="true"><use href="#globe"/></svg><span id="language-label" lang="ar">العربية</span></button>
-    <button id="theme-toggle" class="icon-button" type="button" aria-label="Switch to light mode"><svg class="icon theme-sun" aria-hidden="true"><use href="#sun"/></svg><svg class="icon theme-moon" aria-hidden="true"><use href="#moon"/></svg></button>
-    {% if user %}<form method="post" action="{{ url_for('logout') }}" class="signout-form"><input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}"><button class="icon-button signout-button" type="submit" aria-label="Sign out" data-i18n-aria="signOut"><svg class="icon" aria-hidden="true"><use href="#logout"/></svg></button></form>{% endif %}
+    {% if user %}
+      <div class="user-identity">
+        <span class="user-avatar" aria-hidden="true">{{ user.username[0]|upper }}</span
+        ><span class="signed-in-user" dir="auto">{{ user.username }}</span>
+      </div>
+    {% endif %}
+    <button
+      id="language-toggle"
+      class="button language-button"
+      type="button"
+      aria-label="Switch to Arabic"
+    >
+      <svg class="icon" aria-hidden="true"><use href="#globe" /></svg
+      ><span id="language-label" lang="ar">العربية</span>
+    </button>
+    <button id="theme-toggle" class="icon-button" type="button" aria-label="Switch to light mode">
+      <svg class="icon theme-sun" aria-hidden="true"><use href="#sun" /></svg
+      ><svg class="icon theme-moon" aria-hidden="true"><use href="#moon" /></svg>
+    </button>
+    {% if user %}
+      <form method="post" action="{{ url_for('logout') }}" class="signout-form">
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" /><button
+          class="icon-button signout-button"
+          type="submit"
+          aria-label="Sign out"
+          data-i18n-aria="signOut"
+        >
+          <svg class="icon" aria-hidden="true"><use href="#logout" /></svg>
+        </button>
+      </form>
+    {% endif %}
   </div>
 </header>

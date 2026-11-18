@@ -1,42 +1,121 @@
 <!doctype html>
 <html lang="en" dir="ltr" data-theme="dark">
-<head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101113"><title>H SPACE | Sign in</title>
-  <link rel="icon" type="image/svg+xml" href="{{ static('web/brand-mark.svg') }}">
-  <link rel="preload" as="image" href="{{ static('web/hspace-camry-studio.webp') }}">
-  <script src="{{ static('web/appearance.js') }}"></script>
-  <link rel="stylesheet" href="{{ static('web/app.css') }}">
-  <script src="{{ static('web/login.js') }}" defer></script>
-<script src="{{ static('web/interactions.js') }}" defer></script>
-</head>
-<body class="login-page">
-  {% include 'web/_icons.html' %}
-  <a class="skip-link" href="#login-form" data-i18n="skip">Skip to sign in</a>
-  {% include 'web/_header.html' %}
-  <main class="login-layout">
-    <aside class="login-story" aria-labelledby="story-title">
-      <div class="story-copy">
-        <span class="eyebrow story-eyebrow"><span class="brand-dot" aria-hidden="true"></span><span data-i18n="privateWorkspace">Private workspace</span></span>
-        <h1 id="story-title"><span data-i18n="storyTitle">Every vehicle.</span><em data-i18n="storyAccent">One space.</em></h1>
-        <p data-i18n="storyDescription">A home for your vehicles. A clear view of every detail.</p>
-        <div class="story-rule" aria-hidden="true"><span></span><svg class="icon"><use href="#arrow"/></svg></div>
-      </div>
-      <div class="story-footer"><span data-i18n="storyCaption">Your fleet. Your space.</span><span class="studio-signature" aria-hidden="true">H / SPACE</span></div>
-    </aside>
-    <section class="panel login-panel" aria-labelledby="login-title">
-      <div class="login-panel-mark" aria-hidden="true"><svg class="icon"><use href="#shield"/></svg><span>H SPACE</span></div>
-      <div class="login-form-heading"><span class="eyebrow" data-i18n="memberAccess">Team sign-in</span><h2 id="login-title" data-i18n="welcome">Welcome back.</h2><p class="muted" data-i18n="description">Sign in to your vehicle workspace.</p></div>
-      {% if unavailable %}<p class="notice" role="status" data-i18n="unavailable">Sign-in is unavailable until the local database is ready.</p>{% endif %}
-      {% if invalid %}<p class="notice error" role="alert" data-i18n="invalid">Check your username and password.</p>{% endif %}
-      <form id="login-form" method="post" action="{{ url_for('login') }}">
-        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-        <div class="field"><label for="username" data-i18n="username">Username</label><input id="username" name="username" value="{{ username|default('') }}" maxlength="150" autocomplete="username" required dir="auto" autofocus {% if unavailable %}disabled{% endif %}></div>
-        <div class="field"><label for="password" data-i18n="password">Password</label><div class="password-field"><input id="password" name="password" type="password" autocomplete="current-password" required {% if unavailable %}disabled{% endif %}><button id="password-toggle" type="button" aria-controls="password" aria-pressed="false" {% if unavailable %}disabled{% endif %}>Show</button></div></div>
-        <button class="button primary login-submit" type="submit" {% if unavailable %}disabled{% endif %}><span data-i18n="signIn">Sign in</span><svg class="icon directional submit-arrow" aria-hidden="true"><use href="#arrow"/></svg></button>
-      </form>
-      <p class="login-private-note"><svg class="icon" aria-hidden="true"><use href="#shield"/></svg><span data-i18n="privateNote">For your office's team.</span></p>
-    </section>
-  </main>
-  <footer class="login-footer"><span>H SPACE <span class="footer-divider">/</span><span data-i18n="brandSub">Vehicle management</span></span><span data-i18n="footerTagline">A place for every detail.</span></footer>
-</body></html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#101113" />
+    <title>H SPACE | Sign in</title>
+    <link rel="icon" type="image/svg+xml" href="{{ static('web/brand-mark.svg') }}" />
+    <script src="{{ static('web/appearance.js') }}"></script>
+    <link rel="stylesheet" href="{{ static('web/app.css') }}" />
+    <script src="{{ static('web/login.js') }}" defer></script>
+    <script src="{{ static('web/interactions.js') }}" defer></script>
+  </head>
+  <body class="login-page">
+    {% include 'web/_icons.html' %}
+    <a class="skip-link" href="#login-form" data-i18n="skip">Skip to sign in</a>
+    {% include 'web/_header.html' %}
+    <main class="login-layout">
+      <aside class="login-story" aria-labelledby="story-title">
+        <div class="story-copy">
+          <span class="eyebrow story-eyebrow"
+            ><span class="brand-dot" aria-hidden="true"></span
+            ><span data-i18n="privateWorkspace">Private workspace</span></span
+          >
+          <h1 id="story-title">
+            <span data-i18n="storyTitle">Every vehicle.</span
+            ><em data-i18n="storyAccent">One space.</em>
+          </h1>
+          <p data-i18n="storyDescription">
+            A home for your vehicles. A clear view of every detail.
+          </p>
+          <div class="story-rule" aria-hidden="true">
+            <span></span><svg class="icon"><use href="#arrow" /></svg>
+          </div>
+        </div>
+        <div class="story-footer">
+          <span data-i18n="storyCaption">Your fleet. Your space.</span
+          ><span class="studio-signature" aria-hidden="true">H / SPACE</span>
+        </div>
+      </aside>
+      <section class="panel login-panel" aria-labelledby="login-title">
+        <div class="login-panel-mark" aria-hidden="true">
+          <svg class="icon"><use href="#shield" /></svg><span>H SPACE</span>
+        </div>
+        <div class="login-form-heading">
+          <span class="eyebrow" data-i18n="memberAccess">Team sign-in</span>
+          <h2 id="login-title" data-i18n="welcome">Welcome back.</h2>
+          <p class="muted" data-i18n="description">Sign in to your vehicle workspace.</p>
+        </div>
+        {% if unavailable %}
+          <p class="notice" role="status" data-i18n="unavailable">
+            Sign-in is unavailable until the local database is ready.
+          </p>
+        {% endif %}
+        {% if invalid %}
+          <p class="notice error" role="alert" data-i18n="invalid">
+            Check your username and password.
+          </p>
+        {% endif %}
+        <form id="login-form" method="post" action="{{ url_for('login') }}">
+          <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" />
+          <div class="field">
+            <label for="username" data-i18n="username">Username</label
+            ><input
+              id="username"
+              name="username"
+              value="{{ username|default('') }}"
+              maxlength="150"
+              autocomplete="username"
+              required
+              dir="auto"
+              autofocus
+              {% if unavailable %}disabled{% endif %}
+            />
+          </div>
+          <div class="field">
+            <label for="password" data-i18n="password">Password</label>
+            <div class="password-field">
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                required
+                {% if unavailable %}disabled{% endif %}
+              /><button
+                id="password-toggle"
+                type="button"
+                aria-controls="password"
+                aria-pressed="false"
+                {% if unavailable %}disabled{% endif %}
+              >
+                Show
+              </button>
+            </div>
+          </div>
+          <button
+            class="button primary login-submit"
+            type="submit"
+            {% if unavailable %}disabled{% endif %}
+          >
+            <span data-i18n="signIn">Sign in</span
+            ><svg class="icon directional submit-arrow" aria-hidden="true">
+              <use href="#arrow" />
+            </svg>
+          </button>
+        </form>
+        <p class="login-private-note">
+          <svg class="icon" aria-hidden="true"><use href="#shield" /></svg
+          ><span data-i18n="privateNote">For your office's team.</span>
+        </p>
+      </section>
+    </main>
+    <footer class="login-footer">
+      <span
+        >H SPACE <span class="footer-divider">/</span
+        ><span data-i18n="brandSub">Vehicle management</span></span
+      ><span data-i18n="footerTagline">A place for every detail.</span>
+    </footer>
+  </body>
+</html>

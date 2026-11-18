@@ -7,19 +7,25 @@ import uuid
 import warnings
 import zipfile
 from dataclasses import dataclass
-from pathlib import PurePosixPath, Path
+from pathlib import Path, PurePosixPath
+
 from PIL import Image, UnidentifiedImageError
 
 from limousine.domain.vehicles import DomainError
+from limousine.infrastructure.media_paths import STORAGE_KEY_PATTERN, section_for
 
 MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 MAX_IMAGE_PIXELS = 25_000_000
 IMAGE_FORMATS = {".jpg": "JPEG", ".jpeg": "JPEG", ".png": "PNG", ".webp": "WEBP"}
 IMAGE_MIMES = {
-    ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
 }
 FILE_MIMES = {
-    ".pdf": "application/pdf", ".txt": "text/plain; charset=utf-8",
+    ".pdf": "application/pdf",
+    ".txt": "text/plain; charset=utf-8",
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
@@ -39,7 +45,9 @@ class StoredUpload:
 
 def safe_original_name(name):
     name = unicodedata.normalize("NFC", str(name or "")).replace("\\", "/").rsplit("/", 1)[-1]
-    name = "".join(character for character in name if not unicodedata.category(character).startswith("C"))
+    name = "".join(
+        character for character in name if not unicodedata.category(character).startswith("C")
+    )
     name = name.strip(" .")
     if not name or len(name) > 180:
         raise DomainError("Choose a file with a name of 1 to 180 characters.")
@@ -65,8 +73,13 @@ def _validate_image(extension, content):
     except DomainError:
         raise
     except (
-        UnidentifiedImageError, OSError, ValueError, SyntaxError, OverflowError,
-        Image.DecompressionBombError, Image.DecompressionBombWarning,
+        UnidentifiedImageError,
+        OSError,
+        ValueError,
+        SyntaxError,
+        OverflowError,
+        Image.DecompressionBombError,
+        Image.DecompressionBombWarning,
     ) as error:
         raise DomainError("Choose a valid, complete JPG, PNG or WebP photo.") from error
 
@@ -83,7 +96,10 @@ def _validate_content(extension, content):
     elif extension == ".txt":
         try:
             text = content.decode("utf-8-sig")
-            valid = all(character in "\r\n\t" or unicodedata.category(character) != "Cc" for character in text)
+            valid = all(
+                character in "\r\n\t" or unicodedata.category(character) != "Cc"
+                for character in text
+            )
         except UnicodeDecodeError:
             valid = False
     elif extension in (".docx", ".xlsx"):
@@ -106,9 +122,12 @@ def _validate_content(extension, content):
 class LocalAttachmentStore:
     def __init__(self, root=None):
         from limousine.config.runtime import ROOT
+
         self.root = Path(root) if root is not None else ROOT / "media"
 
-    def save(self, upload):
+    def save(self, upload, *, namespace="vehicles", directory=None, card_photo=False):
+        if namespace not in ("vehicles", "office"):
+            raise DomainError("Invalid attachment namespace.")
         if upload.size is not None and upload.size > MAX_ATTACHMENT_BYTES:
             raise AttachmentTooLarge("The file must be 10 MB or smaller.")
         name = safe_original_name(upload.name)
@@ -119,8 +138,16 @@ class LocalAttachmentStore:
         if len(content) > MAX_ATTACHMENT_BYTES:
             raise AttachmentTooLarge("The file must be 10 MB or smaller.")
         _validate_content(extension, content)
-        key = f"vehicles/{uuid.uuid4().hex}{extension}"
-        target = self.root / key
+        kind = "image" if extension in IMAGE_MIMES else "file"
+        if directory is not None:
+            section = "covers" if card_photo else section_for(kind)
+            directory = directory.rstrip("/") + "/" + section
+        elif namespace == "office":
+            directory = "office/" + section_for(kind)
+        else:
+            directory = namespace
+        key = f"{directory}/{uuid.uuid4().hex}{extension}"
+        target = self.path(key)
         target.parent.mkdir(parents=True, exist_ok=True)
         try:
             with target.open("xb") as output:
@@ -128,17 +155,22 @@ class LocalAttachmentStore:
         except OSError:
             target.unlink(missing_ok=True)
             raise
-        return StoredUpload(key, name, "image" if extension in IMAGE_MIMES else "file", len(content))
+        return StoredUpload(key, name, kind, len(content))
 
-    def save_card_photo(self, upload):
+    def save_office_file(self, upload):
+        return self.save(upload, namespace="office")
+
+    def save_card_photo(self, upload, *, directory=None):
         if PurePosixPath(safe_original_name(upload.name)).suffix.lower() not in IMAGE_MIMES:
             raise DomainError("Choose a JPG, PNG or WebP card photo.")
-        return self.save(upload)
+        return self.save(upload, directory=directory, card_photo=True)
 
     @staticmethod
     def _check_key(key):
         # Keys are generated internally, but validate persisted values before filesystem use.
-        if not isinstance(key, str) or not re.fullmatch(r"vehicles/[0-9a-f]{32}\.(?:jpe?g|png|webp|pdf|txt|docx|xlsx)", key):
+        if not isinstance(key, str) or not re.fullmatch(STORAGE_KEY_PATTERN, key):
+            raise FileNotFoundError("Attachment not found.")
+        if any(unicodedata.category(char).startswith("C") or char in '<>:"\\|?*' for char in key):
             raise FileNotFoundError("Attachment not found.")
 
     def open(self, key):
@@ -154,7 +186,21 @@ class LocalAttachmentStore:
 
     def delete(self, key):
         self._check_key(key)
-        self.path(key).unlink(missing_ok=True)
+        target = self.path(key)
+        target.unlink(missing_ok=True)
+        # Remove empty retired directories only; never recursively delete data.
+        parent = target.parent
+        while len(parent.relative_to(self.root.resolve()).parts) > 1:
+            for name in ("photos", "files", "covers"):
+                try:
+                    (parent / name).rmdir()
+                except OSError:
+                    pass
+            try:
+                parent.rmdir()
+            except OSError:
+                break
+            parent = parent.parent
 
     @staticmethod
     def content_type(key):

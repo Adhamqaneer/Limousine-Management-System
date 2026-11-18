@@ -3,20 +3,30 @@
 import argparse
 import json
 import os
-from pathlib import Path
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 IMPLEMENTATION_ROOTS = ("src/", "scripts/", "tests/", ".github/workflows/")
 IMPLEMENTATION_FILES = {
-    "requirements.txt", "Dockerfile", "compose.yaml", "manage.py", ".env.example", "AGENTS.md",
+    ".editorconfig",
+    ".gitattributes",
+    "requirements.txt",
+    "Dockerfile",
+    "compose.yaml",
+    "manage.py",
+    "AGENTS.md",
 }
 
 
 def git(repo, *arguments):
     result = subprocess.run(
-        ["git", *arguments], cwd=repo, text=True, capture_output=True, check=True,
+        ["git", *arguments],
+        cwd=repo,
+        text=True,
+        capture_output=True,
+        check=True,
     )
     return result.stdout.splitlines()
 
@@ -46,7 +56,9 @@ def changed_paths(repo, base=None):
 
 def main(argv=None, *, repo_root=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base", help="Full base commit SHA; otherwise use the CI event or local edits.")
+    parser.add_argument(
+        "--base", help="Full base commit SHA; otherwise use the CI event or local edits."
+    )
     args = parser.parse_args(argv)
     repo = Path(repo_root) if repo_root is not None else Path(__file__).resolve().parents[1]
     try:
@@ -54,7 +66,11 @@ def main(argv=None, *, repo_root=None):
     except (subprocess.CalledProcessError, OSError, ValueError, KeyError) as error:
         print(f"README check could not determine changes: {error}", file=sys.stderr)
         return 2
-    implementation = sorted(path for path in changed if path in IMPLEMENTATION_FILES or path.startswith(IMPLEMENTATION_ROOTS))
+    implementation = sorted(
+        path
+        for path in changed
+        if path in IMPLEMENTATION_FILES or path.startswith(IMPLEMENTATION_ROOTS)
+    )
     if implementation and ("README.md" not in changed or not (repo / "README.md").is_file()):
         print("Update README.md in the same change as these implementation files:", file=sys.stderr)
         print("\n".join(f"  {path}" for path in implementation), file=sys.stderr)

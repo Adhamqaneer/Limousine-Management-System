@@ -1,52 +1,11 @@
 # Remaining work
 
-The current scope is a local FastAPI/PostgreSQL trial with four accounts. Adham is ADMIN; the other three share vehicle permissions. The framework conversion, account/session behavior, private files and core vehicle workflows passed isolated and real database integration checks. Old framework source/packages/tables were removed; business rows, file bytes and password hashes were preserved.
+- Decide with the owner: local website, desktop launcher/app or server. No hosting provider is selected.
+- Check final screens in a native browser: English/Arabic, light/dark, narrow/desktop, keyboard focus, dialogs, artwork and headings. Native Computer Use was unavailable during recent changes.
+- Test real browser downloads and both print modes, including multipage and physical printing.
+- Perform/document a PostgreSQL-plus-media backup restoration drill; automated backups are not scheduled.
+- Before wider access, review HTTPS, login rate limiting, monitoring and separate migration/runtime database roles.
 
-Attachment/card-photo deletion now retains metadata/bytes with confirmation, vehicle-scoped authenticated CSRF-protected routes and admin recovery. Version 2 strengthens actual file metadata constraints and indexes; scripts/check_database.py audits the local database/files without writes. See README for completed validation. The retry command is manual; background cleanup scheduling remains deferred.
+Passing automated checks does not establish production readiness. Current commands/results are in [maintenance](maintenance.md).
 
-The H SPACE Studio redesign now includes the requested Camry scene on sign-in/interior backgrounds, shared navigation, both themes/languages and accessible password visibility. Automated/template/static-resource checks passed; browser access was unavailable.
-
-Before wider use, perform a fresh browser check of the converted backend, including the Studio backgrounds, Show/Hide password, Team, language/theme, narrow layout, deletion and document previews. The compact-card interaction refinement now uses five columns from 1200 CSS pixels, with fewer columns on narrower screens. Native Chrome review covered wide/narrow windows and language/theme controls, but the browser URL safeguard stopped further input. Recheck the final narrow-heading correction, pointer appearance and a full five-occupied-card row. Check 375/768/1024/1280/1366/1440px, landscape and reduced motion. Test a physical phone separately; development currently stays on loopback. Also test PostgreSQL/device restart and restoration of database plus media backups. Separate runtime and migration database roles before production.
-
-Cloud deployment is deferred. It will need explicit database/file destinations, HTTPS, secrets, login rate limiting, operational monitoring, persistent storage and tested backups. Docker has been updated but not built or run. Existing local data will not move automatically. Backup scheduling remains future work.
-
-Reservations, accounting and maintenance remain outside scope. Actual validation and setup commands are in [README](../README.md).
-
-Verify the new approximate name search with actual office names, mixed Arabic/English queries and strict plate queries in the browser. Check the single search focus outline using mouse and Tab in both themes and RTL. Frontend regression cases passed; larger-dataset performance and end-to-end browser behavior remain to be assessed.
-
-Visually review the new vehicle-detail office signature at phone/tablet/laptop widths, including RTL, both themes and long vehicle names. The visible numeric badge is removed; persistence IDs remain unchanged.
-
-The detail signature was revised to static 3D styling aligned alongside the vehicle title in both layout directions. Browser URL verification blocked the requested Arabic/English visual checks; verify those layouts and phone/tablet fit before treating the revision as visually approved.
-
-The enlarged 3D detail signature and mixed-script alignment fix were visually confirmed in native Chrome in Arabic/English, wide/narrow windows. Earlier URL-verification blocks were resolved for this check. Physical phones, exact breakpoint coverage and unusually long names still need review.
-
-The owner subsequently authorized eight vehicle fields: owner/driver names and phones, type, model, chassis and vehicle number. Schema 3 is applied locally, with preserved existing rows/files and passing PostgreSQL/audit checks. Review the new form in both languages/themes on laptop and phone, including leading zeros, mixed alphanumeric chassis, paste errors and unchanged historical formats. Cloud migration remains deferred.
-
-Print data is implemented for all eight fields and all existing vehicles, with 63 passing Python tests, exhaustive column-combination checks and DOM interaction checks. Before relying on output, check native print preview in Arabic/English for one, four, five and eight columns; test multipage repetition, long names/chassis, A4 settings and Save as PDF. Browser review was blocked by unavailable browser access/minimized native Chrome. No migration or cloud deployment is needed for reporting.
-
-Three main-list filters (owner/model/type) now pass 16 frontend regression checks and the 64-test Python suite. Review native dropdowns and result counts in English/Arabic and both themes, including combined filters/search, clear, reload and a selected value no longer present. Phone access remains deferred at the owner’s request; keep loopback binding.
-
-Compact filter disclosure, Print results for every owner/model/type/search combination and optional existing-owner suggestions are implemented. The report now supports either all vehicles or a fresh matching subset, and prints its criteria. Verify rendered keyboard dismissal, native datalist selection, Arabic/English criteria layout and multipage native printing when browser access is available. Exact-name grouping remains in use; no automatic owner-name merge or master-owner table is added.
-
-Office letterhead and pale H SPACE watermark are implemented for generated reports. Verify their repetition on a multipage report in portrait/landscape, both interface languages and print-to-PDF; inspect watermark readability with background graphics enabled/disabled and on a physical printer. Current output uses 12mm printable margins rather than full bleed. Uploaded originals keep their existing content.
-
-Check the latest zero-margin print stationery with browser Headers and footers disabled. Confirm the ribbon reaches the top, the larger horizontal watermark is centered and readable, and data stays inset in portrait/landscape. Borderless physical output depends on printer hardware/settings; no fresh native print verification is claimed.
-
-Test both paper choices in the new print-style dialog: blank paper/PDF with stationery, and preprinted paper with no new letterhead/watermark but reserved header space. Confirm alignment against actual office stationery before printing a batch. Cancel, disabled-print cases and data preservation passed isolated checks; physical/native output is outstanding.
-
-Recoverable deletion for all accounts and admin-only recovery/history are implemented; schema 4 was applied with a private backup. 69 isolated tests, rollback-only real PostgreSQL/API recovery checks and database/file audit passed with preserved existing rows/files. Check the rendered Deleted items/history page and repeated delete/restore interactions in both languages/themes. Decide storage capacity/retention/purge separately; no purge is implemented. Prior permanent deletions have no reconstructed records, actors or bytes. The legacy conversion verifier refuses schema 4, and verify_deletion.py delegates to verify_recycling.py.
-
-Review the compact gallery/trash icon row on occupied cards in both themes/languages. Verify the admin current-photo action before older-cover recovery. The old development process on port 8000 lacked the new recovery/DELETE routes; restart it after source changes before testing deletion. No server process was changed in this follow-up.
-
-Driver history and corrections are implemented at schema 5, with 74 isolated tests, rollback-only PostgreSQL/API verification and a driver UI harness. Review handover-day date semantics, unknown starts, returning drivers, correction revisions, both print modes and the compact form/admin record layouts in a real browser. Earlier overwritten driver identities are not reconstructed. Restart the development server after this update; no network/phone configuration is added.
-
-The Impeccable review fixes are implemented: search before the shorter banner, mobile font/filter corrections, visible destructive actions, load-error announcements, field-specific driver errors, RTL isolation, draft retention, stable card nodes and focus/return-position handling. Background transfer is 30.5% smaller with identical pixels. 76 Python tests and nine frontend test files pass. Recheck the actual rendered result in English/Arabic, both themes, narrow/wide windows, keyboard/screen-reader use and native print. In particular, edit owner/model before changing a driver, navigate away/back before saving, upload a card photo and delete a card using the keyboard. Confirm the focus target and retained input. Native review was blocked by the unavailable browser host/minimized Chrome window; DOM harnesses do not replace those checks. Temporary drafts do not survive reload/exit. No additional database migration is required.
-
-Photo attachments now use compact file-style rows and detail panels no longer stretch to their neighbors. Native Chrome access succeeded for this focused follow-up: the existing vehicle's three photo rows and the independent shorter Driver history section were visually confirmed in the wide English/dark view. The app workflow harness also checks thumbnail dimensions and action URLs. Recheck this attachment layout in Arabic/light mode and narrow windows/physical phones; no original images, card photos or database data were changed.
-
-The detail grid subsequently groups the attachments together: Driver history has its own full-width row above the side-by-side Photos/Files row. This removes the staggered placement and gap between a short history and the Files panel. The existing single-column narrow layout remains. This is CSS-only; hard-refresh the browser, with no migration or server restart.
-
-Separate section ZIP downloads are implemented, with 83 isolated Python tests and the app workflow harness passing. Restart the local process to load `/attachments/archive/photos/` and `/attachments/archive/files/`, then hard-refresh. Verify native browser downloads, Arabic/English and narrow action-group wrapping, a large batch with temporary-disk spooling, and an expired session/download failure. The route uses original bytes and the current active attachment snapshot; card photos/deleted items and a combined scope are excluded. No real PostgreSQL migration or write is needed. File/photo renaming is now implemented at schema 6; see the rename verification note below.
-
-
-Photo/document renaming is implemented with fixed extensions, stale-name conflicts and atomic actor-attributed RENAME events at schema 6. The local upgrade was backed up and real PostgreSQL integration verified unchanged original rows/files, renamed downloads/ZIPs, parent masking and rollback. Restart the web process and hard-refresh. Review the native dialog on Arabic/English, both themes and narrow screens, including Escape/cancel, invalid names, keyboard focus and concurrent edits. Card-photo renaming remains outside scope.
+Media folder organization (schema 9) was applied locally without automated tests at the owner's request. Future verification should cover upload/preview/recovery and ending/correcting driver periods after the named folders update.

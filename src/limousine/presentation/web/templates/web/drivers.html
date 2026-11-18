@@ -1,9 +1,118 @@
-<!doctype html><html lang="en" dir="ltr" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101113"><title>H SPACE | Driver history</title>
-<link rel="icon" href="{{ static('web/brand-mark.svg') }}"><script src="{{ static('web/appearance.js') }}"></script><link rel="stylesheet" href="{{ static('web/app.css') }}"><link rel="stylesheet" href="{{ static('web/vehicle-report.css') }}"><script src="{{ static('web/page-tools.js') }}" defer></script><script src="{{ static('web/drivers.js') }}" defer></script></head>
-<body class="workspace-page report-page" data-driver-history="true">{% include 'web/_icons.html' %}{% include 'web/_header.html' %}
-<a class="skip-link report-controls" href="#main-content" data-driver-i18n="skip">Skip to content</a><main class="container" id="main-content"><div class="page-heading compact-hero report-controls"><div><h1 data-driver-i18n="driverHistory">Driver history</h1><p class="muted" data-driver-i18n="historyDescription">Find drivers, their vehicle periods and the phone number recorded for each period.</p></div><a href="/drivers/" class="button secondary" data-driver-i18n="allVehicles">All vehicles</a></div>
-<form id="driver-search-form" class="panel driver-search report-controls"><div class="field"><label for="driver-query" data-driver-i18n="searchName">Driver name</label><input id="driver-query" maxlength="200" type="search" dir="auto"></div><div class="field"><label for="driver-on-date" data-driver-i18n="onDate">Working on date</label><input id="driver-on-date" type="date" dir="ltr"></div><button type="submit" id="driver-search" class="button secondary" data-driver-i18n="search">Search</button><button type="button" id="print-driver-history" class="button primary" data-driver-i18n="print" disabled>Print results</button><p class="field-hint" data-driver-i18n="periodHint">The end date is the handover day. Unknown start dates are excluded when searching a specific date.</p></form>
-<p id="driver-status" class="form-message report-controls" role="status" aria-live="polite"></p>
-<div class="report-scroll"><article id="report-paper" class="report-paper landscape" hidden><div class="report-watermark" aria-hidden="true">{% include 'web/_brand.html' %}</div><table id="report-table"><caption class="sr-only" data-driver-i18n="driverHistory">Driver history</caption><thead><tr><td id="report-letterhead-cell" colspan="6">{% include 'web/_print_letterhead.html' %}<p id="driver-report-scope" class="report-criteria"></p></td></tr><tr id="driver-report-head"></tr></thead><tbody id="driver-report-body"></tbody></table></article></div>
-<dialog id="driver-print-dialog" class="report-controls" aria-labelledby="driver-print-title"><h2 id="driver-print-title" data-driver-i18n="paperStyle">Choose paper style</h2><div class="print-style-options"><button id="driver-print-with" type="button" class="print-style-option" autofocus data-driver-i18n="withHeader">With letterhead and watermark</button><button id="driver-print-without" type="button" class="print-style-option" data-driver-i18n="withoutHeader">Preprinted paper: no letterhead or watermark</button></div><div class="dialog-actions"><button id="driver-print-cancel" type="button" class="button secondary" data-driver-i18n="cancel">Cancel</button></div></dialog>
-</main><input type="hidden" id="csrf-token" value="{{ csrf_token }}"></body></html>
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#101113" />
+    <title>H SPACE | Driver history</title>
+    <link rel="icon" href="{{ static('web/brand-mark.svg') }}" />
+    <script src="{{ static('web/appearance.js') }}"></script>
+    <link rel="stylesheet" href="{{ static('web/app.css') }}" />
+    <link rel="stylesheet" href="{{ static('web/vehicle-report.css') }}" />
+    <script src="{{ static('web/page-tools.js') }}" defer></script>
+    <script src="{{ static('web/drivers.js') }}" defer></script>
+  </head>
+  <body class="workspace-page report-page" data-driver-history="true">
+    {% include 'web/_icons.html' %}{% include 'web/_header.html' %}
+    <a class="skip-link report-controls" href="#main-content" data-driver-i18n="skip"
+      >Skip to content</a
+    >
+    <main class="container" id="main-content">
+      <div class="page-heading compact-hero branded-page-heading report-controls">
+        <div class="heading-copy">
+          <h1 data-driver-i18n="driverHistory">Driver history</h1>
+          <p class="muted" data-driver-i18n="historyDescription">
+            Find drivers, their vehicle periods and the phone number recorded for each period.
+          </p>
+        </div>
+        {% include 'web/_record_signature.html' %}
+      </div>
+      <div class="page-content-actions report-controls">
+        <a href="/drivers/" class="button secondary" data-driver-i18n="allVehicles">All vehicles</a>
+      </div>
+      <form id="driver-search-form" class="panel driver-search report-controls">
+        <div class="field">
+          <label for="driver-query" data-driver-i18n="searchName">Driver name</label
+          ><input id="driver-query" maxlength="200" type="search" dir="auto" />
+        </div>
+        <div class="field">
+          <label for="driver-on-date" data-driver-i18n="onDate">Working on date</label
+          ><input id="driver-on-date" type="date" dir="ltr" />
+        </div>
+        <button type="submit" id="driver-search" class="button secondary" data-driver-i18n="search">
+          Search</button
+        ><button
+          type="button"
+          id="print-driver-history"
+          class="button primary"
+          data-driver-i18n="print"
+          disabled
+        >
+          Print results
+        </button>
+        <p class="field-hint" data-driver-i18n="periodHint">
+          The end date is the handover day. Unknown start dates are excluded when searching a
+          specific date.
+        </p>
+      </form>
+      <p
+        id="driver-status"
+        class="form-message report-controls"
+        role="status"
+        aria-live="polite"
+      ></p>
+      <div class="report-scroll">
+        <article id="report-paper" class="report-paper landscape" hidden>
+          <div class="report-watermark" aria-hidden="true">{% include 'web/_brand.html' %}</div>
+          <table id="report-table">
+            <caption class="sr-only" data-driver-i18n="driverHistory">
+              Driver history
+            </caption>
+            <thead>
+              <tr>
+                <td id="report-letterhead-cell" colspan="6">
+                  {% include 'web/_print_letterhead.html' %}
+                  <p id="driver-report-scope" class="report-criteria"></p>
+                </td>
+              </tr>
+              <tr id="driver-report-head"></tr>
+            </thead>
+            <tbody id="driver-report-body"></tbody>
+          </table>
+        </article>
+      </div>
+      <dialog id="driver-print-dialog" class="report-controls" aria-labelledby="driver-print-title">
+        <h2 id="driver-print-title" data-driver-i18n="paperStyle">Choose paper style</h2>
+        <div class="print-style-options">
+          <button
+            id="driver-print-with"
+            type="button"
+            class="print-style-option"
+            autofocus
+            data-driver-i18n="withHeader"
+          >
+            With letterhead and watermark</button
+          ><button
+            id="driver-print-without"
+            type="button"
+            class="print-style-option"
+            data-driver-i18n="withoutHeader"
+          >
+            Preprinted paper: no letterhead or watermark
+          </button>
+        </div>
+        <div class="dialog-actions">
+          <button
+            id="driver-print-cancel"
+            type="button"
+            class="button secondary"
+            data-driver-i18n="cancel"
+          >
+            Cancel
+          </button>
+        </div>
+      </dialog>
+    </main>
+    <input type="hidden" id="csrf-token" value="{{ csrf_token }}" />
+  </body>
+</html>

@@ -1,49 +1,79 @@
 # Architecture
 
-H SPACE uses FastAPI/Uvicorn and PostgreSQL only. Cloud deployment is deferred.
+## Follow one request
 
-- **domain** defines agreed vehicle fields and validation, UUID user identity, ADMIN/MEMBER roles and protected account status rules.
-- **application** contains VehicleService, AccountService and repository contracts.
-- **infrastructure** implements psycopg repositories, local private file storage, bounded document preview, PBKDF2 password verification, session persistence and versioned SQL schema.
-- **presentation/web** adapts HTTP requests to services, validates CSRF, handles safe errors and serves Jinja2 templates/static assets.
-- **config/runtime.py** loads private environment settings and validates production requirements.
+1. manage.py starts presentation/web/app.py.
+2. The app creates repositories/services, then registers feature routes.
+3. A route checks authentication/CSRF, reads its form and calls a service.
+4. The service applies domain rules and calls its repository contract.
+5. The PostgreSQL adapter executes parameterized SQL in a short transaction. The route returns public JSON or a Jinja page.
 
-Composition is in presentation/web/app.py. Every business route requires a valid server-side session; user management additionally requires ADMIN. Raw session tokens stay in HttpOnly cookies; their SHA-256 hashes and absolute 12-hour expiry are persisted. Account deactivation, soft deletion and password changes revoke sessions. Session checks reject inactive/deleted accounts on every request.
+## Where to change things
 
-Four account slots are constrained in the database. User IDs are UUIDs; vehicle/attachment IDs retain their existing numeric values. Role values are a Python StrEnum and database CHECK constraint. Soft-delete/date/active consistency and a single ADMIN are constrained. The owner account is protected by domain rules and repository update restrictions.
+| Location | Responsibility |
+| --- | --- |
+| domain/ | Plain records, validation, roles and driver-date rules |
+| application/ | Use cases and persistence contracts; no HTTP/SQL |
+| infrastructure/ | PostgreSQL, private files, previews, ZIPs, password hashes and schema |
+| presentation/web/app.py | Wire dependencies and register routes |
+| presentation/web/routes/ | Accounts, vehicles, drivers, office, recovery and health endpoints |
+| presentation/web/requests.py | Bounded JSON forms and vehicle field names |
+| presentation/web/serializers.py | Public JSON; no storage keys/password hashes |
+| presentation/web/file_handlers.py | Shared private upload/rename/preview/download handling |
+| presentation/web/security.py | Sessions, administrator checks and signed CSRF |
+| presentation/web/http_errors.py | Safe errors and security headers |
+| config/runtime.py | Private .env settings |
 
-The ten active tables are documented in [README](../README.md). Vehicle covers and gallery attachments have independent records. Private file bytes live under media/vehicles; parameterized SQL stores metadata only. Schema versions are applied transactionally and idempotently in the intended local database, with a private backup before upgrading an existing installation to the latest schema version. The framework conversion preserved business rows/files/password hashes. Ignored emergency backups are not runtime dependencies.
+Routes are small functions registered by feature. Tests replace repositories/services at the application boundary.
 
-Attachment deletion uses a vehicle-scoped DELETE RETURNING and atomically enqueues the key in hspace_file_cleanup. Cover removal/replacement serialize on the vehicle row independently of gallery attachments. After commit, FileCleanup removes unreferenced bytes and the queue entry. Disk/commit failures retain the entry for idempotent retry with manage.py cleanupfiles. A referenced key is never unlinked. There is no distributed database/disk transaction, automated worker or application undo. List metadata reads use three batch queries.
+## Fixed vehicle fields
 
-Version 2 strengthens file metadata and required-field constraints, removes a duplicate foreign-key index and indexes session expiry. The local application role owns its schema; distinct migration/runtime roles and tested backup restoration remain production requirements.
+All eight fields are text; leading zeroes matter. Creation requires type and plate. Other fields can be completed later.
 
-Missing configuration/database access returns generic unavailable responses; there is no alternate runtime repository. Tests inject mocks only. Sensitive database exceptions and request bodies are not returned or logged intentionally. Static assets are public; uploads are served only through authenticated handlers with no-store and nosniff headers.
+| UI order | Stored field | Accepted input |
+| --- | --- | --- |
+| Vehicle number | plate_number | ASCII digit groups, optionally separated by hyphens |
+| Owner name | owner_name | Arabic/English letters and spaces |
+| Driver name | driver_name | Same name rule; history workflow only |
+| Vehicle type | vehicle_type | Arabic/English letters and spaces |
+| Vehicle model | manufacture_year | ASCII digits |
+| Chassis number | chassis_number | ASCII letters/digits |
+| Owner phone | owner_phone | ASCII, Arabic or Persian digits |
+| Driver phone | driver_phone | ASCII digits; history workflow only |
 
-The Studio visual refresh is confined to presentation: shared header/icon partials, semantic CSS, translated page controls and a local decorative Camry asset. Domain/application/persistence behavior and schema versions are unchanged by that refresh. interactions.js is a presentation-only controller for pointer response and detail opening, using delegated events and cancellation; app.js emits card-rerender/detail-ready events. It does not access persistence or change business behavior. The visual system is documented in docs/frontend.md and design-system/h-space/MASTER.md.
+Arabic combining marks are allowed after a letter. Unrelated edits preserve legacy values; changed fields use current validation.
 
-See [README](../README.md) for commands, actual verification and production limitations.
+## PostgreSQL tables (schema 9)
 
-Approximate search is a presentation-only pure ranking helper (static/web/search.js). It operates on authorized vehicles already fetched by app.js, without persistence, extra requests or normalization of stored records. Domain and PostgreSQL matching are unchanged.
+| Table | Purpose |
+| --- | --- |
+| hspace_user | Four UUID accounts, hashed passwords, ADMIN/MEMBER and status |
+| hspace_session | SHA-256 token hashes and absolute expiry |
+| limo_vehicle | Vehicle fields, current driver cache and deletion actors |
+| limo_attachment | Vehicle gallery or driver-period file metadata |
+| limo_vehicle_cover | Independent card photos and archived replacements |
+| hspace_office_attachment | Office files, independent of vehicles/drivers |
+| hspace_driver_assignment | Driver name/phone snapshots and work periods |
+| hspace_driver_change | Immutable ASSIGN/CORRECT/END snapshots |
+| hspace_activity | Immutable CREATE/RENAME/DELETE/RESTORE actor events |
+| hspace_file_cleanup | Retry queue for unreferenced failed uploads |
+| hspace_schema_migration | Applied schema versions |
 
-Schema version 3 adds owner_name/owner_phone/driver_phone to limo_vehicle, with empty defaults and phone CHECK constraints. Domain rules validate the eight agreed text fields; the repository maps new contacts, and the authenticated HTTP adapter exposes them. Existing manufacture_year represents the vehicle model. Existing rows and files are retained; partial edits validate changed values only, allowing historical formats to survive unrelated edits. The local upgrade and rollback-only PostgreSQL integration checks passed.
+Migrations are transactional/idempotent and restricted to the configured loopback limousine_local database. Existing upgrades require a private pg_dump backup. Foreign keys, metadata/deletion checks, partial unique indexes and retention triggers protect relationships/history. The local role owns its schema; this is not independently tamper-proof audit storage.
 
-Vehicle reporting adds an authenticated presentation page at /reports/vehicles/ and reuses GET /api/vehicles/ through the existing application/repository. Selection and projection are ephemeral browser presentation state with an eight-field allowlist. Native printing/PDF saving is local to the browser; it adds no persistence, write route or migration. All fixed accounts share report access.
+## Invariants
 
-Main-list owner/model/type filters are presentation-only. vehicle-filters.js derives exact-match facets from the existing authenticated list; app.js intersects these before search ranking. They add no application use case, SQL, endpoint, migration or persistent selection. Print reports remain independent and include all vehicles.
+- Sessions expire after 12 hours. Disabling/deleting an account or changing its password revokes access. Cookies are HttpOnly; mutations require signed, session-bound CSRF.
+- All active accounts can delete. Metadata/bytes remain; only ADMIN restores. Parent restoration does not undo separate child deletion.
+- Driver documents use a composite period/vehicle foreign key; NULL assignment means the vehicle gallery. Office documents use their own table and a nullable-vehicle activity scope.
+- Driver changes lock the vehicle first, update period/current cache and append snapshots atomically. Unknown starts stay unknown. ended_on is exclusive; the displayed last working day is inclusive. Gaps before replacements are supported.
+- Uploads use generated UUID filenames in office/photos|files, vehicles/vehicle-ID/photos|files|covers, or a named drivers/period folder. Limit: 10 MiB/file and 25 MP/image. JPG/PNG/WebP/PDF/TXT/DOCX/XLSX are validated locally. Gallery changes never select a card photo.
+- Rename preserves the extension and rejects stale names. ZIPs contain active originals from one section only; temporary storage closes on success/failure.
 
-Filtered report scope is an allowlisted, bounded client URL fragment containing only owner/model/type/search criteria. The report still reads the authenticated list through existing application/persistence contracts, then reuses list presentation helpers for matching/order; it adds no write route or database changes. Native owner suggestions are presentation adaptation over the same list, with exact trimmed name grouping and no new owner entity.
+## Media organization
 
-Office stationery is presentation-only: a shared print partial, report CSS and dynamic selected-column span in vehicle-report.js. All/filtered reports share the same layout, with a repeating table head and fixed print watermark. It changes no stored records or original uploaded file bytes.
+infrastructure/media_paths.py owns safe directory labels and shared storage-key patterns. media_layout.py coordinates copies, metadata updates and cleanup. Driver repositories receive this organizer so assignment, correction and ending also update period folder names. Upload handlers acquire the same PostgreSQL advisory lock, preventing uploads from racing date changes. Vehicle creation prepares its private subdirectories.
 
-Schema 4 adds retained deletion state/creator attribution to the three business tables and hspace_activity (eight active tables total). Domain/application recovery rules enforce ADMIN-only restoration/history; all active users may soft-delete. Repository mutations lock parents before children, transact audit with state, retain covers on replacement and prevent physical business-row deletion/activity mutation with SQL triggers. Parent deletion masks children; restoration does not revive independently deleted children. All ordinary file/list/report reads exclude deleted state. Cleanup treats deleted references as live references. Audit is not independently tamper-proof against a schema owner.
+Copies are completed before metadata commits; old paths enter the existing cleanup queue in that transaction. Cleanup removes old duplicates only after checking all file references. Failed/uncertain commits retain referenced originals; interrupted work can leave extra copies rather than lose the source. Only empty retired directories are removed. Application URLs, attachment names, audit actors, history snapshots and soft-deletion state are unchanged. File paths use normalized Windows-safe driver labels with bounded names, years and period-ID suffixes; display names remain unchanged.
 
-The deleted-item read model now includes has_current_cover, allowing admin recovery UI to offer current-cover soft deletion before restoring an archived photo. It reuses existing commands/authorization and adds no schema or route.
-
-Schema 5 introduces driver periods and immutable assignment/correction snapshots, bringing the runtime table count to ten. DriverService validates calendar dates and names/phones; PostgresDriverRepository locks the active vehicle, maintains a single current assignment, prevents overlapping handovers and syncs the cached current vehicle fields atomically. Generic vehicle PATCH cannot edit driver identity; a database guard rejects unsynchronized direct updates. History is masked by parent deletion and retained for recovery. Legacy driver values are seeded without invented start/creator/time. Driver lookup/printing are presentation adaptations over authenticated history use cases.
-
-DriverValidationError specializes the existing domain error with a field and stable reason key; format/calendar/period rules remain in domain and future-date validation remains in application. The authenticated HTTP adapter serializes these as driver_validation 400 responses and the UI translates/focuses the relevant field. No repository/schema changes are involved. Presentation-only ui-state.js merges unsaved form values with saved driver responses; app.js retains inactive drafts in page memory, never persistent business storage. Comparison caches and reused card DOM nodes change search/render cost without changing authorized list membership, ranking or persistence.
-
-Section ZIP downloads reuse the existing active-vehicle repository read model. VehicleService.prepare_attachment_download validates image/file selection, scopes every selected attachment to the requested vehicle and returns a frozen plate/attachment snapshot. The infrastructure archive adapter opens private originals, sanitizes/deduplicates flat entry names and writes a completed spooled ZIP before any HTTP body. ArchiveResponse owns chunked transmission and closes temporary storage even if response delivery fails. The authenticated GET route allowlists photos/files and retains private/no-store headers. There is no archive table, write use case, combined scope, card-photo inclusion or migration; native browser downloads avoid collecting the ZIP in JavaScript memory.
-
-Attachment rename adds domain filename/extension rules, an actor-checked application use case and a scoped repository mutation. Parent-first row locks, an expected-name comparison and an atomic RENAME event prevent lost concurrent changes and unaudited commits. Only original_name changes; storage identity and bytes are immutable for this command. Schema 6 adds RENAME to the activity CHECK without changing table count or old events. The authenticated CSRF-protected PATCH maps invalid names to 400 and name conflicts to 409. The UI edits a basename in a native dialog, updates only attachment metadata and preserves the vehicle form draft. The local upgrade and rollback-only integration verifier passed with original rows/media preserved.
+Schema 9 widens file-key checks without adding tables. It accepts existing keys for compatibility and scoped organized keys for new work. scripts/organize_media.py backs up the intended local database/media, applies the schema if needed and relocates existing originals, including deleted files. Run it only while the app is idle. No automated tests were executed for this change at the owner's request.

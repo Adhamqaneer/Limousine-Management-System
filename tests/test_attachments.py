@@ -3,14 +3,14 @@ import struct
 import zlib
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import TestCase as SimpleTestCase
 from unittest.mock import patch
 
-from tests.uploads import SimpleUploadedFile
-from unittest import TestCase as SimpleTestCase
 from PIL import Image
 
 from limousine.domain.vehicles import DomainError
 from limousine.infrastructure.attachments import LocalAttachmentStore
+from tests.uploads import SimpleUploadedFile
 
 
 def image_bytes(image_format, size=(2, 2)):
@@ -39,7 +39,12 @@ class ImageUploadValidationTests(SimpleTestCase):
         self.assertEqual(list(Path(self.media.name).rglob("*")), [])
 
     def test_supported_photos_are_decoded_and_original_bytes_are_preserved(self):
-        for extension, image_format in (("jpg", "JPEG"), ("jpeg", "JPEG"), ("png", "PNG"), ("webp", "WEBP")):
+        for extension, image_format in (
+            ("jpg", "JPEG"),
+            ("jpeg", "JPEG"),
+            ("png", "PNG"),
+            ("webp", "WEBP"),
+        ):
             with self.subTest(extension=extension):
                 content = image_bytes(image_format)
                 stored = self.store.save(SimpleUploadedFile(f"car.{extension}", content))
@@ -57,7 +62,9 @@ class ImageUploadValidationTests(SimpleTestCase):
     def test_truncated_photos_are_rejected(self):
         for extension, image_format in (("jpg", "JPEG"), ("png", "PNG"), ("webp", "WEBP")):
             with self.subTest(extension=extension):
-                self.assert_rejected_without_saved_bytes(f"car.{extension}", image_bytes(image_format)[:-12])
+                self.assert_rejected_without_saved_bytes(
+                    f"car.{extension}", image_bytes(image_format)[:-12]
+                )
 
     def test_photo_contents_must_match_the_extension(self):
         self.assert_rejected_without_saved_bytes("car.jpg", image_bytes("PNG"))
@@ -71,4 +78,6 @@ class ImageUploadValidationTests(SimpleTestCase):
     def test_decompression_warning_and_error_are_reported_as_invalid_photos(self):
         for dimensions in ((10_000, 10_000), (20_000, 20_000)):
             with self.subTest(dimensions=dimensions):
-                self.assert_rejected_without_saved_bytes("oversized.png", png_with_dimensions(*dimensions))
+                self.assert_rejected_without_saved_bytes(
+                    "oversized.png", png_with_dimensions(*dimensions)
+                )

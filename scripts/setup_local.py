@@ -6,14 +6,14 @@ Creates a dedicated restricted database role; existing roles/data are preserved.
 """
 
 import argparse
-from getpass import getpass
-from pathlib import Path
 import secrets
 import sys
+from getpass import getpass
+from pathlib import Path
 
 import psycopg
-from psycopg import sql
 from dotenv import dotenv_values, set_key, unset_key
+from psycopg import sql
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -37,6 +37,7 @@ def main():
         # Suppress terminal echo before signalling readiness for the secret.
         if sys.platform == "win32":
             import ctypes
+
             kernel = ctypes.windll.kernel32
             handle = kernel.GetStdHandle(-10)
             previous = ctypes.c_ulong()
@@ -46,6 +47,7 @@ def main():
             kernel.SetConsoleMode(handle, previous.value & ~4)
         else:
             import termios
+
             previous = termios.tcgetattr(sys.stdin)
             mode = termios.tcgetattr(sys.stdin)
             mode[3] &= ~termios.ECHO
@@ -59,39 +61,70 @@ def main():
             else:
                 termios.tcsetattr(sys.stdin, termios.TCSANOW, previous)
     else:
-        admin_password = values.get("LOCAL_POSTGRES_ADMIN_PASSWORD") or getpass("PostgreSQL postgres password: ")
+        admin_password = values.get("LOCAL_POSTGRES_ADMIN_PASSWORD") or getpass(
+            "PostgreSQL postgres password: "
+        )
     application_password = values.get("DB_PASSWORD") or secrets.token_urlsafe(32)
     stage = "administrator connection"
     try:
-        with psycopg.connect(dbname="postgres", user="postgres", password=admin_password,
-                             host="127.0.0.1", port=values.get("DB_PORT") or "5432",
-                             connect_timeout=5, autocommit=True) as conn:
+        with psycopg.connect(
+            dbname="postgres",
+            user="postgres",
+            password=admin_password,
+            host="127.0.0.1",
+            port=values.get("DB_PORT") or "5432",
+            connect_timeout=5,
+            autocommit=True,
+        ) as connection:
             stage = "project role and database"
-            role_exists = conn.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (role,)).fetchone()
+            role_exists = connection.execute(
+                "SELECT 1 FROM pg_roles WHERE rolname = %s", (role,)
+            ).fetchone()
             if role_exists and not (values.get("DB_USER") == role and values.get("DB_PASSWORD")):
-                print("The project role already exists. Restore its .env credentials; no password was changed.")
+                print(
+                    "The project role already exists. Restore its .env credentials; no password was changed."
+                )
                 return 1
             if not role_exists:
-                conn.execute(sql.SQL("CREATE ROLE {} LOGIN PASSWORD {} NOSUPERUSER NOCREATEDB NOCREATEROLE").format(
-                    sql.Identifier(role), sql.Literal(application_password)))
-            db_owner = conn.execute("SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = %s", (database,)).fetchone()
+                connection.execute(
+                    sql.SQL(
+                        "CREATE ROLE {} LOGIN PASSWORD {} NOSUPERUSER NOCREATEDB NOCREATEROLE"
+                    ).format(sql.Identifier(role), sql.Literal(application_password))
+                )
+            db_owner = connection.execute(
+                "SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = %s", (database,)
+            ).fetchone()
             if db_owner and db_owner[0] != role:
                 print("Database name belongs to another owner. No existing data was changed.")
                 return 1
             if not db_owner:
-                conn.execute(sql.SQL("CREATE DATABASE {} OWNER {}").format(sql.Identifier(database), sql.Identifier(role)))
+                connection.execute(
+                    sql.SQL("CREATE DATABASE {} OWNER {}").format(
+                        sql.Identifier(database), sql.Identifier(role)
+                    )
+                )
         stage = "local settings"
-        for key, value in {"DB_HOST": "127.0.0.1", "DB_PORT": values.get("DB_PORT") or "5432",
-                           "DB_NAME": database, "DB_USER": role, "DB_PASSWORD": application_password}.items():
+        for key, value in {
+            "DB_HOST": "127.0.0.1",
+            "DB_PORT": values.get("DB_PORT") or "5432",
+            "DB_NAME": database,
+            "DB_USER": role,
+            "DB_PASSWORD": application_password,
+        }.items():
             set_key(env_path, key, value)
         if not values.get("HSPACE_SECRET_KEY"):
             set_key(env_path, "HSPACE_SECRET_KEY", secrets.token_urlsafe(64))
-        unset_key(env_path, "LOCAL_POSTGRES_ADMIN_PASSWORD") if "LOCAL_POSTGRES_ADMIN_PASSWORD" in values else None
+        (
+            unset_key(env_path, "LOCAL_POSTGRES_ADMIN_PASSWORD")
+            if "LOCAL_POSTGRES_ADMIN_PASSWORD" in values
+            else None
+        )
         sys.path.insert(0, str(ROOT / "src"))
         from limousine.config.runtime import load_settings
+        from limousine.infrastructure.accounts import PostgresAccountRepository
         from limousine.infrastructure.database import Database
         from limousine.infrastructure.migrations import migrate
-        from limousine.infrastructure.accounts import PostgresAccountRepository
+
         stage = "database migration"
         database_adapter = Database(load_settings())
         migrate(database_adapter)
@@ -107,7 +140,9 @@ def main():
             names = ["Adham qaneer", "AbdAlhameed qaneer", "Abdullah qaneer", "Ahmad qaneer"]
             with access_file.open("x", encoding="utf-8") as output:
                 access_file.chmod(0o600)
-                output.write("Local accounts - keep private. Change with: manage.py setoperator <slot> <username>\n")
+                output.write(
+                    "Local accounts - keep private. Change with: manage.py setoperator <slot> <username>\n"
+                )
                 for slot, username in enumerate(names, 1):
                     password = secrets.token_urlsafe(6)
                     accounts.set_operator(slot, username, password)

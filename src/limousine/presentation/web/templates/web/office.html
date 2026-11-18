@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#101113" />
+    <title>H SPACE | Office files</title>
+    <link rel="icon" href="{{ static('web/brand-mark.svg') }}" />
+    <link rel="stylesheet" href="{{ static('web/app.css') }}" />
+    <script src="{{ static('web/appearance.js') }}"></script>
+    <script src="{{ static('web/page-tools.js') }}" defer></script>
+    <script src="{{ static('web/office-files.js') }}" defer></script>
+    <script src="{{ static('web/interactions.js') }}" defer></script>
+  </head>
+  <body class="workspace-page">
+    {% include 'web/_icons.html' %}{% include 'web/_header.html' %}
+    <a class="skip-link" href="#main-content" data-office-i18n="skip">Skip to content</a>
+    <main class="container office-workspace" id="main-content">
+      <div class="page-heading compact-hero branded-page-heading">
+        <div class="heading-copy">
+          <h1 data-office-i18n="title">Office files</h1>
+          <p class="muted" data-office-i18n="description">
+            Shared office documents and photos, separate from vehicle records.
+          </p>
+        </div>
+        {% include 'web/_record_signature.html' %}
+      </div>
+      <div class="page-content-actions">
+        <button
+          type="button"
+          class="button secondary"
+          id="office-refresh"
+          data-office-i18n="refresh"
+        >
+          Refresh
+        </button>
+      </div>
+      <input type="hidden" id="csrf-token" value="{{ csrf_token }}" />
+      <p id="office-message" class="form-message" role="status" aria-live="polite"></p>
+      <div id="office-sections" aria-busy="true">
+        {% for kind, label, icon, accept in [('photos','Photos','photo','.jpg,.jpeg,.png,.webp'),('files','Files','file','.pdf,.txt,.docx,.xlsx')] %}
+          <section
+            class="panel attachment-panel office-section"
+            aria-labelledby="office-{{ kind }}-title"
+          >
+            <div class="panel-heading">
+              <div class="section-heading">
+                <svg class="icon" aria-hidden="true"><use href="#{{ icon }}" /></svg>
+                <h2 id="office-{{ kind }}-title" data-office-i18n="{{ kind }}">{{ label }}</h2>
+              </div>
+              <div class="attachment-section-actions">
+                <a
+                  class="button secondary"
+                  id="office-{{ kind }}-zip"
+                  aria-disabled="true"
+                  tabindex="-1"
+                  target="_blank"
+                  rel="noopener"
+                  download
+                  data-office-i18n="zip{{ kind }}"
+                  >Download {{ kind }} (ZIP)</a
+                ><button
+                  type="button"
+                  class="button secondary"
+                  id="office-add-{{ kind }}"
+                  data-office-i18n="add{{ kind }}"
+                >
+                  Add {{ kind }}
+                </button>
+              </div>
+            </div>
+            <input type="file" id="office-{{ kind }}-input" accept="{{ accept }}" multiple hidden />
+            <div id="office-{{ kind }}-list" class="file-list"></div>
+            <p class="attachment-help muted" data-office-i18n="hint{{ kind }}">
+              {% if kind == 'photos' %}
+                JPG, PNG or WebP · Up to 10 MB and 25 MP per photo
+              {% else %}
+                PDF, TXT, DOCX or XLSX · Up to 10 MB per file
+              {% endif %}
+            </p>
+          </section>
+        {% endfor %}
+      </div>
+    </main>
+    <dialog id="office-rename-dialog" aria-labelledby="office-rename-title">
+      <form id="office-rename-form">
+        <h2 id="office-rename-title" data-office-i18n="rename">Rename</h2>
+        <p class="muted" data-office-i18n="renameHint">The file extension stays the same.</p>
+        <label for="office-rename-name" data-office-i18n="name">Name</label>
+        <div class="office-rename-input">
+          <input
+            id="office-rename-name"
+            type="text"
+            required
+            maxlength="180"
+            dir="auto"
+            autocomplete="off"
+            aria-describedby="office-rename-extension office-rename-error"
+          /><span id="office-rename-extension" dir="ltr"></span>
+        </div>
+        <p class="form-message" id="office-rename-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button
+            class="button secondary"
+            type="button"
+            id="office-rename-cancel"
+            data-office-i18n="cancel"
+          >
+            Cancel</button
+          ><button
+            class="button primary"
+            type="submit"
+            id="office-rename-save"
+            data-office-i18n="save"
+          >
+            Save name
+          </button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>
