@@ -11,6 +11,11 @@ from limousine.domain.vehicles import (
     Vehicle,
     VehicleCover,
 )
+from limousine.infrastructure.categories import (
+    PostgresCategoryRepository,
+    ensure_vehicle_category_available,
+    resolve_upload_category,
+)
 from limousine.infrastructure.drivers import seed_driver
 from limousine.infrastructure.media_paths import vehicle_directory
 
@@ -25,6 +30,7 @@ def attachment(row):
         row["size"],
         row["created_at"],
         row.get("driver_assignment_id"),
+        row.get("category_id"),
     )
 
 
@@ -159,14 +165,17 @@ class PostgresVehicleRepository:
 
     def add_attachment(self, vehicle_id, *, actor=None, assignment_id=None, **metadata):
         with self.database.connect() as connection:
+            category_id = resolve_upload_category(connection, metadata.get("category_id"))
             self._lock_vehicle(connection, vehicle_id)
             self._check_assignment(connection, vehicle_id, assignment_id)
+            if assignment_id is None:
+                ensure_vehicle_category_available(connection, vehicle_id, category_id)
             row = connection.execute(
                 """
                     INSERT INTO limo_attachment (vehicle_id,
                                    storage_key, original_name, kind, size, created_at, created_by,
-                                   driver_assignment_id)
-                    VALUES (%s,%s,%s,%s,%s,CURRENT_TIMESTAMP,%s,%s) RETURNING *
+                                   driver_assignment_id, category_id)
+                    VALUES (%s,%s,%s,%s,%s,CURRENT_TIMESTAMP,%s,%s,COALESCE(%s,(SELECT id FROM hspace_attachment_category WHERE is_other))) RETURNING *
                 """,
                 (
                     vehicle_id,
@@ -176,6 +185,7 @@ class PostgresVehicleRepository:
                     metadata["size"],
                     actor.id if actor else None,
                     assignment_id,
+                    category_id,
                 ),
             ).fetchone()
             if actor:
@@ -432,6 +442,7 @@ class PostgresVehicleRepository:
             "cover": "limo_vehicle_cover",
         }[kind]
         with self.database.connect() as connection:
+            PostgresCategoryRepository._lock(connection)
             if kind == "vehicle":
                 row = self._lock_vehicle(connection, item_id, deleted=True)
                 vehicle_id = item_id
@@ -465,6 +476,10 @@ class PostgresVehicleRepository:
                     raise DomainError(
                         "Remove the current card photo before restoring an older photo."
                     )
+            if kind == "attachment" and row["driver_assignment_id"] is None:
+                ensure_vehicle_category_available(
+                    connection, vehicle_id, row["category_id"], item_id
+                )
             connection.execute(
                 sql.SQL(
                     "UPDATE {} SET is_deleted=FALSE,deleted_at=NULL,deleted_by=NULL WHERE id=%s"

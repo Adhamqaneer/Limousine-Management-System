@@ -15,6 +15,7 @@ def attachment_payload(item):
         "id": item.id,
         "name": item.original_name,
         "kind": item.kind,
+        "category_id": item.category_id,
         "size": item.size,
         "uploaded_at": item.created_at.isoformat(),
         "download_url": base + "/download/",

@@ -53,3 +53,45 @@ def build_attachment_archive(attachments, store):
     except BaseException:
         output.close()
         raise
+
+
+def build_vehicle_archive(selection, store):
+    """Group by plate; retain every original byte and report missing document types."""
+    output = SpooledTemporaryFile(max_size=SPOOL_BYTES, mode="w+b")
+    try:
+        folders, used_folders, used_names = {}, set(), {}
+        with ZipFile(output, "w", compression=ZIP_DEFLATED, compresslevel=1) as archive:
+            for item in selection.files:
+                vehicle_id = item["vehicle_id"]
+                if vehicle_id not in folders:
+                    folders[vehicle_id] = _entry_name(
+                        item["plate_number"], vehicle_id, used_folders
+                    )
+                names = used_names.setdefault(vehicle_id, set())
+                name = (
+                    folders[vehicle_id]
+                    + "/"
+                    + _entry_name(item["original_name"], item["id"], names)
+                )
+                with store.open(item["storage_key"]) as source, archive.open(
+                    name, "w"
+                ) as destination:
+                    copied = 0
+                    while chunk := source.read(CHUNK_BYTES):
+                        copied += len(chunk)
+                        if copied > item["size"]:
+                            raise OSError("Attachment size differs from its metadata.")
+                        destination.write(chunk)
+                    if copied != item["size"]:
+                        raise OSError("Attachment size differs from its metadata.")
+            if selection.missing:
+                report = "Missing documents / المرفقات الناقصة\n\n" + "\n".join(
+                    item["plate_number"] + " : " + item["category_name"]
+                    for item in selection.missing
+                )
+                archive.writestr("_missing-documents.txt", report.encode("utf-8-sig"))
+        output.seek(0)
+        return output
+    except BaseException:
+        output.close()
+        raise

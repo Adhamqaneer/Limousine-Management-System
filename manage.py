@@ -52,6 +52,7 @@ def main():
             "recycle_bin.html",
             "drivers.html",
             "office.html",
+            "attachment_download.html",
         ):
             from limousine.presentation.web.rendering import templates
 

@@ -8,6 +8,8 @@
   });
   Object.assign(en, {
     restore: 'Restore',
+    categoryInUse:
+      'This vehicle already has an attachment in that category. Delete or recategorize it before restoring this one.',
     unknown: 'Unknown (older record)',
     createdBy: 'Added by',
     deletedBy: 'Deleted by',
@@ -25,6 +27,10 @@
     DELETE: 'Deleted',
     RESTORE: 'Restored',
     RENAME: 'Renamed',
+    category: 'Category',
+    LABEL: 'Classified',
+    ALIAS: 'Alternative name added',
+    MERGE: 'Merged categories',
     replaced: 'Replaced card photo',
     removeCurrentPhoto: 'Remove current card photo',
     confirmCurrentPhoto:
@@ -58,6 +64,7 @@
       'تُسجل الإضافات وتغيير الأسماء والحذف والاسترجاع الجديدة. هوية من أضاف السجلات القديمة غير معروفة.',
     olderActivity: 'تحميل عمليات أقدم',
     restore: 'استرجاع',
+    categoryInUse: 'هاي السيارة فيها مرفق بنفس التصنيف. احذفه أو غيّر تصنيفه قبل استرجاع هالمرفق.',
     unknown: 'غير معروف (سجل قديم)',
     createdBy: 'أضافه',
     deletedBy: 'حذفه',
@@ -79,6 +86,10 @@
     DELETE: 'حذف',
     RESTORE: 'استرجاع',
     RENAME: 'تغيير الاسم',
+    category: 'تصنيف',
+    LABEL: 'تغيير التصنيف',
+    ALIAS: 'إضافة اسم بديل',
+    MERGE: 'دمج تصنيفات',
     replaced: 'استبدال صورة الكارد',
     coverConflict: 'احذف صورة الكارد الحالية قبل استرجاع صورة قديمة.',
     loading: 'جارٍ التحميل…',
@@ -256,7 +267,12 @@
       });
       messageKey = 'saved';
     } catch (error) {
-      messageKey = error.status === 400 && item.kind === 'cover' ? 'coverConflict' : 'failed';
+      messageKey =
+        error.status === 409 && item.kind === 'attachment'
+          ? 'categoryInUse'
+          : error.status === 400 && item.kind === 'cover'
+            ? 'coverConflict'
+            : 'failed';
     } finally {
       busy = false;
       await load();

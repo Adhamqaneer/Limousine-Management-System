@@ -12,3 +12,4 @@ class OfficeAttachment:
     kind: str
     size: int
     created_at: datetime
+    category_id: int | None = None

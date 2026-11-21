@@ -12,6 +12,7 @@
     <script src="{{ static('web/vehicle-filters.js') }}" defer></script>
     <script src="{{ static('web/vehicle-validation.js') }}" defer></script>
     <script src="{{ static('web/ui-state.js') }}" defer></script>
+    <script src="{{ static('web/attachment-categories.js') }}" defer></script>
     <script src="{{ static('web/app.js') }}" defer></script>
     <script src="{{ static('web/drivers.js') }}" defer></script>
     <script src="{{ static('web/driver-files.js') }}" defer></script>
@@ -87,6 +88,10 @@
                 </button>
               </fieldset>
             </details>
+            <button type="button" class="button secondary" id="download-attachments" disabled>
+              <svg class="icon" aria-hidden="true"><use href="#download" /></svg
+              ><span data-i18n="downloadAttachments">Download attachments</span>
+            </button>
             <button type="button" class="button secondary" id="print-results" disabled>
               <svg class="icon" aria-hidden="true"><use href="#printer" /></svg
               ><span data-i18n="printResults">Print results</span>

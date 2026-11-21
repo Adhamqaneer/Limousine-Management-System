@@ -10,11 +10,12 @@ from pathlib import Path
 from psycopg import sql
 
 from limousine.config.runtime import ROOT
+from limousine.domain.categories import SEED_CATEGORIES, category_key
 from limousine.infrastructure.media_paths import (
-    VEHICLE_FILE_PATTERN,
     COVER_FILE_PATTERN,
     OFFICE_FILE_PATTERN,
     STORAGE_KEY_PATTERN,
+    VEHICLE_FILE_PATTERN,
 )
 
 DDL = """
@@ -113,7 +114,7 @@ def migrate(database):
         upgrade = (
             exists
             and not connection.execute(
-                "SELECT 1 FROM hspace_schema_migration WHERE version=9"
+                "SELECT 1 FROM hspace_schema_migration WHERE version=11"
             ).fetchone()
         )
     backup = backup_database(settings) if upgrade else None
@@ -362,4 +363,82 @@ def migrate(database):
                 ).format(sql.Literal(OFFICE_FILE_PATTERN))
             )
             connection.execute("INSERT INTO hspace_schema_migration(version) VALUES (9)")
+        if not connection.execute(
+            "SELECT 1 FROM hspace_schema_migration WHERE version=10"
+        ).fetchone():
+            connection.execute("""
+                CREATE TABLE hspace_attachment_category (
+                    id bigserial PRIMARY KEY, name varchar(100) NOT NULL CHECK(btrim(name)<>''),
+                    code varchar(40) UNIQUE, is_other boolean NOT NULL DEFAULT FALSE,
+                    merged_into bigint REFERENCES hspace_attachment_category(id),
+                    created_by uuid REFERENCES hspace_user(id), created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    CHECK(merged_into IS NULL OR merged_into<>id),
+                    CHECK(NOT is_other OR (code='other' AND merged_into IS NULL)));
+                CREATE UNIQUE INDEX hspace_one_other_category ON hspace_attachment_category(is_other) WHERE is_other;
+                CREATE TABLE hspace_category_alias (
+                    id bigserial PRIMARY KEY, category_id bigint NOT NULL REFERENCES hspace_attachment_category(id),
+                    name varchar(100) NOT NULL CHECK(btrim(name)<>''),
+                    normalized_name varchar(160) NOT NULL UNIQUE CHECK(btrim(normalized_name)<>''));
+                CREATE INDEX hspace_alias_category ON hspace_category_alias(category_id);
+                CREATE TRIGGER hspace_retain_category BEFORE DELETE ON hspace_attachment_category FOR EACH ROW EXECUTE FUNCTION hspace_retain_records();
+                CREATE TRIGGER hspace_retain_category_alias BEFORE DELETE ON hspace_category_alias FOR EACH ROW EXECUTE FUNCTION hspace_retain_records();
+                ALTER TABLE hspace_activity DROP CONSTRAINT hspace_activity_entity_kind_check;
+                ALTER TABLE hspace_activity ADD CONSTRAINT hspace_activity_entity_kind_check CHECK(entity_kind IN ('vehicle','attachment','cover','office','category'));
+                ALTER TABLE hspace_activity DROP CONSTRAINT hspace_activity_action_check;
+                ALTER TABLE hspace_activity ADD CONSTRAINT hspace_activity_action_check CHECK(action IN ('CREATE','DELETE','RESTORE','RENAME','LABEL','ALIAS','MERGE'));
+                ALTER TABLE hspace_activity DROP CONSTRAINT hspace_activity_scope;
+                ALTER TABLE hspace_activity ADD CONSTRAINT hspace_activity_scope CHECK(
+                    (entity_kind IN ('office','category') AND vehicle_id IS NULL) OR
+                    (entity_kind IN ('vehicle','attachment','cover') AND vehicle_id IS NOT NULL));
+            """)
+            for code, name, aliases in SEED_CATEGORIES:
+                category = connection.execute(
+                    "INSERT INTO hspace_attachment_category(name,code,is_other) VALUES (%s,%s,%s) RETURNING id",
+                    (name, code, code == "other"),
+                ).fetchone()
+                for alias in (name, *aliases):
+                    connection.execute(
+                        "INSERT INTO hspace_category_alias(category_id,name,normalized_name) VALUES (%s,%s,%s) ON CONFLICT(normalized_name) DO NOTHING",
+                        (category["id"], alias, category_key(alias)),
+                    )
+            other_id = category["id"]
+            for table in ("limo_attachment", "hspace_office_attachment"):
+                connection.execute(
+                    sql.SQL(
+                        "ALTER TABLE {} ADD COLUMN category_id bigint NOT NULL DEFAULT {} REFERENCES hspace_attachment_category(id)"
+                    ).format(sql.Identifier(table), sql.Literal(other_id))
+                )
+            connection.execute("""
+                CREATE INDEX hspace_attachment_category_idx ON limo_attachment(category_id,vehicle_id) WHERE NOT is_deleted AND driver_assignment_id IS NULL;
+                CREATE INDEX hspace_office_category_idx ON hspace_office_attachment(category_id) WHERE NOT is_deleted;
+                INSERT INTO hspace_schema_migration(version) VALUES (10);
+            """)
+        if not connection.execute(
+            "SELECT 1 FROM hspace_schema_migration WHERE version=11"
+        ).fetchone():
+            connection.execute("""
+                CREATE FUNCTION hspace_guard_vehicle_category() RETURNS trigger LANGUAGE plpgsql AS $$
+                BEGIN
+                    IF NEW.is_deleted OR NEW.driver_assignment_id IS NOT NULL THEN RETURN NEW; END IF;
+                    IF TG_OP='UPDATE' THEN
+                        IF NOT OLD.is_deleted AND OLD.vehicle_id=NEW.vehicle_id
+                           AND OLD.category_id=NEW.category_id
+                           AND OLD.driver_assignment_id IS NOT DISTINCT FROM NEW.driver_assignment_id
+                        THEN RETURN NEW; END IF;
+                    END IF;
+                    IF EXISTS(SELECT 1 FROM hspace_attachment_category WHERE id=NEW.category_id AND is_other)
+                    THEN RETURN NEW; END IF;
+                    PERFORM pg_advisory_xact_lock(72730806);
+                    IF EXISTS(SELECT 1 FROM limo_attachment f WHERE f.vehicle_id=NEW.vehicle_id
+                        AND f.category_id=NEW.category_id AND f.driver_assignment_id IS NULL
+                        AND NOT f.is_deleted AND f.id<>NEW.id)
+                    THEN RAISE EXCEPTION USING ERRCODE='23505', CONSTRAINT='hspace_vehicle_category_unique',
+                        MESSAGE='This vehicle already has an attachment in this category.'; END IF;
+                    RETURN NEW;
+                END $$;
+                CREATE TRIGGER hspace_vehicle_category_unique
+                    BEFORE INSERT OR UPDATE OF category_id,is_deleted,vehicle_id,driver_assignment_id
+                    ON limo_attachment FOR EACH ROW EXECUTE FUNCTION hspace_guard_vehicle_category();
+                INSERT INTO hspace_schema_migration(version) VALUES (11);
+            """)
     return backup

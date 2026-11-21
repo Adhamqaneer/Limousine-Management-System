@@ -27,6 +27,9 @@
     filters: 'Filters',
     doneFilters: 'Done',
     printResults: 'Print results',
+    categoryInUse:
+      'This vehicle already has an attachment in this category, in Photos or Files. Choose another type or delete the existing attachment first.',
+    downloadAttachments: 'Download attachments',
     ownerFilterSummary: '{owner} · {shown} matching vehicles (of {total} total)',
     filterSummary: 'Showing {shown} of {total} vehicles',
     title: 'H SPACE | Vehicles',
@@ -81,6 +84,9 @@
     navOffice: 'ملفات المكتب',
     renameAttachment: 'تغيير اسم المرفق',
     fileName: 'اسم الملف',
+    categoryInUse:
+      'هاي السيارة فيها مرفق بنفس التصنيف بالصور أو الملفات. اختار تصنيف ثاني أو احذف المرفق الموجود أولًا.',
+    downloadAttachments: 'تنزيل المرفقات',
     renameHint: 'اكتب الاسم فقط. امتداد الملف ثابت ولا يتغيّر.',
     renameSave: 'حفظ الاسم',
     renameNamed: 'تغيير اسم {name}',
@@ -335,6 +341,7 @@
   }
   function errorKey(error) {
     const code = error.code || '';
+    if (code === 'category_in_use') return 'categoryInUse';
     if (code === 'invalid_attachment_name') return 'invalidAttachmentName';
     if (code === 'attachment_name_conflict') return 'renameConflict';
     if (['storage_unavailable', 'database_unavailable'].includes(code)) return 'unavailable';
@@ -540,6 +547,8 @@
     getElement('filter-active-count').hidden = !active;
     getElement('filter-active-count').textContent = String(active);
     getElement('print-results').disabled = listState !== 'ready' || !filtered.length;
+    if (getElement('download-attachments'))
+      getElement('download-attachments').disabled = getElement('print-results').disabled;
     const empty = !vehicles.length && ['ready', 'unavailable'].includes(listState);
     show('empty-fleet', empty);
     getElement('empty-description').textContent = getText(
@@ -878,6 +887,7 @@
       edit.append(icon('pencil'));
       edit.addEventListener('click', () => openRename(file));
       line.append(name, edit);
+      if (window.HSpaceCategories) line.append(HSpaceCategories.createButton(file));
       return line;
     }
     getElement('photo-grid').replaceChildren(
@@ -1144,6 +1154,13 @@
           HSpaceVehicleFilters.reportHash(selectedFilters(), getElement('vehicle-search').value),
       );
   });
+  getElement('download-attachments')?.addEventListener('click', () => {
+    if (!getElement('download-attachments').disabled)
+      location.assign(
+        '/attachments/download/' +
+          HSpaceVehicleFilters.reportHash(selectedFilters(), getElement('vehicle-search').value),
+      );
+  });
   Object.values(filterInputs).forEach((id) =>
     getElement(id).addEventListener('change', renderList),
   );
@@ -1399,6 +1416,7 @@
     let failure = '';
     uploadBusy = true;
     updateDetailControls();
+    const categoryId = window.HSpaceCategories?.selectedFor(input.id);
     try {
       for (const file of selected) {
         if (activeDetailId !== id) break;
@@ -1408,6 +1426,7 @@
         });
         const body = new FormData();
         body.append('file', file);
+        if (categoryId) body.append('category_id', categoryId);
         await api(`/api/vehicles/${id}/attachments/`, {
           method: 'POST',
           body,

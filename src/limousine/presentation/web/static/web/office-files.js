@@ -178,6 +178,7 @@
           nameGroup.append(rename);
           const detail = node('div');
           detail.append(nameGroup);
+          if (window.HSpaceCategories) detail.append(HSpaceCategories.createButton(item));
           const meta = node(
             'p',
             new Intl.NumberFormat(root.lang).format(Math.ceil(item.size / 1024)) +
@@ -268,10 +269,12 @@
     busy = true;
     message = 'uploading';
     render();
+    const categoryId = window.HSpaceCategories?.selectedFor('office-' + section + '-input');
     try {
       for (const file of files) {
         const data = new FormData();
         data.append('file', file);
+        if (categoryId) data.append('category_id', categoryId);
         const result = await request('/api/office/attachments/', {
           method: 'POST',
           body: data,

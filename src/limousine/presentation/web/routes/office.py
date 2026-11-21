@@ -6,11 +6,11 @@ from fastapi import Depends, Request
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import Response
 
-from limousine.domain.vehicles import DomainError
 from limousine.infrastructure.attachment_archive import build_attachment_archive
 
 from ..downloads import ArchiveResponse
 from ..file_handlers import (
+    category_upload_form,
     file_response,
     preview_item,
     rename_attachment_request,
@@ -33,11 +33,9 @@ def register_routes(app):
     @app.post("/api/office/attachments/")
     async def upload_office_file(request: Request, user=Depends(current_user)):
         require_csrf(request)
-        async with request.form(max_files=1, max_fields=1) as form:
-            upload = form.get("file")
-            if len(form) != 1 or len(form.getlist("file")) != 1 or not hasattr(upload, "file"):
-                raise DomainError("Choose exactly one file.")
-            return await run_in_threadpool(store_office_upload, app, upload, user)
+        async with request.form(max_files=1, max_fields=2) as form:
+            upload, category_id = category_upload_form(form)
+            return await run_in_threadpool(store_office_upload, app, upload, user, category_id)
 
     @app.get("/api/office/attachments/archive/{kind}/")
     def office_archive(kind: Literal["photos", "files"], user=Depends(current_user)):

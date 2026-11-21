@@ -36,6 +36,8 @@ def main():
                 "hspace_driver_assignment",
                 "hspace_driver_change",
                 "hspace_office_attachment",
+                "hspace_attachment_category",
+                "hspace_category_alias",
             )
         }
         report = {"counts": counts}
@@ -55,6 +57,10 @@ def main():
         }
         missing = {
             "hspace_office_deleted",
+            "hspace_one_other_category",
+            "hspace_alias_category",
+            "hspace_attachment_category_idx",
+            "hspace_office_category_idx",
             "hspace_driver_attachments",
             "hspace_one_active_cover",
             "hspace_activity_vehicle_idx",
@@ -105,6 +111,9 @@ def main():
         report["missing_retention_triggers"] = sorted(
             {
                 "hspace_retain_office",
+                "hspace_vehicle_category_unique",
+                "hspace_retain_category",
+                "hspace_retain_category_alias",
                 "hspace_retain_vehicle",
                 "hspace_retain_attachment",
                 "hspace_retain_cover",
@@ -189,7 +198,7 @@ def main():
         and not report["missing_deletion_constraints"]
         and not report["missing_driver_triggers"]
         and not report["driver_state_mismatches"]
-        and report["schema_versions"] == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        and report["schema_versions"] == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     )
     print(json.dumps(report, indent=2))
     return 0 if report["ok"] else 1

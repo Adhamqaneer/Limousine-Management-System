@@ -7,6 +7,7 @@ from starlette.responses import JSONResponse, RedirectResponse
 
 from limousine.domain.accounts import AccessDenied
 from limousine.domain.attachments import AttachmentNameConflict, AttachmentNameError
+from limousine.domain.categories import CategoryConflict, CategoryInUse, SimilarCategory
 from limousine.domain.drivers import DriverValidationError
 from limousine.domain.vehicles import DomainError, NotFound
 from limousine.infrastructure.attachments import (
@@ -58,6 +59,12 @@ def configure_http(app, settings):
 
     @app.exception_handler(DomainError)
     async def domain_error(request, exc):
+        if isinstance(exc, CategoryInUse):
+            return error("category_in_use", str(exc), 409)
+        if isinstance(exc, SimilarCategory):
+            return error("similar_category", str(exc), 409)
+        if isinstance(exc, CategoryConflict):
+            return error("category_conflict", str(exc), 409)
         if isinstance(exc, AttachmentNameConflict):
             return error("attachment_name_conflict", str(exc), 409)
         if isinstance(exc, AttachmentNameError):
@@ -86,6 +93,15 @@ def configure_http(app, settings):
 
     @app.exception_handler(psycopg.Error)
     async def database_error(request, exc):
+        if (
+            isinstance(exc, psycopg.errors.UniqueViolation)
+            and exc.diag.constraint_name == "hspace_vehicle_category_unique"
+        ):
+            return error(
+                "category_in_use",
+                "This vehicle already has an attachment in this category, in Photos or Files.",
+                409,
+            )
         return error("storage_unavailable", "Storage is temporarily unavailable.", 503)
 
     @app.exception_handler(OSError)

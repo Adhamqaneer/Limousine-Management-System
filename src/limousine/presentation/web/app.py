@@ -7,13 +7,19 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.staticfiles import StaticFiles
 
 from limousine.application.accounts import AccountService
+from limousine.application.attachment_download import AttachmentDownloadService
+from limousine.application.categories import CategoryService
 from limousine.application.drivers import DriverService
 from limousine.application.office import OfficeService
 from limousine.application.recycling import RecyclingService
 from limousine.application.vehicles import VehicleService
 from limousine.config.runtime import ROOT, load_settings
 from limousine.infrastructure.accounts import PostgresAccountRepository
+from limousine.infrastructure.attachment_download import (
+    PostgresAttachmentDownloadRepository,
+)
 from limousine.infrastructure.attachments import LocalAttachmentStore
+from limousine.infrastructure.categories import PostgresCategoryRepository
 from limousine.infrastructure.database import Database
 from limousine.infrastructure.drivers import PostgresDriverRepository
 from limousine.infrastructure.file_cleanup import FileCleanup
@@ -22,7 +28,16 @@ from limousine.infrastructure.office import PostgresOfficeRepository
 from limousine.infrastructure.vehicle_repository import PostgresVehicleRepository
 
 from .http_errors import configure_http
-from .routes import accounts, drivers, health, office, recycling, vehicles
+from .routes import (
+    accounts,
+    attachment_download,
+    categories,
+    drivers,
+    health,
+    office,
+    recycling,
+    vehicles,
+)
 
 
 def create_app(settings=None):
@@ -41,6 +56,10 @@ def create_app(settings=None):
     )
     app.state.accounts = PostgresAccountRepository(app.state.database)
     app.state.account_service = AccountService(app.state.accounts)
+    app.state.categories = CategoryService(PostgresCategoryRepository(app.state.database))
+    app.state.attachment_download = AttachmentDownloadService(
+        PostgresAttachmentDownloadRepository(app.state.database),
+    )
     app.state.vehicles = VehicleService(
         PostgresVehicleRepository(app.state.database, media_layout=app.state.media_layout)
     )
@@ -63,6 +82,8 @@ def create_app(settings=None):
     drivers.register_routes(app)
     recycling.register_routes(app)
     office.register_routes(app)
+    categories.register_routes(app)
+    attachment_download.register_routes(app)
     return app
 
 

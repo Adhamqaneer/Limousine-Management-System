@@ -141,6 +141,7 @@
             );
         });
         nameLine.append(name, rename);
+        if (window.HSpaceCategories) nameLine.append(HSpaceCategories.createButton(file));
         info.append(
           nameLine,
           node('span', Math.max(1, Math.ceil(file.size / 1024)) + ' KB', 'file-meta'),
@@ -262,11 +263,13 @@
     status = 'uploading';
     render();
     let failure = '';
+    const categoryId = window.HSpaceCategories?.selectedFor(input.id);
     try {
       for (const file of selected) {
         if (!matches(snapshot)) break;
         const body = new FormData();
         body.append('file', file);
+        if (categoryId) body.append('category_id', categoryId);
         const result = await api(base(snapshot), {
           method: 'POST',
           body,

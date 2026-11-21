@@ -30,7 +30,8 @@ class VehicleRepository(Protocol):
         kind: str,
         size: int,
         actor=None,
-        assignment_id=None
+        assignment_id=None,
+        category_id=None
     ) -> Attachment: ...
     def get_attachment(
         self, vehicle_id: int, attachment_id: int, *, assignment_id=None
@@ -109,7 +110,8 @@ class VehicleService:
         kind: str,
         size: int,
         actor=None,
-        assignment_id=None
+        assignment_id=None,
+        category_id=None
     ) -> Attachment:
         if assignment_id is not None:
             require_actor(actor)
@@ -133,6 +135,7 @@ class VehicleService:
             kind=kind,
             size=size,
             **({"actor": actor} if actor else {}),
+            **({"category_id": category_id} if category_id is not None else {}),
             **({"assignment_id": assignment_id} if assignment_id is not None else {}),
         )
 

@@ -6,7 +6,7 @@ Use the Python interpreter configured for the project; on this checkout that can
 
 | Command | What it checks |
 | --- | --- |
-| python manage.py check | Imports FastAPI and compiles all eight page templates |
+| python manage.py check | Imports FastAPI and compiles all ten page templates |
 | python manage.py test | Isolated Python domain/service/HTTP/storage tests |
 | node scripts/test_frontend.cjs | Browser-script syntax and all frontend harnesses; no npm install |
 | python scripts/check_readme.py | Implementation changes include a README update |
@@ -23,6 +23,7 @@ These scripts are for the intended local database while the app is idle. They ma
 - scripts/verify_drivers.py: assignment/correction, period boundaries and snapshots.
 - scripts/verify_attachment_names.py: rename conflicts, original downloads/ZIPs and audit rollback.
 - scripts/verify_driver_documents.py: ending periods, document scope and current-driver synchronization.
+- scripts/verify_categories.py: schema-10 member labels/aliases/merges, stale uploads, retained originals and category ZIP downloads; requires migrations already applied.
 - scripts/verify_office_files.py: independent office documents and recovery/audit.
 
 No real-database migration or fixture mutation was run for this refactoring; only the read-only audit was used. Historical migrations are kept because fresh installation/upgrades need them. Never remove retained rows/files to clean up test fixtures.
@@ -44,4 +45,24 @@ Source PNG artwork, versioned SQL migrations, Docker/Compose and the separate fe
 
 ## Media folder organization
 
-The current schema is 9. Existing originals were organized after a private database dump and media ZIP backup. No tests were run for this feature at the owner's request; earlier results above predate it. To organize another intended local checkout, stop the app and run python scripts/organize_media.py with its configured interpreter. The command backs up first; repeated runs keep already-correct paths. Names/period dates automatically update through the normal driver workflow. A locked file can leave a queued old copy; cleanupfiles retries it later. Retain both database and media backups together.
+The folder organization was introduced in schema 9 (current schema: 10). Existing originals were organized after a private database dump and media ZIP backup. No tests were run for this feature at the owner's request; earlier results above predate it. To organize another intended local checkout, stop the app and run python scripts/organize_media.py with its configured interpreter. The command backs up first; repeated runs keep already-correct paths. Names/period dates automatically update through the normal driver workflow. A locked file can leave a queued old copy; cleanupfiles retries it later. Retain both database and media backups together.
+
+## Attachment category downloads
+
+Schema 10 adds category metadata; switching the mistaken attachment-print workflow to ZIP downloads needs no further schema migration. Existing data/classifications remain intact. The unused PDF renderer, its worker/dependency, print page/styles and their tests were removed. No installed private-runtime packages were deleted.
+
+scripts/verify_categories.py exercises real PostgreSQL and authenticated HTTP using rolled-back fixtures and temporary media: member category/alias/merge, stale upload IDs, deleted metadata, all attachment scopes, per-vehicle ZIP originals and missing documents. It compares the original rows/media afterward; sequences may advance on rollback. Category download HTTP, safe ZIP names, original bytes, limits and error cleanup have isolated tests. Frontend checks cover the simple download selection and preserve the existing reports. Native browser downloads remain unverified.
+
+The static detector cannot resolve Jinja static() stylesheets. The categories and download templates use the shared 28-44px heading against 16px body text, so their file-scoped flat-type-hierarchy exceptions preserve the actual hierarchy. The exception for the deleted attachment-print template was removed.
+
+Current download checks passed: 110 isolated Python tests, 20 browser-script syntax checks, 13 frontend harness files, all ten templates (59 routes), the rollback-only PostgreSQL ZIP verifier, README and whitespace checks. No additional schema change, commit, push or deployment was performed.
+
+Category-management UI removal: removed categories.html, categories.js, the page GET route, management links and page-only styles. Category data and API behavior were preserved. Removed the stale detector exception for that deleted page.
+
+Inline category creation and download availability reuse schema 10; no migration is needed. Focused UI coverage includes permanent options with Other last, upload/classification reuse, Arabic/English labels and scoped availability rows. The real-database verifier also checks positive/zero gallery counts while excluding separately deleted files and driver/office documents.
+
+Inline creation/availability checks passed: 111 isolated Python tests, all 19 browser scripts and 13 frontend harnesses, nine page templates (59 routes), the rollback-only PostgreSQL verifier, README/whitespace and scoped detector checks. The detector still cannot resolve Jinja-linked stylesheets; no additional ignores were introduced. Native visual checks are not established by these automated results.
+
+Vehicle category uniqueness (schema 11): an automatic private pg_dump backup precedes migration. Existing duplicate named-category groups are retained without recategorizing/deleting originals. New uploads, category changes, merges and restoration cannot introduce further conflicts. Other remains unlimited. Checks cover service rules, actual PostgreSQL trigger conflicts/restoration and HTTP duplicate rejection, preserving original fixture rows/files on rollback.
+
+Schema-11 verification passed: 113 isolated Python tests, 19 browser scripts/13 frontend harnesses, all nine templates (59 routes), real PostgreSQL upload/classification/trigger/restoration conflict checks with rolled-back fixtures, and the read-only schema/file audit. Existing originals were retained; no native browser check, commit, push or deployment was performed.

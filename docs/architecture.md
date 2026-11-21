@@ -43,7 +43,7 @@ All eight fields are text; leading zeroes matter. Creation requires type and pla
 
 Arabic combining marks are allowed after a letter. Unrelated edits preserve legacy values; changed fields use current validation.
 
-## PostgreSQL tables (schema 9)
+## PostgreSQL tables (schema 11)
 
 | Table | Purpose |
 | --- | --- |
@@ -55,7 +55,9 @@ Arabic combining marks are allowed after a letter. Unrelated edits preserve lega
 | hspace_office_attachment | Office files, independent of vehicles/drivers |
 | hspace_driver_assignment | Driver name/phone snapshots and work periods |
 | hspace_driver_change | Immutable ASSIGN/CORRECT/END snapshots |
-| hspace_activity | Immutable CREATE/RENAME/DELETE/RESTORE actor events |
+| hspace_attachment_category | Canonical document types, protected Other and merge destinations |
+| hspace_category_alias | Global unique normalized names mapped to canonical types |
+| hspace_activity | Immutable CREATE/RENAME/DELETE/RESTORE/LABEL/ALIAS/MERGE actor events |
 | hspace_file_cleanup | Retry queue for unreferenced failed uploads |
 | hspace_schema_migration | Applied schema versions |
 
@@ -77,3 +79,17 @@ infrastructure/media_paths.py owns safe directory labels and shared storage-key 
 Copies are completed before metadata commits; old paths enter the existing cleanup queue in that transaction. Cleanup removes old duplicates only after checking all file references. Failed/uncertain commits retain referenced originals; interrupted work can leave extra copies rather than lose the source. Only empty retired directories are removed. Application URLs, attachment names, audit actors, history snapshots and soft-deletion state are unchanged. File paths use normalized Windows-safe driver labels with bounded names, years and period-ID suffixes; display names remain unchanged.
 
 Schema 9 widens file-key checks without adding tables. It accepts existing keys for compatibility and scoped organized keys for new work. scripts/organize_media.py backs up the intended local database/media, applies the schema if needed and relocates existing originals, including deleted files. Run it only while the app is idle. No automated tests were executed for this change at the owner's request.
+
+## Attachment classification and ZIP downloads
+
+Schema 10 adds non-null category foreign keys to vehicle/driver and office attachments, defaulting existing records to Other. Names and aliases share a unique normalized registry (Unicode normalization, Arabic alef/marks/tatweel, case and punctuation). Similarity suggestions use canonical names and aliases; semantic equivalence is a user decision. All active accounts can create, alias, classify and merge. Other cannot absorb named types or be merged.
+
+Category writes and uploads acquire the same transaction advisory lock before resolving a category. Merges move active/deleted metadata and all aliases atomically, retain source category rows and append actor events. Stale upload IDs resolve through the merge chain. Original bytes, filenames, driver periods and deletion state do not change. This feature does not provide category deletion or an automatic merge undo.
+
+The category download accepts explicit vehicle/category IDs, checks active parents and gallery-only attachments in a read-only repeatable snapshot, then builds one temporary ZIP. Driver/office files and card covers remain independent. Limits: 500 vehicles, 50 types, 1000 files and 1 GiB of original bytes per download. All supported original formats are included without rendering or conversion.
+
+Each vehicle receives a safe, unique plate-number directory; duplicate filenames receive numbered suffixes. A UTF-8 _missing-documents.txt report identifies absent types. Archive creation finishes before sending any response and checks each file size, so missing/changed originals cannot produce a partial download. The existing archive response closes temporary storage after completion or disconnect. Category downloads require authentication and CSRF; the response is private/no-store.
+
+The authenticated CSRF-protected POST /api/attachment-download/availability/ uses the same validated vehicle/category scope as ZIP selection. It aggregates active gallery counts without downloading files and returns all scoped vehicles, filling absent category counts with zero. This preview does not mutate records and does not replace the fresh authorization/selection used for the actual ZIP.
+
+Schema 11 adds a transactional category-slot trigger. Each active vehicle-gallery named category permits one attachment across image/file kinds; Other, driver-period documents, office documents and card photos remain independent. Upload preflight rejects occupied slots before writing bytes, and the locked metadata transaction rechecks. Classification, merges and restoration are also guarded. Existing duplicates are retained; unrelated edits/no-op labels still work, while new occupancy conflicts return category_in_use (409). Category writes share the transaction advisory lock so simultaneous uploads cannot claim the same slot.

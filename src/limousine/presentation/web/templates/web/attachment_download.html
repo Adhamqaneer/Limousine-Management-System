@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#101113" />
+    <title>H SPACE | Download attachments</title>
+    <link rel="icon" href="{{ static('web/brand-mark.svg') }}" />
+    <link rel="stylesheet" href="{{ static('web/app.css') }}" />
+    <script src="{{ static('web/appearance.js') }}"></script>
+    <script src="{{ static('web/page-tools.js') }}" defer></script>
+    <script src="{{ static('web/search.js') }}" defer></script>
+    <script src="{{ static('web/vehicle-filters.js') }}" defer></script>
+    <script src="{{ static('web/attachment-download.js') }}" defer></script>
+  </head>
+  <body class="workspace-page">
+    {% include 'web/_icons.html' %}{% include 'web/_header.html' %}
+    <a class="skip-link" href="#main-content" data-download-i18n="skip">Skip to content</a>
+    <main class="container" id="main-content">
+      <div class="page-heading compact-hero branded-page-heading">
+        <div class="heading-copy">
+          <h1 data-download-i18n="title">Download attachments</h1>
+          <p class="muted" data-download-i18n="description">
+            Choose what you need and download the original files in one ZIP.
+          </p>
+        </div>
+        {% include 'web/_record_signature.html' %}
+      </div>
+      <section class="panel" aria-labelledby="download-types-title">
+        <form id="attachment-download-form" class="category-form">
+          <input type="hidden" id="csrf-token" value="{{ csrf_token }}" />
+          <h2 id="download-types-title" data-download-i18n="types">Document types</h2>
+          <p id="download-scope" class="muted"></p>
+          <fieldset
+            id="download-types"
+            aria-labelledby="download-types-title"
+            class="download-type-choices"
+            disabled
+          >
+            <legend class="sr-only" data-download-i18n="types">Document types</legend>
+          </fieldset>
+          <section
+            id="download-availability"
+            class="download-availability"
+            hidden
+            aria-labelledby="availability-title"
+          >
+            <div class="panel-heading">
+              <h2 id="availability-title" data-download-i18n="availability">
+                Availability by vehicle
+              </h2>
+              <button
+                type="button"
+                class="button secondary small"
+                id="availability-refresh"
+                data-download-i18n="refresh"
+              >
+                Refresh status
+              </button>
+            </div>
+            <p id="availability-status" class="muted" role="status" aria-live="polite"></p>
+            <div
+              class="download-table-scroll"
+              tabindex="0"
+              role="region"
+              aria-labelledby="availability-title"
+            >
+              <table class="download-availability-table">
+                <thead id="availability-head"></thead>
+                <tbody id="availability-body"></tbody>
+              </table>
+            </div>
+          </section>
+          <div class="attachment-section-actions">
+            <button
+              type="submit"
+              id="download-selected"
+              class="button primary"
+              disabled
+              data-download-i18n="download"
+            >
+              Download ZIP
+            </button>
+            <a class="button secondary" href="/" data-download-i18n="back">Back to vehicles</a>
+          </div>
+          <p id="download-status" role="status" aria-live="polite" class="form-message"></p>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

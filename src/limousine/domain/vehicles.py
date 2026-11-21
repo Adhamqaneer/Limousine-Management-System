@@ -101,6 +101,7 @@ class Attachment:
     size: int
     created_at: datetime
     driver_assignment_id: int | None = None
+    category_id: int | None = None
 
 
 @dataclass(frozen=True)

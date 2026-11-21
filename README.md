@@ -4,6 +4,12 @@ A private vehicle-management website for a car office. It runs locally with Fast
 
 Four fixed accounts share vehicle records, owner details, driver periods and private photos/documents. Adham is ADMIN: only he can manage accounts, view deleted items/activity and restore records. Everyone can upload, rename and soft-delete files. Reports print selected vehicle fields or driver history, with optional office letterhead. Office files are separate from vehicle and driver documents.
 
+## Download attachments by type
+
+Choose a category before uploading, or click the category on an existing attachment to change it. Vehicle license, Direction card and Customs declaration are seeded; Other stays last. Existing attachments start as Other. A named type permits one active attachment per vehicle across Photos and Files; Other permits multiple. Uploads and category changes reject an occupied type. In the category dialog, choose Other and enter a new type name; saving makes it a shared permanent choice, with Other still last. The standalone category-management page has been removed; upload choices and category ZIP downloads still use the shared category list.
+
+On Vehicles, click **Download attachments**, select the document types, review the per-vehicle Available/Missing table, then click **Download ZIP**. The current search/filters apply; without filters this includes all vehicles. Each vehicle has a folder named by its plate, containing the original files in every supported format. Missing document types are listed in _missing-documents.txt inside the ZIP. Existing vehicle-data and driver-history printing is unchanged.
+
 ## Requirements
 
 - Python 3.12+ and PostgreSQL 14+, running locally.
@@ -44,7 +50,7 @@ python scripts/check_readme.py
 python scripts/check_database.py
 ```
 
-Use your configured Python interpreter for the last two commands. The database audit is read-only and requires the intended local `limousine_local` settings. Python tests use isolated repositories/temp files; frontend tests need no npm installation. CI runs code/template, Python, frontend and README checks.
+Use your configured Python interpreter for the last two commands. The database audit is read-only and requires the intended local `limousine_local` settings. Python tests use isolated repositories/temp files; frontend tests need no npm installation. CI runs code/template, Python, frontend and README checks. Known static design-detector limitations are documented in [maintenance](docs/maintenance.md).
 
 Previous refactoring checks (before the media-folder change) passed: 101 Python tests, 11 frontend harness files, 17 browser-script syntax checks, all eight templates/49 routes and the read-only PostgreSQL audit. Native browser checks and Docker execution remain unverified.
 
@@ -63,9 +69,9 @@ media/
 
 Driver folder labels use Arabic text, ISO dates with the year, and "now" while current. Ending/replacing a driver or correcting name/start dates updates the folder and all associated storage keys, including deleted originals. Unknown starts stay labeled unknown. A short period ID prevents name/date collisions. Deletion still retains bytes for administrator recovery.
 
-Schema 9 permits these paths. The existing local originals were reorganized after private database/media backups under `.local/backups/`. New uploads follow the same structure. Restart the server for the new handlers. No automated tests or browser checks were run for this change at the owner's request. Back up **both PostgreSQL and media**, plus private configuration. A Git checkout/push does not include local data or credentials.
+Schema 9 introduced these paths; schema 10 adds attachment categories. The existing local originals were reorganized after private database/media backups under `.local/backups/`. New uploads follow the same structure. Restart the server for the new handlers. No automated tests or browser checks were run for this change at the owner's request. Back up **both PostgreSQL and media**, plus private configuration. A Git checkout/push does not include local data or credentials.
 
-- Apply a documented schema update: `python manage.py migrate`. Existing installations receive a private database backup first. The folder organization uses schema 9.
+- Apply a documented schema update: `python manage.py migrate`. Existing installations receive a private database backup first. The current schema is 11.
 - Change a fixed account name/password: `python manage.py setoperator <slot> "<username>"` (slots 1-4). Enter the password privately; existing sessions are revoked.
 - Retry failed-upload cleanup: `python manage.py cleanupfiles`. Referenced files, including deleted ones, are retained.
 - Optional Docker files are retained for a future decision. They are not needed locally and were not built/tested in this review.
@@ -73,5 +79,7 @@ Schema 9 permits these paths. The existing local originals were reorganized afte
 ## Understand the code
 
 Start with [architecture and database](docs/architecture.md), then [frontend](docs/frontend.md). [Maintenance](docs/maintenance.md) covers deeper checks; [remaining work](docs/next-steps.md) records open decisions and limitations.
+
+See maintenance docs for category/download verification results. Restart the server after this update.
 
 Native browser/mobile/printing checks and a backup-restore drill remain outstanding. Server/desktop packaging is undecided; this is not a production-readiness claim.

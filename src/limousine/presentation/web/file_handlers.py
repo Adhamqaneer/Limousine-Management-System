@@ -1,6 +1,7 @@
 """Shared private upload, rename, preview and download HTTP handling."""
 
 import logging
+import re
 from contextlib import nullcontext
 from pathlib import PurePosixPath
 
@@ -8,6 +9,7 @@ import psycopg
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import FileResponse, JSONResponse
 
+from limousine.domain.categories import require_free_category
 from limousine.domain.office import OfficeAttachment
 from limousine.domain.vehicles import DomainError
 from limousine.infrastructure.attachments import AttachmentTooLarge
@@ -30,15 +32,23 @@ class UploadAdapter:
         return self.file.read(size)
 
 
-def store_upload(app, vehicle_id, upload, cover, actor, assignment_id=None):
+def store_upload(app, vehicle_id, upload, cover, actor, assignment_id=None, category_id=None):
     layout = app.state.media_layout
     with layout.operation() if layout else nullcontext():
-        return _store_upload(app, vehicle_id, upload, cover, actor, assignment_id)
+        return _store_upload(app, vehicle_id, upload, cover, actor, assignment_id, category_id)
 
 
-def _store_upload(app, vehicle_id, upload, cover, actor, assignment_id=None):
+def _store_upload(app, vehicle_id, upload, cover, actor, assignment_id=None, category_id=None):
+    category = app.state.categories.get(category_id) if category_id is not None else None
+    if category:
+        category_id = category["id"]
     service, store = app.state.vehicles, app.state.store
-    service.get_vehicle(vehicle_id)
+    vehicle = service.get_vehicle(vehicle_id)
+    if category and not cover and assignment_id is None:
+        require_free_category(
+            category["is_other"],
+            any(item.category_id == category_id for item in vehicle.attachments),
+        )
     if assignment_id is not None:
         service.driver_attachments(vehicle_id, assignment_id)
     layout = app.state.media_layout
@@ -71,6 +81,7 @@ def _store_upload(app, vehicle_id, upload, cover, actor, assignment_id=None):
                 size=saved.size,
                 kind=saved.kind,
                 actor=actor,
+                **({"category_id": category_id} if category_id is not None else {}),
                 **({"assignment_id": assignment_id} if assignment_id is not None else {})
             )
     except Exception:
@@ -91,13 +102,28 @@ def _store_upload(app, vehicle_id, upload, cover, actor, assignment_id=None):
 
 async def upload_request(app, vehicle_id, request, cover, actor, assignment_id=None):
     require_csrf(request)
-    async with request.form(max_files=1, max_fields=1) as form:
-        upload = form.get("file")
-        if len(form) != 1 or len(form.getlist("file")) != 1 or not hasattr(upload, "file"):
-            raise DomainError("Choose exactly one file.")
+    async with request.form(max_files=1, max_fields=2) as form:
+        upload, category_id = category_upload_form(form)
         return await run_in_threadpool(
-            store_upload, app, vehicle_id, upload, cover, actor, assignment_id
+            store_upload, app, vehicle_id, upload, cover, actor, assignment_id, category_id
         )
+
+
+def category_upload_form(form):
+    upload = form.get("file")
+    if (
+        set(form) - {"file", "category_id"}
+        or len(form.getlist("file")) != 1
+        or len(form.getlist("category_id")) > 1
+        or not hasattr(upload, "file")
+    ):
+        raise DomainError("Choose one file and its category.")
+    value = form.get("category_id")
+    if value is None:
+        return upload, None
+    if not isinstance(value, str) or not re.fullmatch(r"[1-9][0-9]{0,18}", value):
+        raise DomainError("Choose a valid category.")
+    return upload, int(value)
 
 
 def file_response(app, key, filename, preview):
@@ -168,17 +194,24 @@ def preview_item(app, item, request, user):
     return render_page(request, "document_preview.html", context, user=user)
 
 
-def store_office_upload(app, upload, actor):
+def store_office_upload(app, upload, actor, category_id=None):
     layout = app.state.media_layout
     with layout.operation() if layout else nullcontext():
-        return _store_office_upload(app, upload, actor)
+        return _store_office_upload(app, upload, actor, category_id)
 
 
-def _store_office_upload(app, upload, actor):
+def _store_office_upload(app, upload, actor, category_id=None):
+    if category_id is not None:
+        category_id = app.state.categories.get(category_id)["id"]
     saved = app.state.store.save_office_file(UploadAdapter(upload))
     try:
         item = app.state.office.add(
-            saved.storage_key, saved.original_name, saved.kind, saved.size, actor
+            saved.storage_key,
+            saved.original_name,
+            saved.kind,
+            saved.size,
+            actor,
+            **({"category_id": category_id} if category_id is not None else {})
         )
     except Exception:
         try:

@@ -20,6 +20,15 @@
         ],
         "createdAt": "2026-11-18T08:15:41.745Z",
         "reason": "Agent review: targeted detector could not resolve Jinja static('web/app.css') and reported body/h1/h2 all at 16px. Shared CSS sets office h1 to clamp(28px,3vw,40px), section h2 to 20px, and body to 16px; the heading steps meet or exceed 1.25. Keep the existing hierarchy."
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "src/limousine/presentation/web/templates/web/attachment_download.html"
+        ],
+        "createdAt": "2026-11-21T20:38:32.345Z",
+        "reason": "Agent review: detector cannot resolve Jinja static() stylesheet and incorrectly reports body/h1/h2 at 16px. Download uses branded-page-heading heading-copy; shared app.css sets h1 to 28-44px (28px mobile), body to 16px. Preserve the existing hierarchy."
       }
     ]
   }

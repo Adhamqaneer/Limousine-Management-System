@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import psycopg
 from fastapi.testclient import TestClient
@@ -25,6 +25,28 @@ def photo():
 
 
 class VehicleHttpTests(TestCase):
+    def test_occupied_category_is_rejected_before_writing_image_or_file(self):
+        from dataclasses import replace
+
+        existing = Attachment(
+            7, 1, "vehicles/" + "a" * 32 + ".png", "license.png", "image", 10, STAMP, category_id=13
+        )
+        self.service.get_vehicle.return_value = replace(self.car, attachments=(existing,))
+        self.app.state.categories = MagicMock()
+        self.app.state.categories.get.return_value = {"id": 13, "is_other": False}
+        for name, content in [("new.png", photo()), ("new.txt", b"original document")]:
+            with patch.object(self.app.state.store, "save") as save:
+                response = self.client.post(
+                    "/api/vehicles/1/attachments/",
+                    files={"file": (name, content)},
+                    data={"category_id": "13"},
+                    headers=self.headers,
+                )
+                self.assertEqual(response.status_code, 409)
+                self.assertEqual(response.json()["error"]["code"], "category_in_use")
+                save.assert_not_called()
+        self.service.add_attachment.assert_not_called()
+
     def setUp(self):
         self.directory = TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
