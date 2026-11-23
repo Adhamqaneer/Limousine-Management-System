@@ -44,6 +44,12 @@ Open **http://127.0.0.1:8000/**. The launcher selects `.venv`, then the checkout
 
 Alternatively, use `python manage.py runserver` with the configured interpreter. Development stays on loopback. Refresh after UI updates; restart after Python changes.
 
+## Windows desktop preview
+
+Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_desktop.ps1` on this development computer. On a fresh checkout, install `requirements-desktop.txt` in the configured Python environment first. The preview requires WebView2 and PostgreSQL binaries. Pass `-PostgresBin` if PostgreSQL is in a different location.
+
+H SPACE opens in its own window. On first launch, choose a password for `H space` and sign in. The preview starts with empty records and saves changes under `.local/desktop-preview/` in this checkout. See [desktop preview](docs/desktop.md) for details.
+
 ## Checks
 
 ```powershell
@@ -55,8 +61,6 @@ python scripts/check_database.py
 ```
 
 Use your configured Python interpreter for the last two commands. The database audit is read-only and requires the intended local `limousine_local` settings. Python tests use isolated repositories/temp files; frontend tests need no npm installation. CI runs code/template, Python, frontend and README checks. Known static design-detector limitations are documented in [maintenance](docs/maintenance.md).
-
-Previous refactoring checks (before the media-folder change) passed: 101 Python tests, 11 frontend harness files, 17 browser-script syntax checks, all eight templates/49 routes and the read-only PostgreSQL audit. Native browser checks and Docker execution remain unverified.
 
 ## Data and maintenance
 
@@ -76,12 +80,13 @@ Schema 9 introduced these paths; schema 10 adds attachment categories. The exist
 - Apply a documented schema update with `python manage.py migrate`. The current schema is 12.
 - Change the office password with `python manage.py setpassword`. This revokes existing sessions.
 - Retry failed-upload cleanup: `python manage.py cleanupfiles`. Referenced files, including deleted ones, are retained.
-- Optional Docker files are retained for a future decision. They are not needed locally and were not built/tested in this review.
 
 ## Understand the code
 
 Start with [architecture and database](docs/architecture.md), then [frontend](docs/frontend.md). [Maintenance](docs/maintenance.md) covers deeper checks; [remaining work](docs/next-steps.md) records open decisions and limitations.
 
+For code changes, use a block for each JavaScript conditional and put each part of a long condition on its own line. See [maintenance](docs/maintenance.md) for what the pre-desktop cleanup removed.
+
 See maintenance docs for category/download verification results. Restart the server after this update.
 
-Native browser/mobile/printing checks and a backup-restore drill remain outstanding. Server/desktop packaging is undecided; this is not a production-readiness claim.
+Native browser/mobile/printing checks and a backup-restore drill remain outstanding. Distribution packaging is deferred.

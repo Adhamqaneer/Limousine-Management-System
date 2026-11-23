@@ -220,12 +220,13 @@
     ['ended_on', 'end'],
   ];
   function value(row, key) {
-    if (key === 'ended_on')
+    if (key === 'ended_on') {
       return row.is_current
         ? getText('current')
         : row.started_on && row.started_on === row.ended_on
           ? getText('sameDayHandover')
           : row.last_worked_on || row[key] || getText('unknown');
+    }
     return row[key] || getText('unknown');
   }
   function render() {
@@ -265,14 +266,18 @@
         [query ? 'name' : '', query, 'auto'],
         [onDate ? 'onDate' : '', onDate, 'ltr'],
       ]) {
-        if (!label) continue;
+        if (!label) {
+          continue;
+        }
         const part = createElement('span', getText(label) + ': ');
         part.append(isolated(text, dir));
         scope.push(part);
       }
       const parts = [];
       scope.forEach((part, index) => {
-        if (index) parts.push(createElement('span', ' · '));
+        if (index) {
+          parts.push(createElement('span', ' · '));
+        }
         parts.push(part);
       });
       getElement('driver-report-scope').replaceChildren(...parts);
@@ -354,7 +359,9 @@
             );
             row.append(group);
           }
-          if (change.action === 'END') row.prepend(createElement('strong', getText('periodEnded')));
+          if (change.action === 'END') {
+            row.prepend(createElement('strong', getText('periodEnded')));
+          }
           row.append(isolated(change.actor_name + ' · ' + stamp(change.created_at)));
           return row;
         }),
@@ -368,11 +375,14 @@
     if (globalPage) {
       document.title = 'H SPACE | ' + getText('driverHistory');
       document.querySelectorAll('[data-i18n]').forEach((node) => {
-        if (en[node.dataset.i18n]) node.textContent = getText(node.dataset.i18n);
+        if (en[node.dataset.i18n]) {
+          node.textContent = getText(node.dataset.i18n);
+        }
       });
       document.querySelectorAll('[data-i18n-aria]').forEach((node) => {
-        if (en[node.dataset.i18nAria])
+        if (en[node.dataset.i18nAria]) {
           node.setAttribute('aria-label', getText(node.dataset.i18nAria));
+        }
       });
     }
     render();
@@ -389,9 +399,15 @@
       let url;
       if (globalPage) {
         const params = new URLSearchParams();
-        if (vehicleId) params.set('vehicle_id', vehicleId);
-        if (query) params.set('q', query);
-        if (onDate) params.set('on_date', onDate);
+        if (vehicleId) {
+          params.set('vehicle_id', vehicleId);
+        }
+        if (query) {
+          params.set('q', query);
+        }
+        if (onDate) {
+          params.set('on_date', onDate);
+        }
         url = '/api/drivers/?' + params;
       } else {
         vehicleId = location.hash.match(/^#vehicle\/(\d+)$/)?.[1];
@@ -403,13 +419,17 @@
         url = '/api/vehicles/' + vehicleId + '/drivers/';
       }
       const payload = await api(url);
-      if (id !== requestId) return;
+      if (id !== requestId) {
+        return;
+      }
       rows = payload.assignments;
       changes = payload.corrections || [];
       loaded = true;
       statusKey = rows.length ? '' : 'empty';
     } catch (_) {
-      if (id === requestId) statusKey = 'failed';
+      if (id === requestId) {
+        statusKey = 'failed';
+      }
     } finally {
       if (id === requestId) {
         busy = false;
@@ -433,7 +453,9 @@
   window.addEventListener('hspace:language', translate);
   if (globalPage) {
     const param = new URLSearchParams(location.search).get('vehicle_id');
-    if (param && /^[0-9]+$/.test(param)) vehicleId = param;
+    if (param && /^[0-9]+$/.test(param)) {
+      vehicleId = param;
+    }
     getElement('driver-search-form').addEventListener('submit', (event) => {
       event.preventDefault();
       query = getElement('driver-query').value.trim();
@@ -441,11 +463,14 @@
       load();
     });
     getElement('print-driver-history').addEventListener('click', () => {
-      if (!getElement('print-driver-history').disabled)
+      if (!getElement('print-driver-history').disabled) {
         getElement('driver-print-dialog').showModal();
+      }
     });
     const print = (plain) => {
-      if (getElement('print-driver-history').disabled) return;
+      if (getElement('print-driver-history').disabled) {
+        return;
+      }
       getElement('report-paper').classList.toggle('preprinted-paper', plain);
       getElement('driver-print-dialog').close();
       window.print();
@@ -460,7 +485,9 @@
   } else {
     let endTarget = null;
     openEnd = (row) => {
-      if (busy || !loaded) return;
+      if (busy || !loaded) {
+        return;
+      }
       endTarget = {
         vehicleId,
         assignment: row,
@@ -472,17 +499,25 @@
       getElement('driver-last-worked').focus();
     };
     getElement('driver-end-cancel').addEventListener('click', () => {
-      if (!busy) getElement('driver-end-dialog').close();
+      if (!busy) {
+        getElement('driver-end-dialog').close();
+      }
     });
     getElement('driver-end-dialog').addEventListener('cancel', (event) => {
-      if (busy) event.preventDefault();
+      if (busy) {
+        event.preventDefault();
+      }
     });
     getElement('driver-dialog').addEventListener('cancel', (event) => {
-      if (busy) event.preventDefault();
+      if (busy) {
+        event.preventDefault();
+      }
     });
     getElement('driver-end-form').addEventListener('submit', async (event) => {
       event.preventDefault();
-      if (busy || !endTarget) return;
+      if (busy || !endTarget) {
+        return;
+      }
       const target = endTarget,
         date = getElement('driver-last-worked').value;
       if (!date) {
@@ -533,19 +568,25 @@
       Object.entries(driverInputs).forEach(([field, id]) => {
         getElement(id).setAttribute('aria-invalid', 'false');
         const message = getElement('error-' + field);
-        if (message) message.textContent = '';
+        if (message) {
+          message.textContent = '';
+        }
       });
     }
     Object.entries(driverInputs).forEach(([field, id]) =>
       getElement(id).addEventListener('input', () => {
         getElement(id).setAttribute('aria-invalid', 'false');
         const message = getElement('error-' + field);
-        if (message) message.textContent = '';
+        if (message) {
+          message.textContent = '';
+        }
         getElement('driver-form-message').textContent = '';
       }),
     );
     function open(correction) {
-      if (busy || !loaded) return;
+      if (busy || !loaded) {
+        return;
+      }
       clearErrors();
       correcting = correction;
       const current = rows.find((row) => row.is_current);
@@ -571,7 +612,9 @@
     getElement('change-driver').parentElement.append(refresh);
     getElement('driver-form').addEventListener('submit', async (event) => {
       event.preventDefault();
-      if (busy) return;
+      if (busy) {
+        return;
+      }
       const target = vehicleId;
       busy = true;
       getElement('save-driver').disabled = true;
@@ -601,13 +644,16 @@
           const input = getElement(field);
           input.setAttribute('aria-invalid', 'true');
           const message = getElement('error-' + error.field);
-          if (message) message.textContent = getText(error.reason);
+          if (message) {
+            message.textContent = getText(error.reason);
+          }
           input.focus();
           getElement('driver-form-message').textContent = getText(error.reason);
-        } else
+        } else {
           getElement('driver-form-message').textContent = getText(
             error.status === 400 ? 'invalid' : 'failed',
           );
+        }
       } finally {
         busy = false;
         getElement('save-driver').disabled = false;
@@ -629,6 +675,8 @@
       }
     });
     translate();
-    if (location.hash.startsWith('#vehicle/')) load();
+    if (location.hash.startsWith('#vehicle/')) {
+      load();
+    }
   }
 })();

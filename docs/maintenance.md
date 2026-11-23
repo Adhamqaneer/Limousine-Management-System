@@ -41,7 +41,11 @@ Navigation follow-up: eight focused navigation/report/asset tests passed after f
 
 Removed after checking references: the unused environment example (setup writes .env directly), the retired conversion verifier, its unrelated duplicate deletion-verifier alias, the unreferenced ASGI shortcut and the no-op collectstatic command. The existing ASGI target remains limousine.presentation.web.app:app. AGENTS.md was shortened to project-specific AI rules; no application code depends on it.
 
-Source PNG artwork, versioned SQL migrations, Docker/Compose and the separate feature verifiers are retained deliberately: editable source, upgrade path, optional packaging and different integration scopes are useful even though they are not needed on every startup. Secrets, private data and local tooling remain ignored by Git.
+Source PNG artwork, versioned SQL migrations and the separate feature verifiers provide editable assets, database upgrades and targeted integration checks. Secrets, private data and local tooling remain ignored by Git.
+
+## Pre-desktop code cleanup
+
+The owner chose to remove Docker, Compose and the Docker build ignore file. Local operation uses the PowerShell launcher. JavaScript conditionals use blocks, and long conditions break onto separate lines. ZIP downloads share one routine for copying and checking original bytes. The attachment category UI no longer exports methods or sends events with no callers or listeners.
 
 ## Media folder organization
 

@@ -13,8 +13,6 @@ IMPLEMENTATION_FILES = {
     ".editorconfig",
     ".gitattributes",
     "requirements.txt",
-    "Dockerfile",
-    "compose.yaml",
     "manage.py",
     "AGENTS.md",
 }
@@ -35,7 +33,11 @@ def changed_paths(repo, base=None):
     event_name = os.environ.get("GITHUB_EVENT_NAME")
     event_path = os.environ.get("GITHUB_EVENT_PATH")
     is_pull_request = False
-    if base is None and event_name in ("push", "pull_request") and event_path:
+    if (
+        base is None
+        and event_name in ("push", "pull_request")
+        and event_path
+    ):
         event = json.loads(Path(event_path).read_text(encoding="utf-8"))
         is_pull_request = event_name == "pull_request"
         base = event["pull_request"]["base"]["sha"] if is_pull_request else event.get("before")

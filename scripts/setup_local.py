@@ -80,7 +80,10 @@ def main():
             role_exists = connection.execute(
                 "SELECT 1 FROM pg_roles WHERE rolname = %s", (role,)
             ).fetchone()
-            if role_exists and not (values.get("DB_USER") == role and values.get("DB_PASSWORD")):
+            if (
+                role_exists
+                and not (values.get("DB_USER") == role and values.get("DB_PASSWORD"))
+            ):
                 print(
                     "The project role already exists. Restore its .env credentials; no password was changed."
                 )

@@ -133,7 +133,9 @@
     const criteria = HSpaceVehicleFilters.fields
       .filter((field) => scope.selected[field])
       .map((field) => `${getText(field)}: ${scope.selected[field]}`);
-    if (scope.query) criteria.push(`${getText('searchTerms')}: ${scope.query}`);
+    if (scope.query) {
+      criteria.push(`${getText('searchTerms')}: ${scope.query}`);
+    }
     getElement('report-criteria').textContent = scope.filtered
       ? criteria.join(' · ') || getText('matchedAll')
       : '';
@@ -202,8 +204,11 @@
     const caption = element('span', getText(name));
     caption.id = 'label-' + name;
     input.addEventListener('change', () => {
-      if (input.checked) selected.add(name);
-      else selected.delete(name);
+      if (input.checked) {
+        selected.add(name);
+      } else {
+        selected.delete(name);
+      }
       render();
     });
     label.append(input, caption);
@@ -215,12 +220,16 @@
       .querySelectorAll('input')
       .forEach((input) => {
         input.checked = all;
-        if (all) selected.add(input.value);
+        if (all) {
+          selected.add(input.value);
+        }
       });
     render();
   }
   async function load() {
-    if (loading) return;
+    if (loading) {
+      return;
+    }
     if (!scope.valid) {
       vehicles = [];
       state = '';
@@ -240,9 +249,13 @@
         location.assign('/login/');
         return;
       }
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        throw new Error();
+      }
       const payload = await response.json();
-      if (!Array.isArray(payload.vehicles)) throw new Error();
+      if (!Array.isArray(payload.vehicles)) {
+        throw new Error();
+      }
       vehicles = scope.filtered
         ? HSpaceSearch.search(
             HSpaceVehicleFilters.apply(payload.vehicles, scope.selected),
@@ -261,7 +274,9 @@
   getElement('clear-fields').addEventListener('click', () => select(false));
   getElement('refresh-report').addEventListener('click', load);
   getElement('print-report').addEventListener('click', () => {
-    if (!getElement('print-report').disabled) getElement('print-style-dialog').showModal();
+    if (!getElement('print-report').disabled) {
+      getElement('print-style-dialog').showModal();
+    }
   });
   function printStyle(usePreprinted) {
     if (getElement('print-report').disabled) {
@@ -285,7 +300,9 @@
   });
   // Clear sensitive report contents when restored from the back/forward cache.
   window.addEventListener('pageshow', (event) => {
-    if (event.persisted) load();
+    if (event.persisted) {
+      load();
+    }
   });
   translate();
   load();

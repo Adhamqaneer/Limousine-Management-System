@@ -11,7 +11,9 @@
     point = null;
   let detailAnimation = null;
   function reset() {
-    if (frame) cancelAnimationFrame(frame);
+    if (frame) {
+      cancelAnimationFrame(frame);
+    }
     frame = 0;
     point = null;
     bounds = null;
@@ -53,7 +55,9 @@
           x: event.clientX,
           y: event.clientY,
         };
-        if (frame) return;
+        if (frame) {
+          return;
+        }
         frame = requestAnimationFrame(() => {
           frame = 0;
           if (!active?.isConnected || !point) {
@@ -94,13 +98,22 @@
   reducedMotion.addEventListener('change', stopMotion);
   finePointer.addEventListener('change', reset);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) stopMotion();
+    if (document.hidden) {
+      stopMotion();
+    }
   });
   document.addEventListener('hspace:detail-ready', () => {
     detailAnimation?.cancel();
     detailAnimation = null;
     const content = document.getElementById('detail-content');
-    if (reducedMotion.matches || !content || content.hidden || !content.animate) return;
+    if (
+      reducedMotion.matches ||
+      !content ||
+      content.hidden ||
+      !content.animate
+    ) {
+      return;
+    }
     detailAnimation = content.animate(
       [
         {

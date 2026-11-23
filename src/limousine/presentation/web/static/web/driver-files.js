@@ -74,8 +74,9 @@
     const headers = {
       'X-CSRFToken': getElement('csrf-token').value,
     };
-    if (options.body && !(options.body instanceof FormData))
+    if (options.body && !(options.body instanceof FormData)) {
       headers['Content-Type'] = 'application/json';
+    }
     const response = await fetch(url, {
       ...options,
       headers,
@@ -129,7 +130,7 @@
         rename.setAttribute('aria-label', rename.title);
         rename.append(icon('pencil'));
         rename.addEventListener('click', () => {
-          if (!busy)
+          if (!busy) {
             document.dispatchEvent(
               new CustomEvent('hspace:rename-driver-file', {
                 detail: {
@@ -139,9 +140,12 @@
                 },
               }),
             );
+          }
         });
         nameLine.append(name, rename);
-        if (window.HSpaceCategories) nameLine.append(HSpaceCategories.createButton(file));
+        if (window.HSpaceCategories) {
+          nameLine.append(HSpaceCategories.createButton(file));
+        }
         info.append(
           nameLine,
           node('span', Math.max(1, Math.ceil(file.size / 1024)) + ' KB', 'file-meta'),
@@ -178,14 +182,18 @@
           image.loading = 'lazy';
           preview.append(image);
           row.append(preview);
-        } else row.append(icon('file'));
+        } else {
+          row.append(icon('file'));
+        }
         row.append(info, actions);
         return row;
       }),
     );
   }
   async function load() {
-    if (!target || busy) return;
+    if (!target || busy) {
+      return;
+    }
     const snapshot = target,
       request = ++requestId;
     busy = true;
@@ -195,13 +203,17 @@
     render();
     try {
       const result = await api(base(snapshot));
-      if (request !== requestId || !matches(snapshot)) return;
+      if (request !== requestId || !matches(snapshot)) {
+        return;
+      }
       files = result.attachments;
       loaded = true;
       status = '';
       changed();
     } catch (_) {
-      if (request === requestId && matches(snapshot)) status = 'failed';
+      if (request === requestId && matches(snapshot)) {
+        status = 'failed';
+      }
     } finally {
       if (request === requestId) {
         busy = false;
@@ -210,7 +222,13 @@
     }
   }
   async function deleteFile(file) {
-    if (busy || !target || !window.confirm(getText('confirm'))) return;
+    if (
+      busy ||
+      !target ||
+      !window.confirm(getText('confirm'))
+    ) {
+      return;
+    }
     const snapshot = target;
     busy = true;
     mutating = true;
@@ -225,7 +243,9 @@
         changed();
       }
     } catch (_) {
-      if (matches(snapshot)) status = 'failed';
+      if (matches(snapshot)) {
+        status = 'failed';
+      }
     } finally {
       busy = false;
       mutating = false;
@@ -239,7 +259,13 @@
     const input = getElement('driver-files-input'),
       selected = [...input.files];
     input.value = '';
-    if (busy || !target || !selected.length) return;
+    if (
+      busy ||
+      !target ||
+      !selected.length
+    ) {
+      return;
+    }
     if (selected.some((file) => file.size > 10 * 1024 * 1024)) {
       status = 'limit';
       render();
@@ -266,10 +292,14 @@
     const categoryId = window.HSpaceCategories?.selectedFor(input.id);
     try {
       for (const file of selected) {
-        if (!matches(snapshot)) break;
+        if (!matches(snapshot)) {
+          break;
+        }
         const body = new FormData();
         body.append('file', file);
-        if (categoryId) body.append('category_id', categoryId);
+        if (categoryId) {
+          body.append('category_id', categoryId);
+        }
         const result = await api(base(snapshot), {
           method: 'POST',
           body,
@@ -292,26 +322,37 @@
   });
   getElement('driver-files-refresh').addEventListener('click', load);
   getElement('driver-files-close').addEventListener('click', () => {
-    if (!mutating) getElement('driver-files-dialog').close();
+    if (!mutating) {
+      getElement('driver-files-dialog').close();
+    }
   });
   getElement('driver-files-dialog').addEventListener('cancel', (event) => {
-    if (mutating) event.preventDefault();
+    if (mutating) {
+      event.preventDefault();
+    }
   });
   getElement('driver-files-dialog').addEventListener('close', () => {
-    if (getElement('driver-files-dialog').open) return;
+    if (getElement('driver-files-dialog').open) {
+      return;
+    }
     const previous = target;
     target = null;
     files = [];
     loaded = false;
     requestId++;
-    if (!mutating) busy = false;
-    if (previous && location.hash === '#vehicle/' + previous.vehicleId)
+    if (!mutating) {
+      busy = false;
+    }
+    if (previous && location.hash === '#vehicle/' + previous.vehicleId) {
       Array.from(document.querySelectorAll('.driver-docs-button'))
         .find((button) => button.dataset.assignmentId === String(previous.assignment.id))
         ?.focus();
+    }
   });
   document.addEventListener('hspace:open-driver-files', (event) => {
-    if (busy) return;
+    if (busy) {
+      return;
+    }
     target = {
       vehicleId: Number(event.detail.vehicleId),
       assignment: event.detail.assignment,
@@ -321,13 +362,17 @@
     load();
   });
   document.addEventListener('hspace:driver-file-renamed', (event) => {
-    if (!target || target.assignment.id !== event.detail.assignmentId) return;
+    if (!target || target.assignment.id !== event.detail.assignmentId) {
+      return;
+    }
     if (event.detail.attachment) {
       files = files.map((file) =>
         file.id === event.detail.attachment.id ? event.detail.attachment : file,
       );
       render();
-    } else load();
+    } else {
+      load();
+    }
   });
   window.addEventListener('hspace:language', render);
   window.addEventListener('hashchange', () => {

@@ -187,7 +187,11 @@
             button.disabled = busy || (item.kind !== 'vehicle' && item.parent_deleted);
             button.addEventListener('click', () => restore(item));
             card.append(info, button);
-            if (item.kind === 'cover' && item.has_current_cover && !item.parent_deleted) {
+            if (
+              item.kind === 'cover' &&
+              item.has_current_cover &&
+              !item.parent_deleted
+            ) {
               const remove = createElement(
                 'button',
                 getText('removeCurrentPhoto'),
@@ -223,15 +227,18 @@
               label,
               createElement('p', event.actor_name + ' · ' + date(event.created_at), 'muted'),
             );
-            if (event.reason === 'replaced')
+            if (event.reason === 'replaced') {
               card.append(createElement('p', getText('replaced'), 'muted'));
+            }
             return card;
           })
         : [createElement('p', getText('noHistory'), 'section-empty')]),
     );
   }
   async function load(older = false) {
-    if (busy) return;
+    if (busy) {
+      return;
+    }
     busy = true;
     render();
     try {
@@ -256,7 +263,12 @@
     }
   }
   async function restore(item) {
-    if (busy || !window.confirm(getText('confirmRestore').replace('{label}', item.label))) return;
+    if (
+      busy ||
+      !window.confirm(getText('confirmRestore').replace('{label}', item.label))
+    ) {
+      return;
+    }
     busy = true;
     messageKey = '';
     render();
@@ -281,8 +293,9 @@
     if (
       busy ||
       !window.confirm(getText('confirmCurrentPhoto').replace('{plate}', item.plate_number))
-    )
+    ) {
       return;
+    }
     busy = true;
     messageKey = '';
     render();
@@ -315,7 +328,9 @@
   getElement('older-activity').addEventListener('click', () => load(true));
   window.addEventListener('hspace:language', translate);
   window.addEventListener('pageshow', (event) => {
-    if (event.persisted) load();
+    if (event.persisted) {
+      load();
+    }
   });
   translate();
   load();

@@ -44,7 +44,11 @@ def _store_upload(app, vehicle_id, upload, cover, actor, assignment_id=None, cat
         category_id = category["id"]
     service, store = app.state.vehicles, app.state.store
     vehicle = service.get_vehicle(vehicle_id)
-    if category and not cover and assignment_id is None:
+    if (
+        category
+        and not cover
+        and assignment_id is None
+    ):
         require_free_category(
             category["is_other"],
             any(item.category_id == category_id for item in vehicle.attachments),

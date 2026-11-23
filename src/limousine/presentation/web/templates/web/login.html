@@ -43,8 +43,13 @@
           <svg class="icon"><use href="#shield" /></svg><span>H SPACE</span>
         </div>
         <div class="login-form-heading">
-          <h2 id="login-title" data-i18n="welcome">Welcome back.</h2>
-          <p class="muted" data-i18n="description">Sign in to your vehicle workspace.</p>
+          {% if first_setup %}
+            <h2 id="login-title" data-i18n="setupTitle">Set your password</h2>
+            <p class="muted" data-i18n="setupDescription">Choose a password for H space.</p>
+          {% else %}
+            <h2 id="login-title" data-i18n="welcome">Welcome back.</h2>
+            <p class="muted" data-i18n="description">Sign in to your vehicle workspace.</p>
+          {% endif %}
         </div>
         {% if unavailable %}
           <p class="notice" role="status" data-i18n="unavailable">
@@ -56,8 +61,14 @@
             Check your username and password.
           </p>
         {% endif %}
-        <form id="login-form" method="post" action="{{ url_for('login') }}">
+        {% if setup_invalid %}
+          <p class="notice error" role="alert" data-i18n="setupInvalid">
+            Use matching passwords of at least 8 characters, with a character other than a number.
+          </p>
+        {% endif %}
+        <form id="login-form" method="post" action="{{ '/desktop/setup/' if first_setup else url_for('login') }}">
           <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" />
+          {% if not first_setup %}
           <div class="field">
             <label for="username" data-i18n="username">Username</label
             ><input
@@ -72,6 +83,7 @@
               {% if unavailable %}disabled{% endif %}
             />
           </div>
+          {% endif %}
           <div class="field">
             <label for="password" data-i18n="password">Password</label>
             <div class="password-field">
@@ -79,7 +91,8 @@
                 id="password"
                 name="password"
                 type="password"
-                autocomplete="current-password"
+                autocomplete="{{ 'new-password' if first_setup else 'current-password' }}"
+                {% if first_setup %}minlength="8" maxlength="1024" autofocus{% endif %}
                 required
                 {% if unavailable %}disabled{% endif %}
               /><button
@@ -93,13 +106,24 @@
               </button>
             </div>
           </div>
+          {% if first_setup %}
+            <div class="field">
+              <label for="confirm-password" data-i18n="confirmPassword">Confirm password</label>
+              <input id="confirm-password" name="confirmation" type="password"
+                     autocomplete="new-password" minlength="8" maxlength="1024" required />
+            </div>
+          {% endif %}
           <button
             class="button primary login-submit"
             type="submit"
             {% if unavailable %}disabled{% endif %}
           >
-            <span data-i18n="signIn">Sign in</span
-            ><svg class="icon directional submit-arrow" aria-hidden="true">
+            {% if first_setup %}
+              <span data-i18n="setPassword">Save password</span>
+            {% else %}
+              <span data-i18n="signIn">Sign in</span>
+            {% endif %}
+            <svg class="icon directional submit-arrow" aria-hidden="true">
               <use href="#arrow" />
             </svg>
           </button>

@@ -168,8 +168,12 @@
     return response.json();
   }
   async function load(force = false) {
-    if (pending) return pending;
-    if (categories.length && !force) return categories;
+    if (pending) {
+      return pending;
+    }
+    if (categories.length && !force) {
+      return categories;
+    }
     pending = request('/api/attachment-categories/')
       .then((data) => {
         categories = data.categories;
@@ -178,7 +182,6 @@
           button.categoryItem.category_id =
             redirects[button.categoryItem.category_id] || button.categoryItem.category_id;
         refreshLabels();
-        window.dispatchEvent(new Event('hspace:categories'));
         return categories;
       })
       .finally(() => {
@@ -187,7 +190,9 @@
     return pending;
   }
   function close(saved = false) {
-    if (saving) return;
+    if (saving) {
+      return;
+    }
     if (uploadTarget && !saved) {
       uploadTarget.value = previousUploadCategory;
       uploadTarget.lastCategory = previousUploadCategory;
@@ -195,7 +200,9 @@
     dialog.close();
     selectedItem = null;
     uploadTarget = null;
-    if (returnButton?.isConnected) returnButton.focus({ preventScroll: true });
+    if (returnButton?.isConnected) {
+      returnButton.focus({ preventScroll: true });
+    }
   }
   async function open(item, button, uploadControl = null) {
     selectedItem = item;
@@ -210,7 +217,9 @@
     save.disabled = true;
     try {
       await load(true);
-      if (!dialog.open || selectedItem !== item) return;
+      if (!dialog.open || selectedItem !== item) {
+        return;
+      }
       options(
         select,
         uploadControl ? categories.find((category) => category.is_other)?.id : item.category_id,
@@ -218,15 +227,20 @@
       updateNewType();
       status.textContent = '';
       save.disabled = false;
-      if (uploadControl) newName.focus();
-      else select.focus();
+      if (uploadControl) {
+        newName.focus();
+      } else {
+        select.focus();
+      }
     } catch (_) {
       status.textContent = text('failed');
     }
   }
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    if (saving || save.disabled || (!selectedItem && !uploadTarget)) return;
+    if (saving || save.disabled || (!selectedItem && !uploadTarget)) {
+      return;
+    }
     saving = true;
     save.disabled = cancel.disabled = true;
     select.disabled = true;
@@ -244,7 +258,9 @@
           body: JSON.stringify({ name: newName.value.trim(), allow_similar: distinct.checked }),
         });
         categoryId = created.category.id;
-        if (pending) await pending;
+        if (pending) {
+          await pending;
+        }
         await load(true);
         options(select, categoryId);
         updateNewType();
@@ -262,9 +278,6 @@
         body: JSON.stringify({ category_id: categoryId }),
       });
       selectedItem.category_id = result.attachment.category_id;
-      window.dispatchEvent(
-        new CustomEvent('hspace:category-changed', { detail: result.attachment }),
-      );
       saving = false;
       refreshLabels();
       close(true);
@@ -272,8 +285,9 @@
       if (error.code === 'similar_category') {
         status.textContent = text('similar');
         distinctLabel.hidden = false;
-      } else
+      } else {
         status.textContent = text(error.code === 'category_in_use' ? 'categoryInUse' : 'failed');
+      }
     } finally {
       saving = false;
       save.disabled = cancel.disabled = false;
@@ -288,7 +302,9 @@
   select.addEventListener('change', () => {
     updateNewType();
     status.textContent = '';
-    if (!newGroup.hidden) newName.focus();
+    if (!newGroup.hidden) {
+      newName.focus();
+    }
   });
   newName.addEventListener('input', () => {
     distinct.checked = false;
@@ -308,7 +324,9 @@
   for (const [inputId, buttonId] of uploadPairs) {
     const input = document.getElementById(inputId),
       button = document.getElementById(buttonId);
-    if (!input || !button) continue;
+    if (!input || !button) {
+      continue;
+    }
     const wrapper = element('div', '', 'category-upload-choice'),
       caption = element('label', text('category')),
       choice = element('select');
@@ -316,9 +334,11 @@
     caption.htmlFor = choice.id;
     choice.disabled = true;
     choice.addEventListener('change', () => {
-      if (categories.find((category) => String(category.id) === choice.value)?.is_other)
+      if (categories.find((category) => String(category.id) === choice.value)?.is_other) {
         open(null, choice, choice);
-      else choice.lastCategory = choice.value;
+      } else {
+        choice.lastCategory = choice.value;
+      }
     });
     wrapper.append(caption, choice);
     button.before(wrapper);
@@ -340,14 +360,14 @@
     return button;
   }
   window.HSpaceCategories = {
-    load,
-    label: categoryLabel,
     createButton,
     selectedFor: (inputId) => document.getElementById('category-for-' + inputId)?.value || null,
   };
   window.addEventListener('hspace:language', refreshLabels);
   window.addEventListener('focus', () => {
-    if (!saving) load(true).catch(() => {});
+    if (!saving) {
+      load(true).catch(() => {});
+    }
   });
   refreshLabels();
   load().catch(() => {});

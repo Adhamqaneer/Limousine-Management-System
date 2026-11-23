@@ -217,7 +217,9 @@
   };
   let language = 'en';
   try {
-    if (localStorage.getItem('limousine.language') === 'ar') language = 'ar';
+    if (localStorage.getItem('limousine.language') === 'ar') {
+      language = 'ar';
+    }
   } catch (_) {}
   let vehicles = [];
   let currentVehicle = null;
@@ -256,8 +258,11 @@
           ? ''
           : HSpaceVehicleValidation.error(name, value);
       input.setCustomValidity(key ? getText(key) : '');
-      if (key) input.setAttribute('aria-invalid', 'true');
-      else input.removeAttribute('aria-invalid');
+      if (key) {
+        input.setAttribute('aria-invalid', 'true');
+      } else {
+        input.removeAttribute('aria-invalid');
+      }
     });
     return getElement(formId).reportValidity();
   }
@@ -319,13 +324,19 @@
   }
   function element(tag, className, text) {
     const result = document.createElement(tag);
-    if (className) result.className = className;
-    if (text !== undefined) result.textContent = text;
+    if (className) {
+      result.className = className;
+    }
+    if (text !== undefined) {
+      result.textContent = text;
+    }
     return result;
   }
   function date(value) {
     const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return '';
+    if (Number.isNaN(parsed.getTime())) {
+      return '';
+    }
     return new Intl.DateTimeFormat(language === 'ar' ? 'ar-JO' : 'en-GB', {
       year: 'numeric',
       month: 'short',
@@ -339,31 +350,50 @@
   }
   function errorKey(error) {
     const code = error.code || '';
-    if (code === 'category_in_use') return 'categoryInUse';
-    if (code === 'invalid_attachment_name') return 'invalidAttachmentName';
-    if (code === 'attachment_name_conflict') return 'renameConflict';
-    if (['storage_unavailable', 'database_unavailable'].includes(code)) return 'unavailable';
-    if (['not_found', 'vehicle_not_found', 'attachment_not_found'].includes(code))
+    if (code === 'category_in_use') {
+      return 'categoryInUse';
+    }
+    if (code === 'invalid_attachment_name') {
+      return 'invalidAttachmentName';
+    }
+    if (code === 'attachment_name_conflict') {
+      return 'renameConflict';
+    }
+    if (['storage_unavailable', 'database_unavailable'].includes(code)) {
+      return 'unavailable';
+    }
+    if (['not_found', 'vehicle_not_found', 'attachment_not_found'].includes(code)) {
       return 'notFound';
-    if (['invalid_plate', 'invalid_plate_number'].includes(code)) return 'invalidPlate';
-    if (code === 'validation_error') return 'invalidDetails';
-    if (['file_too_large', 'upload_too_large'].includes(code)) return 'fileTooLarge';
+    }
+    if (['invalid_plate', 'invalid_plate_number'].includes(code)) {
+      return 'invalidPlate';
+    }
+    if (code === 'validation_error') {
+      return 'invalidDetails';
+    }
+    if (['file_too_large', 'upload_too_large'].includes(code)) {
+      return 'fileTooLarge';
+    }
     if (
       ['invalid_file', 'unsupported_file', 'unsupported_file_type', 'invalid_image'].includes(code)
-    )
+    ) {
       return 'invalidFile';
+    }
     return 'requestFailed';
   }
   async function api(url, options = {}) {
     const headers = new Headers(options.headers);
-    if (options.body && !(options.body instanceof FormData))
+    if (options.body && !(options.body instanceof FormData)) {
       headers.set('Content-Type', 'application/json');
+    }
     if (options.method && !['GET', 'HEAD'].includes(options.method)) {
       const token = document.cookie
         .split('; ')
         .find((part) => part.startsWith('csrftoken='))
         ?.slice(10);
-      if (token) headers.set('X-CSRFToken', decodeURIComponent(token));
+      if (token) {
+        headers.set('X-CSRFToken', decodeURIComponent(token));
+      }
     }
     const response = await fetch(url, {
       ...options,
@@ -449,7 +479,9 @@
     );
   }
   async function loadOwnerSuggestions() {
-    if (ownerSuggestionsLoading) return;
+    if (ownerSuggestionsLoading) {
+      return;
+    }
     ownerSuggestionsLoading = true;
     try {
       const payload = await api('/api/vehicles/');
@@ -467,7 +499,9 @@
         selected = select.value;
       const values = HSpaceVehicleFilters.options(vehicles, field, language);
       // Keep a selected value after a refresh even when it no longer matches any car.
-      if (selected && !values.includes(selected)) values.push(selected);
+      if (selected && !values.includes(selected)) {
+        values.push(selected);
+      }
       const all = document.createElement('option');
       all.value = '';
       all.textContent = getText(filterAllLabels[field]);
@@ -508,19 +542,22 @@
         element('mark', '', plateNumber.slice(start, end)),
         document.createTextNode(plateNumber.slice(end)),
       );
-    } else plate.textContent = plateNumber;
+    } else {
+      plate.textContent = plateNumber;
+    }
     return plate;
   }
   let cardFocus = null;
   function renderList() {
     const focused = document.activeElement;
     const focusedCard = focused?.closest?.('.vehicle-card');
-    if (focusedCard)
+    if (focusedCard) {
       cardFocus = {
         id: focusedCard.dataset.vehicleId,
         action: focused.dataset.action || 'open',
         index: Array.from(getElement('vehicle-grid').children).indexOf(focusedCard),
       };
+    }
     show('list-loading', listState === 'loading');
     show('list-error', listState === 'error');
     show('connection-notice', listState === 'unavailable');
@@ -545,8 +582,9 @@
     getElement('filter-active-count').hidden = !active;
     getElement('filter-active-count').textContent = String(active);
     getElement('print-results').disabled = listState !== 'ready' || !filtered.length;
-    if (getElement('download-attachments'))
+    if (getElement('download-attachments')) {
       getElement('download-attachments').disabled = getElement('print-results').disabled;
+    }
     const empty = !vehicles.length && ['ready', 'unavailable'].includes(listState);
     show('empty-fleet', empty);
     getElement('empty-description').textContent = getText(
@@ -563,7 +601,11 @@
       listState === 'ready'
         ? filtered.map((vehicle) => {
             const cached = cardCache.get(vehicle.id);
-            if (cached && cached.vehicle === vehicle && cached.language === language) {
+            if (
+              cached &&
+              cached.vehicle === vehicle &&
+              cached.language === language
+            ) {
               cached.card.querySelector('h2').replaceChildren(plateLabel(vehicle.plate_number));
               cached.card.querySelectorAll('button').forEach((button) => {
                 button.disabled = coverBusy;
@@ -585,7 +627,9 @@
               img.alt = '';
               img.loading = 'lazy';
               image.append(img);
-            } else image.append(icon('car'));
+            } else {
+              image.append(icon('car'));
+            }
             const body = element('div', 'vehicle-body');
             const title = element('h2');
             const plate = plateLabel(vehicle.plate_number);
@@ -660,8 +704,9 @@
                     plate: vehicle.plate_number,
                   }),
                 )
-              )
+              ) {
                 return;
+              }
               coverBusy = true;
               renderList();
               try {
@@ -689,13 +734,22 @@
         : [];
     document.dispatchEvent(new Event('hspace:cards-changed'));
     const retained = new Set(vehicles.map((vehicle) => vehicle.id));
-    for (const id of cardCache.keys()) if (!retained.has(id)) cardCache.delete(id);
+    for (const id of cardCache.keys()) {
+      if (!retained.has(id)) {
+        cardCache.delete(id);
+      }
+    }
     if (
       cards.length !== getElement('vehicle-grid').children.length ||
       cards.some((card, index) => card !== getElement('vehicle-grid').children[index])
-    )
+    ) {
       getElement('vehicle-grid').replaceChildren(...cards);
-    if (cardFocus && !coverBusy && listState === 'ready') {
+    }
+    if (
+      cardFocus &&
+      !coverBusy &&
+      listState === 'ready'
+    ) {
       // Do not steal focus if the user moved to search, navigation or another view while waiting.
       if (!activeDetailId && (focusedCard || !focused || focused === document.body)) {
         const card =
@@ -720,14 +774,18 @@
     updateAddState();
     try {
       const payload = await api('/api/vehicles/');
-      if (request !== listRequest) return;
+      if (request !== listRequest) {
+        return;
+      }
       vehicles = payload.vehicles;
       listState = 'ready';
       storageReady = true;
       ownerNames = HSpaceVehicleFilters.options(vehicles, 'owner_name', language);
       renderOwnerSuggestions();
     } catch (error) {
-      if (request !== listRequest) return;
+      if (request !== listRequest) {
+        return;
+      }
       vehicles = [];
       listState = error.status === 503 ? 'unavailable' : 'error';
     }
@@ -736,7 +794,9 @@
     updateAddState();
   }
   async function saveCardPhoto(id, file) {
-    if (!file || coverBusy) return;
+    if (!file || coverBusy) {
+      return;
+    }
     if (file.size > 10 * 1024 * 1024) {
       message('cover-message', 'fileTooLarge', 'error');
       return;
@@ -807,19 +867,24 @@
         document.createTextNode(' · '),
         plate,
       );
-    } else getElement('detail-title').textContent = getText('vehicleRecord');
+    } else {
+      getElement('detail-title').textContent = getText('vehicleRecord');
+    }
     getElement('detail-created').textContent = currentVehicle
       ? getText('added', {
           date: date(currentVehicle.created_at),
         })
       : '';
-    if (!currentVehicle) return;
-    if (resetInput)
+    if (!currentVehicle) {
+      return;
+    }
+    if (resetInput) {
       Object.entries(detailFields).forEach(([name, id]) => {
         getElement(id).value = currentVehicle[name] || '';
         getElement(id).setCustomValidity('');
         getElement(id).removeAttribute('aria-invalid');
       });
+    }
     const photos = currentVehicle.attachments.filter((file) => file.kind === 'image');
     const files = currentVehicle.attachments.filter((file) => file.kind !== 'image');
     show('photos-empty', !photos.length);
@@ -885,7 +950,9 @@
       edit.append(icon('pencil'));
       edit.addEventListener('click', () => openRename(file));
       line.append(name, edit);
-      if (window.HSpaceCategories) line.append(HSpaceCategories.createButton(file));
+      if (window.HSpaceCategories) {
+        line.append(HSpaceCategories.createButton(file));
+      }
       return line;
     }
     getElement('photo-grid').replaceChildren(
@@ -948,9 +1015,11 @@
         currentVehicle?.attachments.some((file) => file.kind === kind);
       link.setAttribute('aria-disabled', String(!available));
       link.tabIndex = available ? 0 : -1;
-      if (available)
+      if (available) {
         link.href = `/api/vehicles/${currentVehicle.id}/attachments/archive/${section}/`;
-      else link.removeAttribute('href');
+      } else {
+        link.removeAttribute('href');
+      }
     }
     document.querySelectorAll('.attachment-delete').forEach((button) => {
       button.disabled = busy;
@@ -985,8 +1054,9 @@
           name: file.name,
         }),
       )
-    )
+    ) {
       return;
+    }
     deleteBusy = true;
     updateDetailControls();
     message('upload-message', 'deleting');
@@ -994,7 +1064,9 @@
       await api(`/api/vehicles/${id}/attachments/${file.id}/`, {
         method: 'DELETE',
       });
-      if (activeDetailId !== id || !currentVehicle) return;
+      if (activeDetailId !== id || !currentVehicle) {
+        return;
+      }
       currentVehicle = {
         ...currentVehicle,
         attachments: currentVehicle.attachments.filter((item) => item.id !== file.id),
@@ -1006,7 +1078,9 @@
         preventScroll: true,
       });
     } catch (error) {
-      if (activeDetailId === id) message('upload-message', errorKey(error), 'error');
+      if (activeDetailId === id) {
+        message('upload-message', errorKey(error), 'error');
+      }
     } finally {
       deleteBusy = false;
       updateDetailControls();
@@ -1022,7 +1096,9 @@
     }
     try {
       const payload = await api(`/api/vehicles/${id}/`);
-      if (request !== detailRequest || id !== activeDetailId) return;
+      if (request !== detailRequest || id !== activeDetailId) {
+        return;
+      }
       currentVehicle = payload.vehicle;
       detailState = 'ready';
       renderDetail(resetInput);
@@ -1035,7 +1111,7 @@
         vehicleDrafts.delete(id); // The visible form now owns this draft until navigation.
         updateDetailControls();
       }
-      if (resetInput)
+      if (resetInput) {
         document.dispatchEvent(
           new CustomEvent('hspace:detail-ready', {
             detail: {
@@ -1043,20 +1119,25 @@
             },
           }),
         );
+      }
       document.title = `${currentVehicle.plate_number} | ${getText('title')}`;
-      if (resetInput)
+      if (resetInput) {
         getElement('detail-title').focus({
           preventScroll: true,
         });
+      }
     } catch (error) {
-      if (request !== detailRequest || id !== activeDetailId) return;
+      if (request !== detailRequest || id !== activeDetailId) {
+        return;
+      }
       detailError = errorKey(error);
       detailState = 'error';
       renderDetail();
-      if (resetInput)
+      if (resetInput) {
         getElement('detail-title').focus({
           preventScroll: true,
         });
+      }
     }
   }
   let listScroll = 0;
@@ -1069,16 +1150,20 @@
       );
       if (
         Object.entries(values).some(([key, value]) => value.trim() !== (currentVehicle[key] || ''))
-      )
+      ) {
         vehicleDrafts.set(activeDetailId, {
           original: currentVehicle,
           values,
         });
-      else vehicleDrafts.delete(activeDetailId);
+      } else {
+        vehicleDrafts.delete(activeDetailId);
+      }
     }
     const previousDetailId = activeDetailId;
     const match = window.location.hash.match(/^#vehicle\/(\d+)$/);
-    if (!previousDetailId && match) listScroll = window.scrollY;
+    if (!previousDetailId && match) {
+      listScroll = window.scrollY;
+    }
     activeDetailId = match ? Number(match[1]) : null;
     show('list-view', !activeDetailId);
     show('detail-view', !!activeDetailId);
@@ -1091,14 +1176,19 @@
       detailRequest++;
       document.title = getText('title');
       loadVehicles().then(() => {
-        if (!activeDetailId && previousDetailId) window.scrollTo(0, listScroll);
+        if (!activeDetailId && previousDetailId) {
+          window.scrollTo(0, listScroll);
+        }
       });
-      if (previousDetailId !== null)
+      if (previousDetailId !== null) {
         getElement('vehicle-search').focus({
           preventScroll: true,
         });
+      }
     }
-    if (activeDetailId || !previousDetailId) window.scrollTo(0, 0);
+    if (activeDetailId || !previousDetailId) {
+      window.scrollTo(0, 0);
+    }
   }
   getElement('language-toggle').addEventListener('click', () => {
     language = language === 'en' ? 'ar' : 'en';
@@ -1118,14 +1208,18 @@
     getElement(id).addEventListener('click', () => getElement('add-dialog').close()),
   );
   getElement('add-dialog').addEventListener('cancel', (event) => {
-    if (addBusy) event.preventDefault();
+    if (addBusy) {
+      event.preventDefault();
+    }
   });
   ['retry-connection', 'retry-list'].forEach((id) =>
     getElement(id).addEventListener('click', loadVehicles),
   );
   let searchFrame = null;
   getElement('vehicle-search').addEventListener('input', () => {
-    if (searchFrame !== null) cancelAnimationFrame(searchFrame);
+    if (searchFrame !== null) {
+      cancelAnimationFrame(searchFrame);
+    }
     searchFrame = requestAnimationFrame(() => {
       searchFrame = null;
       renderList();
@@ -1142,22 +1236,25 @@
     }
   });
   document.addEventListener('click', (event) => {
-    if (!getElement('filter-popover').contains(event.target))
+    if (!getElement('filter-popover').contains(event.target)) {
       getElement('filter-popover').open = false;
+    }
   });
   getElement('print-results').addEventListener('click', () => {
-    if (!getElement('print-results').disabled)
+    if (!getElement('print-results').disabled) {
       location.assign(
         '/reports/vehicles/' +
           HSpaceVehicleFilters.reportHash(selectedFilters(), getElement('vehicle-search').value),
       );
+    }
   });
   getElement('download-attachments')?.addEventListener('click', () => {
-    if (!getElement('download-attachments').disabled)
+    if (!getElement('download-attachments').disabled) {
       location.assign(
         '/attachments/download/' +
           HSpaceVehicleFilters.reportHash(selectedFilters(), getElement('vehicle-search').value),
       );
+    }
   });
   Object.values(filterInputs).forEach((id) =>
     getElement(id).addEventListener('change', renderList),
@@ -1170,7 +1267,9 @@
   });
   getElement('add-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-    if (!storageReady || addBusy) return;
+    if (!storageReady || addBusy) {
+      return;
+    }
     const plate = getElement('new-plate').value.trim();
     const type = getElement('new-type').value.trim();
     if (
@@ -1178,8 +1277,9 @@
         plate_number: 'new-plate',
         vehicle_type: 'new-type',
       })
-    )
+    ) {
       return;
+    }
     addBusy = true;
     updateAddState();
     message('add-message', '');
@@ -1210,15 +1310,27 @@
   );
   getElement('vehicle-information-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-    if (!currentVehicle || informationBusy || uploadBusy || deleteBusy || renameBusy) return;
+    if (
+      !currentVehicle ||
+      informationBusy ||
+      uploadBusy ||
+      deleteBusy ||
+      renameBusy
+    ) {
+      return;
+    }
     const id = currentVehicle.id;
-    if (!validateForm('vehicle-information-form', detailFields, currentVehicle)) return;
+    if (!validateForm('vehicle-information-form', detailFields, currentVehicle)) {
+      return;
+    }
     const fields = Object.fromEntries(
       Object.entries(detailValues()).filter(
         ([name, value]) => value !== (currentVehicle[name] || ''),
       ),
     );
-    if (!Object.keys(fields).length) return;
+    if (!Object.keys(fields).length) {
+      return;
+    }
     informationBusy = true;
     updateDetailControls();
     message('information-message', '');
@@ -1228,14 +1340,18 @@
         body: JSON.stringify(fields),
       });
       vehicleDrafts.delete(id);
-      if (activeDetailId !== id) return;
+      if (activeDetailId !== id) {
+        return;
+      }
       currentVehicle = payload.vehicle;
       renderDetail(true);
       loadOwnerSuggestions();
       message('information-message', 'saved', 'success');
       document.title = `${currentVehicle.plate_number} | ${getText('title')}`;
     } catch (error) {
-      if (activeDetailId === id) message('information-message', errorKey(error), 'error');
+      if (activeDetailId === id) {
+        message('information-message', errorKey(error), 'error');
+      }
     } finally {
       informationBusy = false;
       updateDetailControls();
@@ -1249,7 +1365,15 @@
       });
   }
   function openRename(file, assignmentId = null) {
-    if (!currentVehicle || informationBusy || uploadBusy || deleteBusy || renameBusy) return;
+    if (
+      !currentVehicle ||
+      informationBusy ||
+      uploadBusy ||
+      deleteBusy ||
+      renameBusy
+    ) {
+      return;
+    }
     const dot = file.name.lastIndexOf('.'),
       extension = dot > 0 ? file.name.slice(dot) : '';
     renameTarget = {
@@ -1270,13 +1394,21 @@
     const id = renameTarget?.file.id;
     getElement('rename-dialog').close();
     renameTarget = null;
-    if (id) focusRename(id);
+    if (id) {
+      focusRename(id);
+    }
   });
   getElement('rename-dialog').addEventListener('cancel', (event) => {
-    if (renameBusy) event.preventDefault();
+    if (renameBusy) {
+      event.preventDefault();
+    }
   });
   getElement('rename-dialog').addEventListener('close', () => {
-    if (!getElement('rename-dialog').open && renameTarget && !renameBusy) {
+    if (
+      !getElement('rename-dialog').open &&
+      renameTarget &&
+      !renameBusy
+    ) {
       focusRename(renameTarget.file.id);
       renameTarget = null;
     }
@@ -1287,7 +1419,9 @@
   });
   getElement('rename-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-    if (!renameTarget || renameBusy) return;
+    if (!renameTarget || renameBusy) {
+      return;
+    }
     const target = renameTarget,
       name = getElement('rename-name').value.trim();
     if (!name) {
@@ -1316,7 +1450,7 @@
         }),
       });
       if (activeDetailId === target.vehicleId && currentVehicle) {
-        if (target.assignmentId)
+        if (target.assignmentId) {
           document.dispatchEvent(
             new CustomEvent('hspace:driver-file-renamed', {
               detail: {
@@ -1325,7 +1459,7 @@
               },
             }),
           );
-        else {
+        } else {
           currentVehicle = {
             ...currentVehicle,
             attachments: currentVehicle.attachments.map((file) =>
@@ -1340,7 +1474,7 @@
     } catch (error) {
       if (activeDetailId === target.vehicleId && getElement('rename-dialog').open) {
         if (error.code === 'attachment_name_conflict') {
-          if (target.assignmentId)
+          if (target.assignmentId) {
             document.dispatchEvent(
               new CustomEvent('hspace:driver-file-renamed', {
                 detail: {
@@ -1348,7 +1482,7 @@
                 },
               }),
             );
-          else {
+          } else {
             try {
               const result = await api(`/api/vehicles/${target.vehicleId}/`);
               if (activeDetailId === target.vehicleId && currentVehicle) {
@@ -1379,11 +1513,14 @@
       getElement('rename-dialog').close();
       renameTarget = null;
       focusRename(target.file.id);
-    } else if (getElement('rename-dialog').open) getElement('rename-name').focus();
+    } else if (getElement('rename-dialog').open) {
+      getElement('rename-name').focus();
+    }
   });
   document.addEventListener('hspace:rename-driver-file', (event) => {
-    if (Number(event.detail.vehicleId) === activeDetailId)
+    if (Number(event.detail.vehicleId) === activeDetailId) {
       openRename(event.detail.file, event.detail.assignmentId);
+    }
   });
   getElement('add-photos').addEventListener('click', () => getElement('photo-input').click());
   getElement('add-files').addEventListener('click', () => getElement('file-input').click());
@@ -1397,8 +1534,9 @@
       informationBusy ||
       deleteBusy ||
       renameBusy
-    )
+    ) {
       return;
+    }
     if (selected.some((file) => file.size > 10 * 1024 * 1024)) {
       message('upload-message', 'fileTooLarge', 'error');
       return;
@@ -1416,7 +1554,9 @@
     updateDetailControls();
     try {
       for (const file of selected) {
-        if (activeDetailId !== id) break;
+        if (activeDetailId !== id) {
+          break;
+        }
         message('upload-message', 'uploading', '', {
           current: completed + 1,
           total: selected.length,

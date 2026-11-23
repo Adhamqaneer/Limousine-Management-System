@@ -34,7 +34,11 @@ async def vehicle_fields(request, creating=False):
         "owner_phone",
         "driver_phone",
     }
-    if not isinstance(payload, dict) or not payload or set(payload) - allowed:
+    if (
+        not isinstance(payload, dict)
+        or not payload
+        or set(payload) - allowed
+    ):
         raise DomainError("Provide only the agreed vehicle fields.")
     if creating and not {"plate_number", "vehicle_type"}.issubset(payload):
         raise DomainError("Provide vehicle type and plate number.")

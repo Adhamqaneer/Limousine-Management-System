@@ -1,7 +1,7 @@
 # AI project rules
 
 - Read README.md first. Stay in this checkout; preserve behavior unless the owner requests changes.
-- Use FastAPI and PostgreSQL only. Keep development on loopback. Deployment/desktop packaging is undecided; do not add fallback business stores.
+- Use FastAPI and PostgreSQL only for application services and data. Keep development and the Windows desktop preview on loopback. Distribution packaging is deferred; do not add fallback business stores.
 - Keep rules in domain, use cases/contracts in application, persistence in infrastructure and HTTP/UI in presentation. Fixed text fields and validation are in docs/architecture.md.
 - One office sign-in, H space, covers all features including recovery and activity. Preserve former user IDs and names for historical attribution.
 - Retain original file bytes and actor-attributed events. Card photos, vehicle galleries, driver documents and office files are independent. Restoring a vehicle must not revive separately deleted files.

@@ -9,7 +9,11 @@ from limousine.domain.vehicles import DomainError, NotFound
 
 
 def selected_ids(values, limit):
-    if not isinstance(values, list) or not values or len(values) > limit:
+    if (
+        not isinstance(values, list)
+        or not values
+        or len(values) > limit
+    ):
         raise DomainError("Choose a non-empty selection within the download limit.")
     return list(dict.fromkeys(record_id(value) for value in values))
 

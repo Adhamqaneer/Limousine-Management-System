@@ -41,7 +41,11 @@ def category_name(value):
     if not isinstance(value, str):
         raise DomainError("Enter a category name.")
     value = " ".join(unicodedata.normalize("NFKC", value).split())
-    if not value or len(value) > 100 or any(unicodedata.category(c).startswith("C") for c in value):
+    if (
+        not value
+        or len(value) > 100
+        or any(unicodedata.category(c).startswith("C") for c in value)
+    ):
         raise DomainError("Use a category name of 1 to 100 characters.")
     return value
 

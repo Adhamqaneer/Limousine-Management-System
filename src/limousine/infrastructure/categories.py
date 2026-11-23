@@ -107,7 +107,10 @@ class PostgresCategoryRepository:
             ).fetchone()
             if alias:
                 return self._resolve(connection, alias["category_id"])
-            if not allow_similar and similar_categories(self._categories(connection), name):
+            if (
+                not allow_similar
+                and similar_categories(self._categories(connection), name)
+            ):
                 raise SimilarCategory(
                     "Review the similar categories before adding a distinct type."
                 )
@@ -151,7 +154,11 @@ class PostgresCategoryRepository:
             target = self._resolve(connection, target_id)
             if source["id"] != source_id or target["id"] != target_id:
                 raise CategoryConflict("A category changed. Refresh before merging.")
-            if source_id == target_id or source["is_other"] or target["is_other"]:
+            if (
+                source_id == target_id
+                or source["is_other"]
+                or target["is_other"]
+            ):
                 raise DomainError("Choose two different named categories. Other cannot be merged.")
             for table in ("limo_attachment", "hspace_office_attachment"):
                 connection.execute(

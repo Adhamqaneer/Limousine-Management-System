@@ -21,6 +21,8 @@ class Settings:
     allowed_hosts: tuple[str, ...] = ("127.0.0.1", "localhost", "testserver")
     media_root: Path = ROOT / "media"
     session_seconds: int = 12 * 60 * 60
+    backup_directory: Path = ROOT / ".local" / "backups"
+    pg_dump_path: Path | None = None
 
     @property
     def database_configured(self):

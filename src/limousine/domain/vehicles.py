@@ -75,7 +75,10 @@ def normalize_vehicle_fields(fields):
         if any(unicodedata.category(char) == "Cc" for char in value):
             raise DomainError("Vehicle fields must be a single line of text.")
         if value:
-            if name in ("owner_name", "driver_name", "vehicle_type") and not is_vehicle_name(value):
+            if (
+                name in ("owner_name", "driver_name", "vehicle_type")
+                and not is_vehicle_name(value)
+            ):
                 raise DomainError(
                     "Names and vehicle type accept Arabic or English letters and spaces only."
                 )
@@ -83,9 +86,15 @@ def normalize_vehicle_fields(fields):
                 r"[0-9\u0660-\u0669\u06f0-\u06f9]+", value
             ):
                 raise DomainError("The owner phone accepts digits only.")
-            if name in ("driver_phone", "manufacture_year") and not re.fullmatch(r"[0-9]+", value):
+            if (
+                name in ("driver_phone", "manufacture_year")
+                and not re.fullmatch(r"[0-9]+", value)
+            ):
                 raise DomainError("Driver phone and vehicle model accept English digits only.")
-            if name == "chassis_number" and not re.fullmatch(r"[A-Za-z0-9]+", value):
+            if (
+                name == "chassis_number"
+                and not re.fullmatch(r"[A-Za-z0-9]+", value)
+            ):
                 raise DomainError("The chassis number accepts English letters and digits only.")
         result[name] = value
     return result

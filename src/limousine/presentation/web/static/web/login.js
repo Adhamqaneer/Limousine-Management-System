@@ -9,6 +9,11 @@
   const ar = {
     brandSub: 'إدارة السيارات',
     signIn: 'تسجيل الدخول',
+    setupTitle: 'تعيين كلمة المرور',
+    setupDescription: 'اختار كلمة مرور لحساب H space.',
+    setupInvalid: 'اكتب كلمة مرور مطابقة من ٨ خانات على الأقل وتحتوي على رمز غير رقمي.',
+    confirmPassword: 'تأكيد كلمة المرور',
+    setPassword: 'حفظ كلمة المرور',
     description: 'سجّل الدخول إلى مساحة إدارة سياراتك.',
     username: 'اسم المستخدم',
     password: 'كلمة المرور',

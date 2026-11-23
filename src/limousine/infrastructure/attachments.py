@@ -63,7 +63,11 @@ def _validate_image(extension, content):
                 if image.format != expected_format:
                     raise DomainError("The image format does not match its file extension.")
                 width, height = image.size
-                if width <= 0 or height <= 0 or width * height > MAX_IMAGE_PIXELS:
+                if (
+                    width <= 0
+                    or height <= 0
+                    or width * height > MAX_IMAGE_PIXELS
+                ):
                     raise DomainError("Photos must contain no more than 25 million pixels.")
                 image.verify()
             # verify() checks structure but does not decode all pixel data.

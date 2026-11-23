@@ -10,7 +10,6 @@ from uuid import uuid4
 
 from psycopg import sql
 
-from limousine.config.runtime import ROOT
 from limousine.domain.accounts import OPERATOR_USERNAME
 from limousine.domain.categories import SEED_CATEGORIES, category_key
 from limousine.infrastructure.media_paths import (
@@ -67,9 +66,9 @@ def media_manifest(root):
 
 
 def backup_database(settings):
-    directory = ROOT / ".local/backups"
+    directory = settings.backup_directory
     directory.mkdir(parents=True, exist_ok=True)
-    executable = shutil.which("pg_dump") or (
+    executable = settings.pg_dump_path or shutil.which("pg_dump") or (
         "C:/Program Files/PostgreSQL/18/bin/pg_dump.exe" if os.name == "nt" else None
     )
     if not executable or not Path(executable).is_file():
@@ -97,8 +96,13 @@ def backup_database(settings):
         env=environment,
         capture_output=True,
         timeout=120,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
-    if result.returncode or not target.is_file() or target.stat().st_size == 0:
+    if (
+        result.returncode
+        or not target.is_file()
+        or target.stat().st_size == 0
+    ):
         raise RuntimeError("PostgreSQL backup failed. No schema changes were applied.")
     return target
 

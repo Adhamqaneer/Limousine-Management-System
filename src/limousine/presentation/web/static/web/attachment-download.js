@@ -169,7 +169,9 @@
         request('/api/attachment-categories/').then((response) => response.json()),
         request('/api/vehicles/').then((response) => response.json()),
       ]);
-      if (current !== sequence) return;
+      if (current !== sequence) {
+        return;
+      }
       categories = types.categories;
       vehicles = scope.filtered
         ? HSpaceSearch.search(
@@ -183,7 +185,9 @@
       translate();
       updateAvailability();
     } catch (_) {
-      if (current === sequence) messageKey = 'failed';
+      if (current === sequence) {
+        messageKey = 'failed';
+      }
     } finally {
       if (current === sequence) {
         busy = false;
@@ -200,8 +204,9 @@
       !chosen().length ||
       !vehicles.length ||
       !availability?.file_count
-    )
+    ) {
       return;
+    }
     busy = true;
     result = null;
     messageKey = 'preparing';
@@ -254,7 +259,13 @@
     get('download-availability').setAttribute('aria-busy', String(previewBusy));
     get('availability-head').replaceChildren();
     get('availability-body').replaceChildren();
-    if (!availability || previewBusy || previewError) return;
+    if (
+      !availability ||
+      previewBusy ||
+      previewError
+    ) {
+      return;
+    }
     const types = categories.filter((category) => selected.includes(category.id)),
       heading = document.createElement('tr');
     for (const value of [
@@ -296,7 +307,11 @@
     previewError = false;
     result = null;
     messageKey = '';
-    if (!loaded || !ids.length || !vehicles.length) {
+    if (
+      !loaded ||
+      !ids.length ||
+      !vehicles.length
+    ) {
       previewBusy = false;
       renderAvailability();
       state();
@@ -315,9 +330,13 @@
         }),
       });
       const data = await response.json();
-      if (current === previewSequence) availability = data;
+      if (current === previewSequence) {
+        availability = data;
+      }
     } catch (_) {
-      if (current === previewSequence) previewError = true;
+      if (current === previewSequence) {
+        previewError = true;
+      }
     } finally {
       if (current === previewSequence) {
         previewBusy = false;
@@ -331,7 +350,9 @@
     document.title = 'H SPACE | ' + text('title');
     document.querySelectorAll('[data-download-i18n],[data-i18n]').forEach((item) => {
       const key = item.dataset.downloadI18n || item.dataset.i18n;
-      if (copy.en[key]) item.textContent = text(key);
+      if (copy.en[key]) {
+        item.textContent = text(key);
+      }
     });
     document
       .querySelectorAll('[data-i18n-aria]')

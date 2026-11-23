@@ -20,7 +20,11 @@ def prompt_password():
 
 
 def hash_password(password):
-    if not isinstance(password, str) or not 8 <= len(password) <= 1024 or password.isdigit():
+    if (
+        not isinstance(password, str)
+        or not 8 <= len(password) <= 1024
+        or password.isdigit()
+    ):
         raise ValueError("Use a password of 8 to 1024 characters, not only numbers.")
     salt = secrets.token_urlsafe(12)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), ITERATIONS)

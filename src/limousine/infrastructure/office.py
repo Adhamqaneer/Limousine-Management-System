@@ -121,12 +121,18 @@ class PostgresOfficeRepository:
     def list_deleted(self):
         with self.database.connect() as connection:
             return connection.execute("""
-                    SELECT t.id,'office' AS kind,t.original_name AS label,NULL::text AS driver_name,
-                           NULL::bigint AS vehicle_id,NULL::text AS plate_number,FALSE AS parent_deleted,FALSE AS has_current_cover,
-                                                                                                                  t.created_at,
-                                                                                                                  t.deleted_at,
-                                                                                                                  c.username AS created_by,
-                                                                                                                  d.username AS deleted_by
+                    SELECT t.id,
+                           'office' AS kind,
+                           t.original_name AS label,
+                           NULL::text AS driver_name,
+                           NULL::bigint AS vehicle_id,
+                           NULL::text AS plate_number,
+                           FALSE AS parent_deleted,
+                           FALSE AS has_current_cover,
+                           t.created_at,
+                           t.deleted_at,
+                           c.username AS created_by,
+                           d.username AS deleted_by
                     FROM hspace_office_attachment t
                     LEFT JOIN hspace_user c ON c.id=t.created_by
                     LEFT JOIN hspace_user d ON d.id=t.deleted_by

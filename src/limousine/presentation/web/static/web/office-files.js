@@ -134,10 +134,11 @@
   }
   function focus(id) {
     const el = getElement(id);
-    if (el && !el.disabled)
+    if (el && !el.disabled) {
       el.focus({
         preventScroll: true,
       });
+    }
   }
   function render() {
     getElement('office-sections').setAttribute('aria-busy', String(busy));
@@ -154,8 +155,11 @@
         disabled = busy || !loaded || !rows.length;
       zip.setAttribute('aria-disabled', String(disabled));
       zip.tabIndex = disabled ? -1 : 0;
-      if (disabled) zip.removeAttribute('href');
-      else zip.href = '/api/office/attachments/archive/' + section + '/';
+      if (disabled) {
+        zip.removeAttribute('href');
+      } else {
+        zip.href = '/api/office/attachments/archive/' + section + '/';
+      }
       const list = getElement('office-' + section + '-list');
       list.replaceChildren(
         ...rows.map((item) => {
@@ -176,7 +180,9 @@
           nameGroup.append(rename);
           const detail = node('div');
           detail.append(nameGroup);
-          if (window.HSpaceCategories) detail.append(HSpaceCategories.createButton(item));
+          if (window.HSpaceCategories) {
+            detail.append(HSpaceCategories.createButton(item));
+          }
           const meta = node(
             'p',
             new Intl.NumberFormat(root.lang).format(Math.ceil(item.size / 1024)) +
@@ -203,7 +209,9 @@
             img.loading = 'lazy';
             link.append(img);
             info.append(link);
-          } else info.append(icon('file'));
+          } else {
+            info.append(icon('file'));
+          }
           info.append(detail);
           const actions = node('div', '', 'file-actions');
           const view = node('a', getText('view'), 'button secondary');
@@ -232,7 +240,7 @@
           return row;
         }),
       );
-      if (!rows.length)
+      if (!rows.length) {
         list.append(
           node(
             'p',
@@ -240,10 +248,13 @@
             'section-empty',
           ),
         );
+      }
     }
   }
   async function refresh() {
-    if (busy) return;
+    if (busy) {
+      return;
+    }
     busy = true;
     render();
     try {
@@ -257,7 +268,9 @@
     }
   }
   async function upload(section, files) {
-    if (busy || !files.length) return;
+    if (busy || !files.length) {
+      return;
+    }
     const allowed = section === 'photos' ? /\.(jpe?g|png|webp)$/i : /\.(pdf|txt|docx|xlsx)$/i;
     if (files.some((file) => !allowed.test(file.name) || file.size > 10485760 || file.size === 0)) {
       message = 'invalid';
@@ -272,7 +285,9 @@
       for (const file of files) {
         const data = new FormData();
         data.append('file', file);
-        if (categoryId) data.append('category_id', categoryId);
+        if (categoryId) {
+          data.append('category_id', categoryId);
+        }
         const result = await request('/api/office/attachments/', {
           method: 'POST',
           body: data,
@@ -290,7 +305,9 @@
     }
   }
   async function deleteItem(item, section) {
-    if (busy || !confirm(getText('confirm') + '\n' + item.name)) return;
+    if (busy || !confirm(getText('confirm') + '\n' + item.name)) {
+      return;
+    }
     busy = true;
     message = '';
     render();
@@ -309,7 +326,9 @@
     }
   }
   function openRename(item, id) {
-    if (busy) return;
+    if (busy) {
+      return;
+    }
     renameItem = item;
     returnId = id;
     const dot = item.name.lastIndexOf('.'),
@@ -326,14 +345,18 @@
     getElement('office-rename-name').select();
   }
   function closeRename() {
-    if (renameBusy) return;
+    if (renameBusy) {
+      return;
+    }
     getElement('office-rename-dialog').close();
     renameItem = null;
     focus(returnId);
   }
   getElement('office-rename-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-    if (busy || !renameItem) return;
+    if (busy || !renameItem) {
+      return;
+    }
     busy = renameBusy = true;
     render();
     for (const id of ['office-rename-save', 'office-rename-cancel', 'office-rename-name'])
@@ -370,8 +393,11 @@
       for (const id of ['office-rename-save', 'office-rename-cancel', 'office-rename-name'])
         getElement(id).disabled = false;
       render();
-      if (getElement('office-rename-dialog').open) getElement('office-rename-name').focus();
-      else focus(returnId);
+      if (getElement('office-rename-dialog').open) {
+        getElement('office-rename-name').focus();
+      } else {
+        focus(returnId);
+      }
     }
   });
   getElement('office-rename-cancel').addEventListener('click', closeRename);
@@ -381,7 +407,9 @@
   });
   for (const section of ['photos', 'files']) {
     getElement('office-add-' + section).addEventListener('click', () => {
-      if (!busy) getElement('office-' + section + '-input').click();
+      if (!busy) {
+        getElement('office-' + section + '-input').click();
+      }
     });
     getElement('office-' + section + '-input').addEventListener('change', (event) => {
       const files = Array.from(event.target.files);
@@ -389,8 +417,9 @@
       upload(section, files);
     });
     getElement('office-' + section + '-zip').addEventListener('click', (event) => {
-      if (busy || event.currentTarget.getAttribute('aria-disabled') === 'true')
+      if (busy || event.currentTarget.getAttribute('aria-disabled') === 'true') {
         event.preventDefault();
+      }
     });
   }
   getElement('office-refresh').addEventListener('click', () => {
@@ -401,7 +430,9 @@
     document.title = 'H SPACE | ' + getText('title');
     document.querySelectorAll('[data-office-i18n],[data-i18n]').forEach((el) => {
       const key = el.dataset.officeI18n || el.dataset.i18n;
-      if (copy.en[key]) el.textContent = getText(key);
+      if (copy.en[key]) {
+        el.textContent = getText(key);
+      }
     });
     document
       .querySelectorAll('[data-i18n-aria]')
@@ -410,7 +441,9 @@
   }
   window.addEventListener('hspace:language', translate);
   window.addEventListener('pageshow', (event) => {
-    if (event.persisted) refresh();
+    if (event.persisted) {
+      refresh();
+    }
   });
   translate();
   refresh();

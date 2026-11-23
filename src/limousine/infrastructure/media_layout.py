@@ -61,7 +61,7 @@ class MediaOrganizer:
         if covers:
             self.ensure_directory(directory + "/covers")
 
-    def upload_directory(self, vehicle_id, assignment_id=None, *, cover=False):
+    def upload_directory(self, vehicle_id, assignment_id=None):
         if assignment_id is None:
             directory = vehicle_directory(vehicle_id)
             self.ensure_sections(directory, covers=True)

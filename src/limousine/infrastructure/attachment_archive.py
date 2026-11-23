@@ -31,6 +31,22 @@ def _entry_name(original_name, attachment_id, used):
     return candidate
 
 
+def _write_original(archive, store, entry_name, storage_key, expected_size):
+    copied = 0
+    with (
+        store.open(storage_key) as source,
+        archive.open(entry_name, "w") as destination,
+    ):
+        while chunk := source.read(CHUNK_BYTES):
+            copied += len(chunk)
+            if copied > expected_size:
+                raise OSError("Attachment size differs from its metadata.")
+            destination.write(chunk)
+
+        if copied != expected_size:
+            raise OSError("Attachment size differs from its metadata.")
+
+
 def build_attachment_archive(attachments, store):
     """Finish before responding so a missing file never produces a partial ZIP."""
     output = SpooledTemporaryFile(max_size=SPOOL_BYTES, mode="w+b")
@@ -39,15 +55,7 @@ def build_attachment_archive(attachments, store):
         with ZipFile(output, "w", compression=ZIP_DEFLATED, compresslevel=1) as archive:
             for item in attachments:
                 name = _entry_name(item.original_name, item.id, used)
-                with store.open(item.storage_key) as source, archive.open(name, "w") as destination:
-                    copied = 0
-                    while chunk := source.read(CHUNK_BYTES):
-                        copied += len(chunk)
-                        if copied > item.size:
-                            raise OSError("Attachment size differs from its metadata.")
-                        destination.write(chunk)
-                    if copied != item.size:
-                        raise OSError("Attachment size differs from its metadata.")
+                _write_original(archive, store, name, item.storage_key, item.size)
         output.seek(0)
         return output
     except BaseException:
@@ -59,7 +67,9 @@ def build_vehicle_archive(selection, store):
     """Group by plate; retain every original byte and report missing document types."""
     output = SpooledTemporaryFile(max_size=SPOOL_BYTES, mode="w+b")
     try:
-        folders, used_folders, used_names = {}, set(), {}
+        folders = {}
+        used_folders = set()
+        used_names = {}
         with ZipFile(output, "w", compression=ZIP_DEFLATED, compresslevel=1) as archive:
             for item in selection.files:
                 vehicle_id = item["vehicle_id"]
@@ -73,17 +83,7 @@ def build_vehicle_archive(selection, store):
                     + "/"
                     + _entry_name(item["original_name"], item["id"], names)
                 )
-                with store.open(item["storage_key"]) as source, archive.open(
-                    name, "w"
-                ) as destination:
-                    copied = 0
-                    while chunk := source.read(CHUNK_BYTES):
-                        copied += len(chunk)
-                        if copied > item["size"]:
-                            raise OSError("Attachment size differs from its metadata.")
-                        destination.write(chunk)
-                    if copied != item["size"]:
-                        raise OSError("Attachment size differs from its metadata.")
+                _write_original(archive, store, name, item["storage_key"], item["size"])
             if selection.missing:
                 report = "Missing documents / المرفقات الناقصة\n\n" + "\n".join(
                     item["plate_number"] + " : " + item["category_name"]

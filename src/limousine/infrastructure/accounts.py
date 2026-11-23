@@ -23,7 +23,11 @@ class PostgresAccountRepository:
                 "SELECT user_id,password_hash FROM hspace_operator FOR SHARE"
             ).fetchone()
             encoded = row["password_hash"] if row else "pbkdf2_sha256$1000000$dummy$invalid"
-            if not verify_password(password, encoded) or not row or username != OPERATOR_USERNAME:
+            if (
+                not verify_password(password, encoded)
+                or not row
+                or username != OPERATOR_USERNAME
+            ):
                 return None
             token = secrets.token_urlsafe(32)
             expires = datetime.now(timezone.utc) + timedelta(seconds=seconds)

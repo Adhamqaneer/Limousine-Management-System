@@ -1830,10 +1830,6 @@ tr:nth-child(even) {
   width: 18px;
   height: 18px;
 }
-.login-form-heading > .eyebrow {
-  color: var(--accent-text);
-  font-size: 10px;
-}
 .login-form-heading h2 {
   margin-top: 10px;
   font: 650 36px/1.2 var(--display);

@@ -420,7 +420,30 @@ class PostgresVehicleRepository:
                     else "NULL::text"
                 )
                 query = sql.SQL(
-                    "SELECT t.id,{} AS label,{} AS driver_name, v.id AS vehicle_id,v.plate_number, v.is_deleted AS parent_deleted,EXISTS(SELECT 1 FROM limo_vehicle_cover current_photo WHERE current_photo.vehicle_id=v.id AND NOT current_photo.is_deleted) AS has_current_cover,t.created_at,t.deleted_at,c.username AS created_by,d.username AS deleted_by FROM {} t JOIN limo_vehicle v ON v.id={} LEFT JOIN hspace_user c ON c.id=t.created_by LEFT JOIN hspace_user d ON d.id=t.deleted_by WHERE t.is_deleted ORDER BY t.deleted_at DESC,t.id DESC"
+                    """
+                    SELECT t.id,
+                           {} AS label,
+                           {} AS driver_name,
+                           v.id AS vehicle_id,
+                           v.plate_number,
+                           v.is_deleted AS parent_deleted,
+                           EXISTS(
+                               SELECT 1
+                               FROM limo_vehicle_cover current_photo
+                               WHERE current_photo.vehicle_id=v.id
+                                 AND NOT current_photo.is_deleted
+                           ) AS has_current_cover,
+                           t.created_at,
+                           t.deleted_at,
+                           c.username AS created_by,
+                           d.username AS deleted_by
+                    FROM {} t
+                    JOIN limo_vehicle v ON v.id={}
+                    LEFT JOIN hspace_user c ON c.id=t.created_by
+                    LEFT JOIN hspace_user d ON d.id=t.deleted_by
+                    WHERE t.is_deleted
+                    ORDER BY t.deleted_at DESC,t.id DESC
+                    """
                 ).format(sql.SQL(label), sql.SQL(driver), sql.Identifier(table), sql.SQL(parent))
                 for row in connection.execute(query).fetchall():
                     result.append(dict(row, kind=kind))

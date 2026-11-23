@@ -31,7 +31,12 @@
           previous[j] + 1,
           previous[j - 1] + (a[i - 1] !== b[j - 1]),
         );
-        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        if (
+          i > 1 &&
+          j > 1 &&
+          a[i - 1] === b[j - 2] &&
+          a[i - 2] === b[j - 1]
+        ) {
           row[j] = Math.min(row[j], beforePrevious[j - 2] + 1);
         }
       }
@@ -44,7 +49,11 @@
   const cache = new WeakMap();
   function prepared(vehicle) {
     let data = cache.get(vehicle);
-    if (!data || data.rawType !== vehicle.vehicle_type || data.rawPlate !== vehicle.plate_number) {
+    if (
+      !data ||
+      data.rawType !== vehicle.vehicle_type ||
+      data.rawPlate !== vehicle.plate_number
+    ) {
       const type = normalize(vehicle.vehicle_type),
         plate = normalize(vehicle.plate_number);
       data = {
@@ -60,27 +69,36 @@
   }
   function search(vehicles, input) {
     const query = normalize(input);
-    if (!query) return vehicles.slice();
-    if (query.length > 160) return [];
+    if (!query) {
+      return vehicles.slice();
+    }
+    if (query.length > 160) {
+      return [];
+    }
     const tokens = query.match(/[\p{L}\p{N}]+/gu) || [];
-    if (!tokens.length) return [];
+    if (!tokens.length) {
+      return [];
+    }
     const ranked = [];
     vehicles.forEach((vehicle, index) => {
       const { type, plate, words } = prepared(vehicle);
       if (/^[\d\s\-–—]+$/.test(query)) {
         const needle = compactPlate(query),
           haystack = compactPlate(plate);
-        if (needle && haystack.includes(needle))
+        if (needle && haystack.includes(needle)) {
           ranked.push({
             vehicle,
             score: haystack === needle ? -1 : 0,
             index,
           });
+        }
         return;
       }
       let score = 0;
       for (const token of tokens) {
-        if (words.includes(token) || plate === token) continue;
+        if (words.includes(token) || plate === token) {
+          continue;
+        }
         if (type.includes(token) || plate.includes(token)) {
           score += 1;
           continue;
@@ -104,8 +122,13 @@
         score += 10 + best;
       }
       if (Number.isFinite(score)) {
-        if (type === query || plate === query || compactPlate(plate) === compactPlate(query))
+        if (
+          type === query ||
+          plate === query ||
+          compactPlate(plate) === compactPlate(query)
+        ) {
           score = -1;
+        }
         ranked.push({
           vehicle,
           score,

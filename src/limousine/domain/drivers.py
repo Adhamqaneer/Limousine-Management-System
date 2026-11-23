@@ -35,7 +35,10 @@ def driver_date(value, *, required=False):
                 "started_on", "startRequired", "Enter the driver start date."
             )
         return None
-    if not isinstance(value, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
+    if (
+        not isinstance(value, str)
+        or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value)
+    ):
         raise DriverValidationError("started_on", "dateInvalid", "Enter a valid date (YYYY-MM-DD).")
     try:
         return date.fromisoformat(value)
@@ -50,7 +53,11 @@ def validate_boundary(start, current_start=None, previous_end=None, *, correctin
                 "started_on", "knownStart", "A known start date cannot be cleared."
             )
         return
-    if not correcting and current_start is not None and start < current_start:
+    if (
+        not correcting
+        and current_start is not None
+        and start < current_start
+    ):
         raise DriverValidationError(
             "started_on", "overlapStart", "The new driver cannot start before the current driver."
         )

@@ -31,7 +31,15 @@ class FileCleanup:
                     return True
                 # Preserve any still-referenced bytes, even if historical data shared a key.
                 referenced = connection.execute(
-                    "SELECT EXISTS(SELECT 1 FROM limo_attachment WHERE storage_key=%s UNION ALL SELECT 1 FROM limo_vehicle_cover WHERE storage_key=%s UNION ALL SELECT 1 FROM hspace_office_attachment WHERE storage_key=%s) AS used",
+                    """
+                    SELECT EXISTS(
+                        SELECT 1 FROM limo_attachment WHERE storage_key=%s
+                        UNION ALL
+                        SELECT 1 FROM limo_vehicle_cover WHERE storage_key=%s
+                        UNION ALL
+                        SELECT 1 FROM hspace_office_attachment WHERE storage_key=%s
+                    ) AS used
+                    """,
                     (key, key, key),
                 ).fetchone()["used"]
                 if not referenced:

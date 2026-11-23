@@ -77,7 +77,10 @@ class VehicleService:
             raise DomainError("Choose photos or files for the download.")
         vehicle = self.repository.get_vehicle(vehicle_id)
         attachments = tuple(item for item in vehicle.attachments if item.kind == kind)
-        if not attachments or any(item.vehicle_id != vehicle_id for item in attachments):
+        if (
+            not attachments
+            or any(item.vehicle_id != vehicle_id for item in attachments)
+        ):
             raise NotFound("No matching attachments exist for this vehicle.")
         return AttachmentDownload(vehicle.plate_number, attachments)
 
@@ -116,7 +119,11 @@ class VehicleService:
         if assignment_id is not None:
             require_actor(actor)
         self.repository.get_vehicle(vehicle_id)
-        if not isinstance(storage_key, str) or not storage_key.strip() or len(storage_key) > 500:
+        if (
+            not isinstance(storage_key, str)
+            or not storage_key.strip()
+            or len(storage_key) > 500
+        ):
             raise DomainError("The attachment storage key is invalid.")
         if (
             not isinstance(original_name, str)
@@ -126,7 +133,11 @@ class VehicleService:
             raise DomainError("The attachment name must contain between 1 and 255 characters.")
         if kind not in ("image", "file"):
             raise DomainError("The attachment type is invalid.")
-        if isinstance(size, bool) or not isinstance(size, int) or size <= 0:
+        if (
+            isinstance(size, bool)
+            or not isinstance(size, int)
+            or size <= 0
+        ):
             raise DomainError("Choose a non-empty file.")
         return self.repository.add_attachment(
             vehicle_id,
@@ -147,7 +158,10 @@ class VehicleService:
             attachment_id,
             **({"assignment_id": assignment_id} if assignment_id is not None else {}),
         )
-        if attachment.vehicle_id != vehicle_id or attachment.driver_assignment_id != assignment_id:
+        if (
+            attachment.vehicle_id != vehicle_id
+            or attachment.driver_assignment_id != assignment_id
+        ):
             raise NotFound("Attachment not found for this vehicle.")
         return attachment
 
@@ -195,7 +209,11 @@ class VehicleService:
     ):
         require_actor(actor)
         self.repository.get_vehicle(vehicle_id)
-        if not isinstance(storage_key, str) or not storage_key.strip() or len(storage_key) > 500:
+        if (
+            not isinstance(storage_key, str)
+            or not storage_key.strip()
+            or len(storage_key) > 500
+        ):
             raise DomainError("The card photo storage key is invalid.")
         if (
             not isinstance(original_name, str)
@@ -203,7 +221,11 @@ class VehicleService:
             or len(original_name) > 255
         ):
             raise DomainError("The card photo name is invalid.")
-        if isinstance(size, bool) or not isinstance(size, int) or size <= 0:
+        if (
+            isinstance(size, bool)
+            or not isinstance(size, int)
+            or size <= 0
+        ):
             raise DomainError("Choose a non-empty photo.")
         return self.repository.replace_cover(
             VehicleCover(vehicle_id, storage_key, original_name.strip(), size), actor=actor
