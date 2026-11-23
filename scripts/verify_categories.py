@@ -105,11 +105,11 @@ def main():
             assert response.status_code == status, (url, response.status_code)
             return response.json()
 
-        def upload(url, name, content, category_id):
+        def upload(url, name, content, category_id=None):
             response = client.post(
                 url,
                 files={"file": (name, content)},
-                data={"category_id": str(category_id)},
+                data={"category_id": str(category_id)} if category_id is not None else None,
                 headers=headers,
             )
             assert response.status_code == 201, response.status_code
@@ -152,7 +152,16 @@ def main():
             pdf_bytes = b"%PDF-1.7\nfixture original PDF\n%%EOF"
             pdf = upload(base, "Document.pdf", pdf_bytes, other)
             upload(base, "Notes.txt", b"original notes", other)
-            office = upload("/api/office/attachments/", "Office.txt", b"office original", source)
+            office = upload("/api/office/attachments/", "Office.txt", b"office original")
+            assert "category_id" not in office
+            assert connection.execute(
+                "SELECT category_id FROM hspace_office_attachment WHERE id=%s", (office["id"],)
+            ).fetchone()["category_id"] == other
+            # Simulate an office attachment classified before that feature was removed.
+            connection.execute(
+                "UPDATE hspace_office_attachment SET category_id=%s WHERE id=%s",
+                (source, office["id"]),
+            )
             period = connection.execute(
                 "SELECT id FROM hspace_driver_assignment WHERE vehicle_id=%s AND is_current",
                 (car.id,),
@@ -165,13 +174,12 @@ def main():
             )
             post(f"/api/attachment-categories/{source}/merge/", {"target_id": target})
             assert app.state.categories.get(source)["id"] == target
-            for table in ("limo_attachment", "hspace_office_attachment"):
-                assert (
-                    connection.execute(
-                        "SELECT count(*) AS n FROM " + table + " WHERE category_id=%s", (source,)
-                    ).fetchone()["n"]
-                    == 0
-                )
+            assert connection.execute(
+                "SELECT count(*) AS n FROM limo_attachment WHERE category_id=%s", (source,)
+            ).fetchone()["n"] == 0
+            assert connection.execute(
+                "SELECT category_id FROM hspace_office_attachment WHERE id=%s", (office["id"],)
+            ).fetchone()["category_id"] == source
             assert connection.execute(
                 "SELECT category_id,is_deleted FROM limo_attachment WHERE id=%s", (deleted["id"],)
             ).fetchone() == dict(category_id=target, is_deleted=True)
@@ -259,7 +267,7 @@ def main():
                     json={"category_id": target},
                     headers=headers,
                 ).status_code
-                == 200
+                == 404
             )
             availability = post(
                 "/api/attachment-download/availability/",

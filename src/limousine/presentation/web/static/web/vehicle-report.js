@@ -62,7 +62,7 @@
     signOut: 'تسجيل الخروج',
     reportEyebrow: 'بيانات مكتبك، على ورق',
     reportTitle: 'طباعة بيانات السيارات',
-    reportDescription: 'اختار الخانات، عاين كل السيارات، واطبع الكشف أو احفظه PDF.',
+    reportDescription: 'اختار الخانات بالترتيب اللي بدك يطلع بالكشف. عاينه واطبعه أو احفظه PDF.',
     chooseFields: 'اختيار الخانات',
     selectAll: 'اختيار الكل',
     clearFields: 'إلغاء الاختيار',
@@ -95,7 +95,7 @@
     landscape: 'A4 بالعرض',
     rowCount: 'عدد السيارات: {count}',
   };
-  const selected = new Set(['plate_number']);
+  const selected = new Set();
   let scope = HSpaceVehicleFilters.reportScope(location.hash);
   let vehicles = [],
     state = '',
@@ -215,7 +215,9 @@
     getElement('report-choices').append(label);
   });
   function select(all) {
-    selected.clear();
+    if (!all) {
+      selected.clear();
+    }
     getElement('report-choices')
       .querySelectorAll('input')
       .forEach((input) => {

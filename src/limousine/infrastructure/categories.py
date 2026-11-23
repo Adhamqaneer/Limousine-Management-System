@@ -1,7 +1,5 @@
 """One normalized-name registry prevents canonical/alias races and preserves merges."""
 
-from psycopg import sql
-
 from limousine.domain.categories import (
     CategoryConflict,
     SimilarCategory,
@@ -160,13 +158,10 @@ class PostgresCategoryRepository:
                 or target["is_other"]
             ):
                 raise DomainError("Choose two different named categories. Other cannot be merged.")
-            for table in ("limo_attachment", "hspace_office_attachment"):
-                connection.execute(
-                    sql.SQL("UPDATE {} SET category_id=%s WHERE category_id=%s").format(
-                        sql.Identifier(table)
-                    ),
-                    (target_id, source_id),
-                )
+            connection.execute(
+                "UPDATE limo_attachment SET category_id=%s WHERE category_id=%s",
+                (target_id, source_id),
+            )
             connection.execute(
                 "UPDATE hspace_category_alias SET category_id=%s WHERE category_id=%s",
                 (target_id, source_id),
@@ -181,46 +176,45 @@ class PostgresCategoryRepository:
             return target
 
     def classify(
-        self, scope, attachment_id, category_id, actor, vehicle_id=None, assignment_id=None
+        self, vehicle_id, attachment_id, category_id, actor, assignment_id=None
     ):
         with self.database.connect() as connection:
             self._lock(connection)
             category = self._resolve(connection, category_id)
-            if scope == "vehicle":
-                if not connection.execute(
-                    "SELECT id FROM limo_vehicle WHERE id=%s AND NOT is_deleted FOR UPDATE",
-                    (vehicle_id,),
-                ).fetchone():
-                    raise NotFound("Vehicle not found.")
-                row = connection.execute(
-                    "SELECT * FROM limo_attachment WHERE id=%s AND vehicle_id=%s AND driver_assignment_id IS NOT DISTINCT FROM %s AND NOT is_deleted FOR UPDATE",
-                    (attachment_id, vehicle_id, assignment_id),
-                ).fetchone()
-                kind, table = "attachment", "limo_attachment"
-            else:
-                row = connection.execute(
-                    "SELECT * FROM hspace_office_attachment WHERE id=%s AND NOT is_deleted FOR UPDATE",
-                    (attachment_id,),
-                ).fetchone()
-                kind, table = "office", "hspace_office_attachment"
+            if not connection.execute(
+                "SELECT id FROM limo_vehicle WHERE id=%s AND NOT is_deleted FOR UPDATE",
+                (vehicle_id,),
+            ).fetchone():
+                raise NotFound("Vehicle not found.")
+            row = connection.execute(
+                """
+                SELECT * FROM limo_attachment
+                WHERE id=%s AND vehicle_id=%s AND driver_assignment_id IS NOT DISTINCT FROM %s
+                  AND NOT is_deleted
+                FOR UPDATE
+                """,
+                (attachment_id, vehicle_id, assignment_id),
+            ).fetchone()
             if not row:
                 raise NotFound("Attachment not found.")
             if row["category_id"] != category["id"]:
-                if scope == "vehicle" and assignment_id is None:
+                if assignment_id is None:
                     ensure_vehicle_category_available(
                         connection, vehicle_id, category["id"], attachment_id
                     )
                 row = connection.execute(
-                    sql.SQL("UPDATE {} SET category_id=%s WHERE id=%s RETURNING *").format(
-                        sql.Identifier(table)
-                    ),
+                    "UPDATE limo_attachment SET category_id=%s WHERE id=%s RETURNING *",
                     (category["id"], attachment_id),
                 ).fetchone()
                 connection.execute(
-                    "INSERT INTO hspace_activity(vehicle_id,entity_kind,entity_id,action,actor_id,actor_name,label) VALUES (%s,%s,%s,'LABEL',%s,%s,%s)",
+                    """
+                    INSERT INTO hspace_activity(
+                        vehicle_id, entity_kind, entity_id, action, actor_id, actor_name, label
+                    )
+                    VALUES (%s,'attachment',%s,'LABEL',%s,%s,%s)
+                    """,
                     (
-                        vehicle_id if scope == "vehicle" else None,
-                        kind,
+                        vehicle_id,
                         attachment_id,
                         actor.id,
                         actor.username,

@@ -50,10 +50,12 @@ class OfficeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('aria-current="page"', response.text)
         self.assertIn("office-files.js", response.text)
+        self.assertNotIn("attachment-categories.js", response.text)
         response = self.client.get(self.base)
         self.assertEqual(response.status_code, 200)
         item = response.json()["attachments"][0]
         self.assertNotIn("storage_key", item)
+        self.assertNotIn("category_id", item)
         self.assertEqual(item["manage_url"], self.base + "7/")
         for suffix in ("preview/", "download/"):
             response = self.client.get(self.base + "7/" + suffix)
@@ -71,6 +73,7 @@ class OfficeTests(TestCase):
             self.base, files={"file": ("office.txt", b"office bytes")}, headers=self.headers
         )
         self.assertEqual(response.status_code, 201)
+        self.assertNotIn("category_id", response.json()["attachment"])
         args = self.repo.add.call_args.args
         self.assertTrue(args[0].startswith("office/"))
         self.assertEqual(args[1:], ("office.txt", "file", 12, OPERATOR))
@@ -88,6 +91,22 @@ class OfficeTests(TestCase):
                 self.base, files={"file": ("bad.exe", b"bytes")}, headers=self.headers
             ).status_code,
             400,
+        )
+
+    def test_office_attachments_have_no_classification(self):
+        response = self.client.post(
+            self.base,
+            files={"file": ("office.txt", b"office bytes")},
+            data={"category_id": "1"},
+            headers=self.headers,
+        )
+        self.assertEqual(response.status_code, 400)
+        self.repo.add.assert_not_called()
+        self.assertEqual(
+            self.client.patch(
+                self.base + "7/category/", json={"category_id": 1}, headers=self.headers
+            ).status_code,
+            404,
         )
 
     def test_member_rename_delete_csrf_and_stale_name(self):

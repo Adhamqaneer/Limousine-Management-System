@@ -11,17 +11,19 @@ def attachment_payload(item):
         if item.driver_assignment_id is not None:
             prefix += f"/drivers/{item.driver_assignment_id}"
     base = prefix + f"/attachments/{item.id}"
-    return {
+    payload = {
         "id": item.id,
         "name": item.original_name,
         "kind": item.kind,
-        "category_id": item.category_id,
         "size": item.size,
         "uploaded_at": item.created_at.isoformat(),
         "download_url": base + "/download/",
         "preview_url": base + "/preview/",
         "manage_url": base + "/",
     }
+    if not isinstance(item, OfficeAttachment):
+        payload["category_id"] = item.category_id
+    return payload
 
 
 def vehicle_payload(item, detailed=False):

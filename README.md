@@ -4,6 +4,10 @@ A private vehicle-management website for a car office. It runs locally with Fast
 
 Sign in with the office account, **H space**, to manage vehicle records, driver periods, private photos and documents, and to view activity or restore deleted items. Reports print selected vehicle fields or driver history, with optional office letterhead. Office files are separate from vehicle and driver documents.
 
+On **Print vehicle data**, select fields in the order you want them to appear in the preview, on paper or in the PDF.
+
+On **Office files**, add photos or files directly and download each section as a ZIP.
+
 ## Download attachments by type
 
 Add photos or files to a vehicle, then click the category beside an uploaded attachment to classify it. Vehicle uploads start as Other. Vehicle license, Direction card and Customs declaration are available by default. A named type permits one active attachment per vehicle across Photos and Files. Other permits multiple. In the category dialog, choose Other and enter a new type name to add a permanent shared choice. Other stays last.

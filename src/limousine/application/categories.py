@@ -23,7 +23,7 @@ class CategoryRepository(Protocol):
     def add_alias(self, category_id, name, key, actor): ...
     def merge(self, source_id, target_id, actor): ...
     def classify(
-        self, scope, attachment_id, category_id, actor, vehicle_id=None, assignment_id=None
+        self, vehicle_id, attachment_id, category_id, actor, assignment_id=None
     ): ...
     def get(self, category_id): ...
 
@@ -57,16 +57,13 @@ class CategoryService:
         return self.repository.merge(record_id(source_id), record_id(target_id), actor)
 
     def classify(
-        self, scope, attachment_id, category_id, actor, vehicle_id=None, assignment_id=None
+        self, vehicle_id, attachment_id, category_id, actor, assignment_id=None
     ):
         require_actor(actor)
-        if scope not in ("vehicle", "office"):
-            raise DomainError("Unknown attachment scope.")
         return self.repository.classify(
-            scope,
+            vehicle_id,
             record_id(attachment_id),
             record_id(category_id),
             actor,
-            vehicle_id,
             assignment_id,
         )

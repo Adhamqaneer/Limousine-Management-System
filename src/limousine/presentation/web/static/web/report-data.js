@@ -13,7 +13,8 @@
     'plate_number',
   ]);
   function columns(selected) {
-    return fields.filter((name) => selected.includes(name));
+    const validFields = selected.filter((name) => fields.includes(name));
+    return [...new Set(validFields)];
   }
   function rows(vehicles, selected) {
     const names = columns(selected);

@@ -11,9 +11,7 @@ from limousine.domain.vehicles import DomainError, NotFound
 class OfficeRepository(Protocol):
     def list_files(self) -> list[OfficeAttachment]: ...
     def get(self, item_id) -> OfficeAttachment: ...
-    def add(
-        self, storage_key, original_name, kind, size, actor, category_id=None
-    ) -> OfficeAttachment: ...
+    def add(self, storage_key, original_name, kind, size, actor) -> OfficeAttachment: ...
     def rename(self, item_id, name, expected_name, actor) -> OfficeAttachment: ...
     def delete(self, item_id, actor): ...
 
@@ -28,7 +26,7 @@ class OfficeService:
     def get(self, item_id):
         return self.repository.get(item_id)
 
-    def add(self, storage_key, original_name, kind, size, actor, category_id=None):
+    def add(self, storage_key, original_name, kind, size, actor):
         require_actor(actor)
         valid_storage_key = (
             isinstance(storage_key, str)
@@ -43,14 +41,7 @@ class OfficeService:
         valid_size = isinstance(size, int) and not isinstance(size, bool) and 0 < size <= 10485760
         if not all((valid_storage_key, valid_name, valid_size, kind in ("image", "file"))):
             raise DomainError("Invalid office attachment metadata.")
-        return self.repository.add(
-            storage_key,
-            original_name,
-            kind,
-            size,
-            actor,
-            **({"category_id": category_id} if category_id is not None else {})
-        )
+        return self.repository.add(storage_key, original_name, kind, size, actor)
 
     def rename(self, item_id, name, expected_name, actor):
         require_actor(actor)

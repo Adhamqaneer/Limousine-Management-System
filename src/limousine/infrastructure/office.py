@@ -4,12 +4,10 @@ from limousine.domain.attachments import AttachmentNameConflict
 from limousine.domain.office import OfficeAttachment
 from limousine.domain.recycling import require_actor
 from limousine.domain.vehicles import NotFound
-from limousine.infrastructure.categories import resolve_upload_category
 
 
 def attachment(row):
     return OfficeAttachment(
-        category_id=row.get("category_id"),
         **{
             key: row[key]
             for key in ("id", "storage_key", "original_name", "kind", "size", "created_at")
@@ -51,17 +49,16 @@ class PostgresOfficeRepository:
                 raise NotFound("Office attachment not found.")
             return attachment(row)
 
-    def add(self, storage_key, original_name, kind, size, actor, category_id=None):
+    def add(self, storage_key, original_name, kind, size, actor):
         require_actor(actor)
         with self.database.connect() as connection:
-            category_id = resolve_upload_category(connection, category_id)
             row = connection.execute(
                 """
                     INSERT INTO hspace_office_attachment(storage_key,
-                                  original_name, kind, size, created_by, category_id)
-                    VALUES (%s,%s,%s,%s,%s,COALESCE(%s,(SELECT id FROM hspace_attachment_category WHERE is_other))) RETURNING *
+                                  original_name, kind, size, created_by)
+                    VALUES (%s,%s,%s,%s,%s) RETURNING *
                 """,
-                (storage_key, original_name, kind, size, actor.id, category_id),
+                (storage_key, original_name, kind, size, actor.id),
             ).fetchone()
             self._event(connection, actor, row, "CREATE")
             return attachment(row)

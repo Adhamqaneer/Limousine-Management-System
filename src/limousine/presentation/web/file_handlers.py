@@ -113,15 +113,21 @@ async def upload_request(app, vehicle_id, request, cover, actor, assignment_id=N
         )
 
 
-def category_upload_form(form):
+def upload_form_file(form, *, optional_fields=()):
     upload = form.get("file")
     if (
-        set(form) - {"file", "category_id"}
+        set(form) - {"file", *optional_fields}
         or len(form.getlist("file")) != 1
-        or len(form.getlist("category_id")) > 1
         or not hasattr(upload, "file")
     ):
-        raise DomainError("Choose one file and its category.")
+        raise DomainError("Choose one file.")
+    return upload
+
+
+def category_upload_form(form):
+    upload = upload_form_file(form, optional_fields=("category_id",))
+    if len(form.getlist("category_id")) > 1:
+        raise DomainError("Choose one category.")
     value = form.get("category_id")
     if value is None:
         return upload, None
@@ -198,15 +204,13 @@ def preview_item(app, item, request, user):
     return render_page(request, "document_preview.html", context, user=user)
 
 
-def store_office_upload(app, upload, actor, category_id=None):
+def store_office_upload(app, upload, actor):
     layout = app.state.media_layout
     with layout.operation() if layout else nullcontext():
-        return _store_office_upload(app, upload, actor, category_id)
+        return _store_office_upload(app, upload, actor)
 
 
-def _store_office_upload(app, upload, actor, category_id=None):
-    if category_id is not None:
-        category_id = app.state.categories.get(category_id)["id"]
+def _store_office_upload(app, upload, actor):
     saved = app.state.store.save_office_file(UploadAdapter(upload))
     try:
         item = app.state.office.add(
@@ -215,7 +219,6 @@ def _store_office_upload(app, upload, actor, category_id=None):
             saved.kind,
             saved.size,
             actor,
-            **({"category_id": category_id} if category_id is not None else {})
         )
     except Exception:
         try:

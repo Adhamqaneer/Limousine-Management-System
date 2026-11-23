@@ -4,7 +4,6 @@ from fastapi import Depends, Request
 from starlette.concurrency import run_in_threadpool
 
 from limousine.domain.vehicles import DomainError
-from limousine.infrastructure.office import attachment as office_attachment
 from limousine.infrastructure.vehicle_repository import attachment as vehicle_attachment
 
 from ..requests import read_json_body
@@ -60,25 +59,23 @@ def register_routes(app):
         )
         return {"category": {key: row[key] for key in ("id", "name", "code", "is_other")}}
 
-    async def classify(request, user, scope, attachment_id, vehicle_id=None, assignment_id=None):
+    async def classify(request, user, vehicle_id, attachment_id, assignment_id=None):
         payload = await category_form(request, ("category_id",), ("category_id",))
         row = await run_in_threadpool(
             app.state.categories.classify,
-            scope,
+            vehicle_id,
             attachment_id,
             payload["category_id"],
             user,
-            vehicle_id,
             assignment_id,
         )
-        item = office_attachment(row) if scope == "office" else vehicle_attachment(row)
-        return {"attachment": attachment_payload(item)}
+        return {"attachment": attachment_payload(vehicle_attachment(row))}
 
     @app.patch("/api/vehicles/{vehicle_id}/attachments/{attachment_id}/category/")
     async def classify_vehicle(
         vehicle_id: int, attachment_id: int, request: Request, user=Depends(current_user)
     ):
-        return await classify(request, user, "vehicle", attachment_id, vehicle_id)
+        return await classify(request, user, vehicle_id, attachment_id)
 
     @app.patch(
         "/api/vehicles/{vehicle_id}/drivers/{assignment_id}/attachments/{attachment_id}/category/"
@@ -90,8 +87,4 @@ def register_routes(app):
         request: Request,
         user=Depends(current_user),
     ):
-        return await classify(request, user, "vehicle", attachment_id, vehicle_id, assignment_id)
-
-    @app.patch("/api/office/attachments/{attachment_id}/category/")
-    async def classify_office(attachment_id: int, request: Request, user=Depends(current_user)):
-        return await classify(request, user, "office", attachment_id)
+        return await classify(request, user, vehicle_id, attachment_id, assignment_id)

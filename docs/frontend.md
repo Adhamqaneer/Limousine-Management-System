@@ -13,7 +13,7 @@ Jinja HTML templates, CSS and plain JavaScript; no build step or npm runtime dep
 | drivers.js / driver-files.js | Period workflow and scoped documents |
 | office-files.js / recycle-bin.js | Office documents and recovery |
 | report-data.js / vehicle-report.js / vehicle-report.css | Selected fields, filtered results and printing |
-| attachment-categories.js | Existing attachment classification and driver/office upload pickers |
+| attachment-categories.js | Vehicle and driver attachment classification, plus the driver upload picker |
 | attachment-download.js | Select document types and download the filtered vehicle originals as ZIP |
 | login.js / document_preview.js | Sign-in and local document preview |
 
@@ -33,7 +33,9 @@ Active navigation classes use a complete Jinja string expression so template for
 
 Reports use HTML tables and browser print/PDF. Letterhead mode adds the office banner/watermark; preprinted-paper mode omits them. Screen controls/decorative page headings are hidden in print. Driver periods have their own report. DOCX/XLSX previews are local bounded text/table conversions; original formatting/images/formulas may differ.
 
-Attachment type choices load from the authenticated shared API. Vehicle Photos and Files upload to Other by default. Each uploaded row has a category button that opens the classification dialog. Driver and office upload controls also offer a category picker. The download page has type checkboxes and one Download ZIP action, scoped to the current vehicle search/filters. It posts the selection with CSRF and saves the returned original-file archive. Categories are independent of filenames. This feature adds no attachment print/PDF rendering; the existing vehicle-data and driver-history reports retain their print behavior.
+Vehicle reports start with no selected fields. The preview and print table use the order in which fields are checked, starting at the right edge in Arabic and the left edge in English. Rechecking a field places it last. Select all keeps the existing order and appends unchecked fields in the displayed order.
+
+Attachment type choices load from the authenticated shared API. Vehicle Photos and Files upload to Other by default. Vehicle and driver attachment rows open the classification dialog, and driver uploads also offer a category picker. Office photos and files can be uploaded directly. The category download page has type checkboxes and one Download ZIP action, scoped to the current vehicle search and filters. It posts the selection with CSRF and saves the original-file archive. Categories are independent of filenames. Vehicle-data and driver-history reports use the browser's print/PDF workflow.
 
 ## Checks
 

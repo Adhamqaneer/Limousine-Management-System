@@ -133,15 +133,45 @@ async function main() {
   );
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(officeNav.textContent, 'ملفات المكتب');
+  const get = (id) => nodes.get(id);
+  const choices = get('report-choices').querySelectorAll('input');
+  const choose = (field, checked = true) => {
+    const input = choices.find((item) => item.value === field);
+    input.checked = checked;
+    input.handlers.change();
+  };
+  const reportHeaders = () => get('report-head').children.map((item) => item.textContent);
+  const reportValues = () =>
+    get('report-body').children[0].children.map((cell) => cell.children[0].textContent);
+  assert.ok(get('print-report').disabled);
+  assert.ok(get('report-paper').hidden);
+  choose('plate_number');
+  choose('owner_name');
+  choose('owner_phone');
+  assert.deepEqual(reportHeaders(), ['رقم المركبة', 'اسم المالك', 'رقم تلفون المالك']);
+  assert.deepEqual(reportValues(), ['050-001', '<script>bad()</script>', '00123']);
+  choose('plate_number', false);
+  choose('plate_number');
+  assert.deepEqual(reportValues(), ['<script>bad()</script>', '00123', '050-001']);
   doc.documentElement.lang = 'en';
   doc.documentElement.dir = 'ltr';
   events['hspace:language']();
   assert.equal(officeNav.textContent, 'Office files');
-  const get = (id) => nodes.get(id);
+  assert.deepEqual(reportHeaders(), ['Owner name', 'Owner phone number', 'Vehicle number']);
+  get('select-all').handlers.click();
+  assert.deepEqual(reportHeaders().slice(0, 4), [
+    'Owner name',
+    'Owner phone number',
+    'Vehicle number',
+    'Driver name',
+  ]);
+  get('clear-fields').handlers.click();
+  choose('plate_number');
   assert.equal(get('report-paper').hidden, false);
   assert.equal(get('report-head').children.length, 1);
   assert.equal(get('report-letterhead-cell').colSpan, 1);
   assert.equal(get('report-body').children[0].children[0].children[0].textContent, '050-001');
+  get('clear-fields').handlers.click();
   get('select-all').handlers.click();
   assert.equal(get('report-head').children.length, 8);
   assert.equal(get('report-letterhead-cell').colSpan, 8);
@@ -168,12 +198,20 @@ async function main() {
   assert.equal(printed, 2);
   assert.equal(get('report-paper').classes.has('preprinted-paper'), false);
   get('clear-fields').handlers.click();
+  choose('plate_number');
+  choose('owner_phone');
+  get('print-report').handlers.click();
+  get('print-with-letterhead').handlers.click();
+  assert.equal(printed, 3);
+  assert.deepEqual(reportHeaders(), ['Vehicle number', 'Owner phone number']);
+  assert.deepEqual(reportValues(), ['050-001', '00123']);
+  get('clear-fields').handlers.click();
   assert.ok(get('print-report').disabled);
   assert.ok(get('report-paper').hidden);
   get('print-report').handlers.click();
-  assert.equal(printed, 2);
+  assert.equal(printed, 3);
   get('print-without-letterhead').handlers.click();
-  assert.equal(printed, 2);
+  assert.equal(printed, 3);
   doc.documentElement.lang = 'ar';
   doc.documentElement.dir = 'rtl';
   events['hspace:language']();
@@ -234,7 +272,7 @@ async function main() {
   await get('refresh-report').handlers.click();
   assert.equal(redirected, '/login/');
   console.log(
-    'Report UI states, eight-column selection, RTL labels, safe cells, leading zeros and print gating passed.',
+    'Report UI states, column order, RTL labels, safe cells, leading zeros and print gating passed.',
   );
 }
 main().catch((error) => {

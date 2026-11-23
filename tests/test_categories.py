@@ -95,7 +95,7 @@ class CategoryTests(TestCase):
         )
         self.assertEqual(
             client.patch(
-                "/api/office/attachments/1/category/", json={"category_id": 5}
+                "/api/vehicles/1/attachments/1/category/", json={"category_id": 5}
             ).status_code,
             403,
         )

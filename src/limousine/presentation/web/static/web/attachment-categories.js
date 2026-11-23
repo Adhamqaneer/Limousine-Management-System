@@ -1,4 +1,4 @@
-/* One category list serves existing attachments and driver/office upload pickers. */
+/* Categories for vehicle and driver attachments, including driver uploads. */
 (() => {
   const root = document.documentElement;
   const strings = {
@@ -318,8 +318,6 @@
   });
   const uploadPairs = [
     ['driver-files-input', 'driver-files-add'],
-    ['office-photos-input', 'office-add-photos'],
-    ['office-files-input', 'office-add-files'],
   ];
   for (const [inputId, buttonId] of uploadPairs) {
     const input = document.getElementById(inputId),

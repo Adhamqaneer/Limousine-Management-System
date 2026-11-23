@@ -10,11 +10,11 @@ from limousine.infrastructure.attachment_archive import build_attachment_archive
 
 from ..downloads import ArchiveResponse
 from ..file_handlers import (
-    category_upload_form,
     file_response,
     preview_item,
     rename_attachment_request,
     store_office_upload,
+    upload_form_file,
 )
 from ..rendering import render_page
 from ..security import current_user, require_csrf
@@ -34,8 +34,8 @@ def register_routes(app):
     async def upload_office_file(request: Request, user=Depends(current_user)):
         require_csrf(request)
         async with request.form(max_files=1, max_fields=2) as form:
-            upload, category_id = category_upload_form(form)
-            return await run_in_threadpool(store_office_upload, app, upload, user, category_id)
+            upload = upload_form_file(form)
+            return await run_in_threadpool(store_office_upload, app, upload, user)
 
     @app.get("/api/office/attachments/archive/{kind}/")
     def office_archive(kind: Literal["photos", "files"], user=Depends(current_user)):
