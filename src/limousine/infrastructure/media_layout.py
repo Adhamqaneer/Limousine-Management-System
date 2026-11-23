@@ -17,17 +17,27 @@ MEDIA_LOCK_ID = 72730805
 
 
 class MediaOrganizer:
-    def __init__(self, database, store):
+    def __init__(
+        self,
+        database,
+        store,
+    ):
         self.database = database
         self.store = store
-        self.cleanup = FileCleanup(database, store)
+        self.cleanup = FileCleanup(
+            database,
+            store,
+        )
         self._copied_keys = []
 
     @contextmanager
     def operation(self):
         # Serialize uploads/date changes even when multiple web processes are running.
         with self.database.connect() as lock_connection:
-            lock_connection.execute("SELECT pg_advisory_lock(%s)", (MEDIA_LOCK_ID,))
+            lock_connection.execute(
+                "SELECT pg_advisory_lock(%s)",
+                (MEDIA_LOCK_ID,),
+            )
             self._copied_keys = []
             try:
                 yield
@@ -44,27 +54,51 @@ class MediaOrganizer:
                 try:
                     while True:
                         completed, deferred = self.cleanup.retry_pending()
-                        if deferred or completed < 100:
+                        if (
+                            deferred
+                            or completed < 100
+                        ):
                             break
                 except (OSError, psycopg.Error):
                     logger.warning("Old media copies remain queued for cleanup.")
             finally:
-                lock_connection.execute("SELECT pg_advisory_unlock(%s)", (MEDIA_LOCK_ID,))
+                lock_connection.execute(
+                    "SELECT pg_advisory_unlock(%s)",
+                    (MEDIA_LOCK_ID,),
+                )
 
-    def ensure_directory(self, directory):
+    def ensure_directory(
+        self,
+        directory,
+    ):
         marker = self.store.path(directory + "/" + "0" * 32 + ".txt")
-        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
 
-    def ensure_sections(self, directory, *, covers=False):
+    def ensure_sections(
+        self,
+        directory,
+        *,
+        covers=False,
+    ):
         for section in ("photos", "files"):
             self.ensure_directory(directory + "/" + section)
         if covers:
             self.ensure_directory(directory + "/covers")
 
-    def upload_directory(self, vehicle_id, assignment_id=None):
+    def upload_directory(
+        self,
+        vehicle_id,
+        assignment_id=None,
+    ):
         if assignment_id is None:
             directory = vehicle_directory(vehicle_id)
-            self.ensure_sections(directory, covers=True)
+            self.ensure_sections(
+                directory,
+                covers=True,
+            )
             return directory
         with self.database.connect() as connection:
             assignment = connection.execute(
@@ -80,16 +114,28 @@ class MediaOrganizer:
     @staticmethod
     def digest(path):
         with path.open("rb") as source:
-            return hashlib.file_digest(source, "sha256").digest()
+            return hashlib.file_digest(
+                source,
+                "sha256",
+            ).digest()
 
-    def relocate(self, connection, table, row, directory):
+    def relocate(
+        self,
+        connection,
+        table,
+        row,
+        directory,
+    ):
         old_key = row["storage_key"]
         new_key = directory + "/" + PurePosixPath(old_key).name
         if old_key == new_key:
             return
         source = self.store.path(old_key)
         target = self.store.path(new_key)
-        target.parent.mkdir(parents=True, exist_ok=True)
+        target.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
         if target.exists():
             if self.digest(source) != self.digest(target):
                 raise OSError("A different file already occupies the organized path.")
@@ -98,9 +144,16 @@ class MediaOrganizer:
             try:
                 with source.open("rb") as original, target.open("xb") as destination:
                     created = True
-                    shutil.copyfileobj(original, destination, 65536)
-                if target.stat().st_size != row["size"] or self.digest(source) != self.digest(
+                    shutil.copyfileobj(
+                        original,
+                        destination,
+                        65536,
+                    )
+                if (
+                    target.stat().st_size != row["size"]
+                    or self.digest(source) != self.digest(
                     target
+                )
                 ):
                     raise OSError("The copied original is incomplete.")
             except Exception:
@@ -120,9 +173,14 @@ class MediaOrganizer:
             (old_key,),
         )
 
-    def organize_driver(self, connection, assignment_id):
+    def organize_driver(
+        self,
+        connection,
+        assignment_id,
+    ):
         assignment = connection.execute(
-            "SELECT * FROM hspace_driver_assignment WHERE id=%s", (assignment_id,)
+            "SELECT * FROM hspace_driver_assignment WHERE id=%s",
+            (assignment_id,),
         ).fetchone()
         if not assignment:
             raise NotFound("Driver period not found.")
@@ -131,7 +189,10 @@ class MediaOrganizer:
         driver_root = self.store.root.resolve() / "drivers"
         current_folder = self.store.path(directory + "/photos/" + "0" * 32 + ".txt").parent.parent
         for previous in driver_root.glob(f"*--period-{assignment_id}"):
-            if previous == current_folder or previous.is_symlink():
+            if (
+                previous == current_folder
+                or previous.is_symlink()
+            ):
                 continue
             if not previous.resolve().is_relative_to(driver_root):
                 continue
@@ -150,7 +211,10 @@ class MediaOrganizer:
         ).fetchall()
         for row in rows:
             self.relocate(
-                connection, "limo_attachment", row, directory + "/" + section_for(row["kind"])
+                connection,
+                "limo_attachment",
+                row,
+                directory + "/" + section_for(row["kind"]),
             )
 
     def organize_all(self):
@@ -173,7 +237,10 @@ class MediaOrganizer:
                 for vehicle in connection.execute(
                     "SELECT id FROM limo_vehicle ORDER BY id"
                 ).fetchall():
-                    self.ensure_sections(vehicle_directory(vehicle["id"]), covers=True)
+                    self.ensure_sections(
+                        vehicle_directory(vehicle["id"]),
+                        covers=True,
+                    )
                 for row in connection.execute(
                     "SELECT * FROM limo_attachment WHERE driver_assignment_id IS NULL ORDER BY id"
                 ).fetchall():
@@ -195,4 +262,7 @@ class MediaOrganizer:
                 for row in connection.execute(
                     "SELECT id FROM hspace_driver_assignment ORDER BY id"
                 ).fetchall():
-                    self.organize_driver(connection, row["id"])
+                    self.organize_driver(
+                        connection,
+                        row["id"],
+                    )

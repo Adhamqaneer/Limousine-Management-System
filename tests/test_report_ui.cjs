@@ -14,12 +14,18 @@ async function main() {
       this.dataset = {};
       this.classes = new Set();
       this.classList = {
-        toggle: (name, on) => (on ? this.classes.add(name) : this.classes.delete(name)),
+        toggle: (
+          name,
+          on,
+        ) => (on ? this.classes.add(name) : this.classes.delete(name)),
       };
     }
     set id(value) {
       this._id = value;
-      nodes.set(value, this);
+      nodes.set(
+        value,
+        this,
+      );
     }
     get id() {
       return this._id;
@@ -30,10 +36,16 @@ async function main() {
     replaceChildren(...items) {
       this.children = items;
     }
-    addEventListener(name, fn) {
+    addEventListener(
+      name,
+      fn,
+    ) {
       this.handlers[name] = fn;
     }
-    setAttribute(name, value) {
+    setAttribute(
+      name,
+      value,
+    ) {
       this[name] = value;
     }
     showModal() {
@@ -108,7 +120,10 @@ async function main() {
   const context = {
     document: doc,
     window: {
-      addEventListener: (name, fn) => {
+      addEventListener: (
+        name,
+        fn,
+      ) => {
         events[name] = fn;
       },
       print: () => printed++,
@@ -124,18 +139,33 @@ async function main() {
     Date,
     URLSearchParams,
   };
-  const dir = path.join(__dirname, '../src/limousine/presentation/web/static/web');
+  const dir = path.join(
+    __dirname,
+    '../src/limousine/presentation/web/static/web',
+  );
   vm.runInNewContext(
     ['vehicle-filters.js', 'search.js', 'report-data.js', 'vehicle-report.js']
-      .map((file) => fs.readFileSync(path.join(dir, file), 'utf8'))
+      .map((file) => fs.readFileSync(
+        path.join(
+          dir,
+          file,
+        ),
+        'utf8',
+      ))
       .join('\n'),
     context,
   );
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(officeNav.textContent, 'ملفات المكتب');
+  assert.equal(
+    officeNav.textContent,
+    'ملفات المكتب',
+  );
   const get = (id) => nodes.get(id);
   const choices = get('report-choices').querySelectorAll('input');
-  const choose = (field, checked = true) => {
+  const choose = (
+    field,
+    checked = true,
+  ) => {
     const input = choices.find((item) => item.value === field);
     input.checked = checked;
     input.handlers.change();
@@ -148,74 +178,170 @@ async function main() {
   choose('plate_number');
   choose('owner_name');
   choose('owner_phone');
-  assert.deepEqual(reportHeaders(), ['رقم المركبة', 'اسم المالك', 'رقم تلفون المالك']);
-  assert.deepEqual(reportValues(), ['050-001', '<script>bad()</script>', '00123']);
-  choose('plate_number', false);
+  assert.deepEqual(
+    reportHeaders(),
+    ['رقم المركبة', 'اسم المالك', 'رقم تلفون المالك'],
+  );
+  assert.deepEqual(
+    reportValues(),
+    ['050-001', '<script>bad()</script>', '00123'],
+  );
+  choose(
+    'plate_number',
+    false,
+  );
   choose('plate_number');
-  assert.deepEqual(reportValues(), ['<script>bad()</script>', '00123', '050-001']);
+  assert.deepEqual(
+    reportValues(),
+    ['<script>bad()</script>', '00123', '050-001'],
+  );
   doc.documentElement.lang = 'en';
   doc.documentElement.dir = 'ltr';
   events['hspace:language']();
-  assert.equal(officeNav.textContent, 'Office files');
-  assert.deepEqual(reportHeaders(), ['Owner name', 'Owner phone number', 'Vehicle number']);
+  assert.equal(
+    officeNav.textContent,
+    'Office files',
+  );
+  assert.deepEqual(
+    reportHeaders(),
+    ['Owner name', 'Owner phone number', 'Vehicle number'],
+  );
   get('select-all').handlers.click();
-  assert.deepEqual(reportHeaders().slice(0, 4), [
-    'Owner name',
-    'Owner phone number',
-    'Vehicle number',
-    'Driver name',
-  ]);
+  assert.deepEqual(
+    reportHeaders().slice(
+      0,
+      4,
+    ),
+    [
+      'Owner name',
+      'Owner phone number',
+      'Vehicle number',
+      'Driver name',
+    ],
+  );
   get('clear-fields').handlers.click();
   choose('plate_number');
-  assert.equal(get('report-paper').hidden, false);
-  assert.equal(get('report-head').children.length, 1);
-  assert.equal(get('report-letterhead-cell').colSpan, 1);
-  assert.equal(get('report-body').children[0].children[0].children[0].textContent, '050-001');
+  assert.equal(
+    get('report-paper').hidden,
+    false,
+  );
+  assert.equal(
+    get('report-head').children.length,
+    1,
+  );
+  assert.equal(
+    get('report-letterhead-cell').colSpan,
+    1,
+  );
+  assert.equal(
+    get('report-body').children[0].children[0].children[0].textContent,
+    '050-001',
+  );
   get('clear-fields').handlers.click();
   get('select-all').handlers.click();
-  assert.equal(get('report-head').children.length, 8);
-  assert.equal(get('report-letterhead-cell').colSpan, 8);
+  assert.equal(
+    get('report-head').children.length,
+    8,
+  );
+  assert.equal(
+    get('report-letterhead-cell').colSpan,
+    8,
+  );
   assert.ok(get('report-paper').classes.has('landscape'));
   const cells = get('report-body').children[0].children;
-  assert.equal(cells[0].children[0].textContent, '<script>bad()</script>');
-  assert.equal(cells[0].children[0].tagName, 'bdi');
-  assert.equal(cells[1].children[0].textContent, '00123');
-  assert.equal(cells[6].children[0].dir, 'ltr');
+  assert.equal(
+    cells[0].children[0].textContent,
+    '<script>bad()</script>',
+  );
+  assert.equal(
+    cells[0].children[0].tagName,
+    'bdi',
+  );
+  assert.equal(
+    cells[1].children[0].textContent,
+    '00123',
+  );
+  assert.equal(
+    cells[6].children[0].dir,
+    'ltr',
+  );
   get('print-report').handlers.click();
-  assert.equal(printed, 0);
+  assert.equal(
+    printed,
+    0,
+  );
   assert.ok(get('print-style-dialog').open);
   get('cancel-print-style').handlers.click();
-  assert.equal(printed, 0);
-  assert.equal(get('print-style-dialog').open, false);
+  assert.equal(
+    printed,
+    0,
+  );
+  assert.equal(
+    get('print-style-dialog').open,
+    false,
+  );
   get('print-report').handlers.click();
   get('print-without-letterhead').handlers.click();
-  assert.equal(printed, 1);
+  assert.equal(
+    printed,
+    1,
+  );
   assert.ok(get('report-paper').classes.has('preprinted-paper'));
-  assert.equal(get('print-style-dialog').open, false);
-  assert.equal(get('report-body').children[0].children[6].children[0].textContent, 'JT001a');
+  assert.equal(
+    get('print-style-dialog').open,
+    false,
+  );
+  assert.equal(
+    get('report-body').children[0].children[6].children[0].textContent,
+    'JT001a',
+  );
   get('print-report').handlers.click();
   get('print-with-letterhead').handlers.click();
-  assert.equal(printed, 2);
-  assert.equal(get('report-paper').classes.has('preprinted-paper'), false);
+  assert.equal(
+    printed,
+    2,
+  );
+  assert.equal(
+    get('report-paper').classes.has('preprinted-paper'),
+    false,
+  );
   get('clear-fields').handlers.click();
   choose('plate_number');
   choose('owner_phone');
   get('print-report').handlers.click();
   get('print-with-letterhead').handlers.click();
-  assert.equal(printed, 3);
-  assert.deepEqual(reportHeaders(), ['Vehicle number', 'Owner phone number']);
-  assert.deepEqual(reportValues(), ['050-001', '00123']);
+  assert.equal(
+    printed,
+    3,
+  );
+  assert.deepEqual(
+    reportHeaders(),
+    ['Vehicle number', 'Owner phone number'],
+  );
+  assert.deepEqual(
+    reportValues(),
+    ['050-001', '00123'],
+  );
   get('clear-fields').handlers.click();
   assert.ok(get('print-report').disabled);
   assert.ok(get('report-paper').hidden);
   get('print-report').handlers.click();
-  assert.equal(printed, 3);
+  assert.equal(
+    printed,
+    3,
+  );
   get('print-without-letterhead').handlers.click();
-  assert.equal(printed, 3);
+  assert.equal(
+    printed,
+    3,
+  );
   doc.documentElement.lang = 'ar';
   doc.documentElement.dir = 'rtl';
   events['hspace:language']();
-  assert.equal(officeNav.textContent, 'ملفات المكتب');
+  assert.equal(
+    officeNav.textContent,
+    'ملفات المكتب',
+  );
   assert.equal(
     get('label-plate_number').textContent,
     '\u0631\u0642\u0645 \u0627\u0644\u0645\u0631\u0643\u0628\u0629',
@@ -246,31 +372,49 @@ async function main() {
     context.location.hash = hash;
     events.hashchange();
     await new Promise((resolve) => setImmediate(resolve));
-    assert.equal(get('report-body').children.length, count);
-    assert.equal(get('print-all-vehicles').hidden, false);
+    assert.equal(
+      get('report-body').children.length,
+      count,
+    );
+    assert.equal(
+      get('print-all-vehicles').hidden,
+      false,
+    );
     assert.ok(get('report-criteria').textContent);
   }
   context.location.hash = '#results?driver_phone=123';
   events.hashchange();
   await new Promise((resolve) => setImmediate(resolve));
   assert.ok(get('print-report').disabled);
-  assert.equal(get('report-body').children.length, 0);
+  assert.equal(
+    get('report-body').children.length,
+    0,
+  );
   context.location.hash = '';
   events.hashchange();
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(get('report-body').children.length, 3);
+  assert.equal(
+    get('report-body').children.length,
+    3,
+  );
   assert.ok(get('print-all-vehicles').hidden);
   response = { ok: false, status: 503 };
   await get('refresh-report').handlers.click();
   assert.ok(get('print-report').disabled);
-  assert.equal(get('report-body').children.length, 0);
+  assert.equal(
+    get('report-body').children.length,
+    0,
+  );
   response = { ok: true, status: 200, json: async () => ({ vehicles: [] }) };
   await get('refresh-report').handlers.click();
   assert.ok(get('print-report').disabled);
   assert.ok(get('report-paper').hidden);
   response = { ok: false, status: 401 };
   await get('refresh-report').handlers.click();
-  assert.equal(redirected, '/login/');
+  assert.equal(
+    redirected,
+    '/login/',
+  );
   console.log(
     'Report UI states, column order, RTL labels, safe cells, leading zeros and print gating passed.',
   );

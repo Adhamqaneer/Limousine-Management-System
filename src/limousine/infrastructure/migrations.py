@@ -11,6 +11,7 @@ from uuid import uuid4
 from psycopg import sql
 
 from limousine.domain.accounts import OPERATOR_USERNAME
+from limousine.domain.attachments import MAX_ATTACHMENT_BYTES
 from limousine.domain.categories import SEED_CATEGORIES, category_key
 from limousine.infrastructure.media_paths import (
     COVER_FILE_PATTERN,
@@ -20,7 +21,8 @@ from limousine.infrastructure.media_paths import (
 )
 from limousine.infrastructure.passwords import hash_password
 
-SCHEMA_VERSION = 12
+SCHEMA_VERSION = 14
+OPERATOR_SCHEMA_VERSION = 12
 
 DDL = """
 CREATE TABLE IF NOT EXISTS hspace_schema_migration (version integer PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP);
@@ -67,11 +69,19 @@ def media_manifest(root):
 
 def backup_database(settings):
     directory = settings.backup_directory
-    directory.mkdir(parents=True, exist_ok=True)
-    executable = settings.pg_dump_path or shutil.which("pg_dump") or (
-        "C:/Program Files/PostgreSQL/18/bin/pg_dump.exe" if os.name == "nt" else None
+    directory.mkdir(
+        parents=True,
+        exist_ok=True,
     )
-    if not executable or not Path(executable).is_file():
+    executable = (
+        settings.pg_dump_path
+        or shutil.which("pg_dump")
+        or ("C:/Program Files/PostgreSQL/18/bin/pg_dump.exe" if os.name == "nt" else None)
+    )
+    if (
+        not executable
+        or not Path(executable).is_file()
+    ):
         raise RuntimeError("Install PostgreSQL pg_dump before migrating existing data.")
     target = directory / (
         "before-fastapi-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S") + ".dump"
@@ -96,7 +106,11 @@ def backup_database(settings):
         env=environment,
         capture_output=True,
         timeout=120,
-        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        creationflags=getattr(
+            subprocess,
+            "CREATE_NO_WINDOW",
+            0,
+        ),
     )
     if (
         result.returncode
@@ -130,16 +144,79 @@ def _schema_version(connection):
 def needs_operator_setup(database):
     _check_local(database.settings)
     with database.connect() as connection:
-        return (_schema_version(connection) or 0) < SCHEMA_VERSION
+        return (_schema_version(connection) or 0) < OPERATOR_SCHEMA_VERSION
 
 
-def migrate(database, *, operator_password=None):
+def _migrate_upload_limits(connection):
+    size_check = sql.SQL("size > 0 AND size <= {}").format(sql.Literal(MAX_ATTACHMENT_BYTES))
+    metadata_check = size_check + sql.SQL(" AND btrim(original_name) <> ''")
+    for table, constraint, check in (
+        ("limo_attachment", "limo_attachment_valid_metadata", metadata_check),
+        ("limo_vehicle_cover", "limo_vehicle_cover_valid_metadata", metadata_check),
+        ("hspace_office_attachment", "hspace_office_attachment_size_check", size_check),
+    ):
+        connection.execute(
+            sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}, ADD CONSTRAINT {} CHECK ({})").format(
+                sql.Identifier(table),
+                sql.Identifier(constraint),
+                sql.Identifier(constraint),
+                check,
+            )
+        )
+    connection.execute("INSERT INTO hspace_schema_migration(version) VALUES (13)")
+
+
+def _migrate_unique_vehicle_numbers(connection):
+    connection.execute("""
+        CREATE INDEX hspace_vehicle_plate_idx ON limo_vehicle (plate_number);
+        CREATE FUNCTION hspace_guard_vehicle_plate() RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        BEGIN
+            -- Existing duplicates may still be edited or restored under their original number.
+            IF TG_OP = 'UPDATE' AND NEW.plate_number = OLD.plate_number THEN
+                RETURN NEW;
+            END IF;
+            PERFORM pg_advisory_xact_lock(72730807);
+            IF EXISTS (
+                SELECT 1 FROM limo_vehicle WHERE plate_number = NEW.plate_number
+            ) THEN
+                RAISE EXCEPTION USING ERRCODE = '23505',
+                    CONSTRAINT = 'hspace_vehicle_plate_unique',
+                    MESSAGE = 'A vehicle with this number already exists.';
+            END IF;
+            RETURN NEW;
+        END;
+        $$;
+        CREATE TRIGGER hspace_vehicle_plate_unique
+            BEFORE INSERT OR UPDATE OF plate_number ON limo_vehicle
+            FOR EACH ROW EXECUTE FUNCTION hspace_guard_vehicle_plate();
+        INSERT INTO hspace_schema_migration(version) VALUES (14);
+    """)
+
+
+def migrate(
+    database,
+    *,
+    operator_password=None,
+):
     _check_local(database.settings)
     with database.connect() as connection:
         connection.execute("SELECT pg_advisory_xact_lock(72730804)")
         version = _schema_version(connection)
-        if version is not None and version >= SCHEMA_VERSION:
+        if (
+            version is not None
+            and version >= SCHEMA_VERSION
+        ):
             return None
+        if (
+            version is not None
+            and version >= OPERATOR_SCHEMA_VERSION
+        ):
+            backup = backup_database(database.settings)
+            if version < 13:
+                _migrate_upload_limits(connection)
+            _migrate_unique_vehicle_numbers(connection)
+            return backup
         if operator_password is None:
             raise ValueError("Run manage.py migrate to set the office password privately.")
         encoded = hash_password(operator_password)
@@ -168,22 +245,30 @@ def migrate(database, *, operator_password=None):
                 connection.execute(
                     sql.SQL(
                         "ALTER TABLE {} ADD CONSTRAINT {} CHECK (size > 0 AND size <= 10485760 AND btrim(original_name) <> '')"
-                    ).format(sql.Identifier(table), sql.Identifier(table + "_valid_metadata"))
+                    ).format(
+                        sql.Identifier(table),
+                        sql.Identifier(table + "_valid_metadata"),
+                    )
                 )
                 connection.execute(
                     sql.SQL(
                         "ALTER TABLE {} ADD CONSTRAINT {} CHECK (storage_key ~ '^vehicles/[0-9a-f]{{32}}[.](jpg|jpeg|png|webp|pdf|txt|docx|xlsx)$')"
-                    ).format(sql.Identifier(table), sql.Identifier(table + "_valid_key"))
+                    ).format(
+                        sql.Identifier(table),
+                        sql.Identifier(table + "_valid_key"),
+                    )
                 )
                 connection.execute(
                     sql.SQL("ALTER TABLE {} ADD CONSTRAINT {} UNIQUE(storage_key)").format(
-                        sql.Identifier(table), sql.Identifier(table + "_storage_key_unique")
+                        sql.Identifier(table),
+                        sql.Identifier(table + "_storage_key_unique"),
                     )
                 )
                 # Replace the obsolete nonnegative check with the stronger bounded check.
                 connection.execute(
                     sql.SQL("ALTER TABLE {} DROP CONSTRAINT IF EXISTS {}").format(
-                        sql.Identifier(table), sql.Identifier(table + "_size_check")
+                        sql.Identifier(table),
+                        sql.Identifier(table + "_size_check"),
                     )
                 )
             # An inherited index duplicated hspace_attachment_vehicle_idx.
@@ -213,7 +298,10 @@ def migrate(database, *, operator_password=None):
                     ADD COLUMN deleted_by uuid REFERENCES hspace_user(id),
                     ADD CONSTRAINT {} CHECK ((is_deleted AND deleted_at IS NOT NULL AND deleted_by IS NOT NULL)
                         OR (NOT is_deleted AND deleted_at IS NULL AND deleted_by IS NULL))"""
-                    ).format(sql.Identifier(table), sql.Identifier(table + "_deletion_state"))
+                    ).format(
+                        sql.Identifier(table),
+                        sql.Identifier(table + "_deletion_state"),
+                    )
                 )
             # Retain older cover versions; only one undeleted cover may be active.
             constraints = connection.execute(
@@ -373,12 +461,15 @@ def migrate(database, *, operator_password=None):
             for table, name, pattern in constraints:
                 connection.execute(
                     sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(
-                        sql.Identifier(table), sql.Identifier(name)
+                        sql.Identifier(table),
+                        sql.Identifier(name),
                     )
                 )
                 connection.execute(
                     sql.SQL("ALTER TABLE {} ADD CONSTRAINT {} CHECK(storage_key ~ {})").format(
-                        sql.Identifier(table), sql.Identifier(name), sql.Literal(pattern)
+                        sql.Identifier(table),
+                        sql.Identifier(name),
+                        sql.Literal(pattern),
                     )
                 )
             connection.execute(
@@ -430,7 +521,10 @@ def migrate(database, *, operator_password=None):
                 connection.execute(
                     sql.SQL(
                         "ALTER TABLE {} ADD COLUMN category_id bigint NOT NULL DEFAULT {} REFERENCES hspace_attachment_category(id)"
-                    ).format(sql.Identifier(table), sql.Literal(other_id))
+                    ).format(
+                        sql.Identifier(table),
+                        sql.Literal(other_id),
+                    )
                 )
             connection.execute("""
                 CREATE INDEX hspace_attachment_category_idx ON limo_attachment(category_id,vehicle_id) WHERE NOT is_deleted AND driver_assignment_id IS NULL;
@@ -481,13 +575,17 @@ def migrate(database, *, operator_password=None):
         """)
         operator_id = uuid4()
         connection.execute(
-            "INSERT INTO hspace_user(id,username) VALUES (%s,%s)", (operator_id, OPERATOR_USERNAME)
+            "INSERT INTO hspace_user(id,username) VALUES (%s,%s)",
+            (operator_id, OPERATOR_USERNAME),
         )
         connection.execute(
             "INSERT INTO hspace_operator(user_id,password_hash) VALUES (%s,%s)",
             (operator_id, encoded),
         )
         connection.execute(
-            "INSERT INTO hspace_schema_migration(version) VALUES (%s)", (SCHEMA_VERSION,)
+            "INSERT INTO hspace_schema_migration(version) VALUES (%s)",
+            (OPERATOR_SCHEMA_VERSION,),
         )
+        _migrate_upload_limits(connection)
+        _migrate_unique_vehicle_numbers(connection)
     return backup

@@ -16,16 +16,23 @@ class NavigationParser(HTMLParser):
         super().__init__()
         self.links = []
 
-    def handle_starttag(self, tag, attributes):
+    def handle_starttag(
+        self,
+        tag,
+        attributes,
+    ):
         attributes = dict(attributes)
-        if tag == "a" and attributes.get("href") in {
+        if (
+            tag == "a"
+            and attributes.get("href") in {
             "/",
             "/reports/vehicles/",
             "/drivers/",
             "/office/",
             "/recycle-bin/",
             "/users/",
-        }:
+        }
+        ):
             if "aria-label" not in attributes:
                 self.links.append(attributes)
 
@@ -39,14 +46,37 @@ class NavigationTests(TestCase):
         for page in pages:
             with self.subTest(page=page):
                 response = client.get(page)
-                self.assertEqual(response.status_code, 200)
+                self.assertEqual(
+                    response.status_code,
+                    200,
+                )
                 parser = NavigationParser()
                 parser.feed(response.text)
                 # Ignore other in-page links to these URLs.
-                links = [link for link in parser.links if "nav-link" in link.get("class", "")]
-                self.assertEqual({link["href"] for link in links}, set(pages))
+                links = [
+                    link
+                    for link in parser.links
+                    if "nav-link"
+                    in link.get(
+                        "class",
+                        "",
+                    )
+                ]
+                self.assertEqual(
+                    {link["href"] for link in links},
+                    set(pages),
+                )
                 for link in links:
                     classes = link["class"].split()
-                    self.assertIn("nav-link", classes)
-                    self.assertEqual("active" in classes, link["href"] == page)
-                    self.assertEqual(link.get("aria-current") == "page", link["href"] == page)
+                    self.assertIn(
+                        "nav-link",
+                        classes,
+                    )
+                    self.assertEqual(
+                        "active" in classes,
+                        link["href"] == page,
+                    )
+                    self.assertEqual(
+                        link.get("aria-current") == "page",
+                        link["href"] == page,
+                    )

@@ -20,15 +20,48 @@ from tests.test_accounts import OPERATOR
 class DriverRuleTests(TestCase):
     def test_end_uses_inclusive_last_day_and_keeps_a_future_gap_available(self):
         repo = MagicMock()
-        service = DriverService(repo, today=lambda: date(2026, 11, 18))
-        service.end(1, 4, "2026-11-10", OPERATOR)
-        repo.end_driver.assert_called_once_with(1, 4, date(2026, 11, 11), OPERATOR)
+        service = DriverService(
+            repo,
+            today=lambda: date(
+                2026,
+                11,
+                18,
+            ),
+        )
+        service.end(
+            1,
+            4,
+            "2026-11-10",
+            OPERATOR,
+        )
+        repo.end_driver.assert_called_once_with(
+            1,
+            4,
+            date(
+                2026,
+                11,
+                11,
+            ),
+            OPERATOR,
+        )
         for value in ("2026-11-19", "2026-02-30", "", None):
             with self.subTest(value=value), self.assertRaises(DriverValidationError):
-                service.end(1, 4, value, OPERATOR)
+                service.end(
+                    1,
+                    4,
+                    value,
+                    OPERATOR,
+                )
 
     def test_invalid_input_has_stable_field_and_reason(self):
-        service = DriverService(MagicMock(), today=lambda: date(2022, 1, 1))
+        service = DriverService(
+            MagicMock(),
+            today=lambda: date(
+                2022,
+                1,
+                1,
+            ),
+        )
         cases = [
             ("Driver1", "123", "2021-01-01", "driver_name", "nameRule"),
             ("Driver", "+123", "2021-01-01", "driver_phone", "phoneRule"),
@@ -38,47 +71,160 @@ class DriverRuleTests(TestCase):
         ]
         for name, phone, start, field, reason in cases:
             with self.subTest(reason=reason), self.assertRaises(DriverValidationError) as result:
-                service.assign(1, name, phone, start, OPERATOR)
-            self.assertEqual((result.exception.field, result.exception.reason), (field, reason))
+                service.assign(
+                    1,
+                    name,
+                    phone,
+                    start,
+                    OPERATOR,
+                )
+            self.assertEqual(
+                (result.exception.field, result.exception.reason),
+                (field, reason),
+            )
         with self.assertRaises(DriverValidationError) as result:
-            validate_boundary(date(2021, 1, 1), date(2022, 1, 1))
+            validate_boundary(
+                date(
+                    2021,
+                    1,
+                    1,
+                ),
+                date(
+                    2022,
+                    1,
+                    1,
+                ),
+            )
         self.assertEqual(
-            (result.exception.field, result.exception.reason), ("started_on", "overlapStart")
+            (result.exception.field, result.exception.reason),
+            ("started_on", "overlapStart"),
         )
 
     def test_dates_and_period_boundaries(self):
         self.assertIsNone(driver_date(None))
-        self.assertEqual(driver_date("2022-01-01"), date(2022, 1, 1))
+        self.assertEqual(
+            driver_date("2022-01-01"),
+            date(
+                2022,
+                1,
+                1,
+            ),
+        )
         for value in ("2022-02-30", "20220101", 123):
             with self.assertRaises(DomainError):
                 driver_date(value)
         with self.assertRaises(DomainError):
-            driver_date(None, required=True)
+            driver_date(
+                None,
+                required=True,
+            )
         with self.assertRaises(DomainError):
-            validate_boundary(date(2021, 1, 1), date(2022, 1, 1))
+            validate_boundary(
+                date(
+                    2021,
+                    1,
+                    1,
+                ),
+                date(
+                    2022,
+                    1,
+                    1,
+                ),
+            )
         with self.assertRaises(DomainError):
-            validate_boundary(date(2021, 1, 1), previous_end=date(2022, 1, 1), correcting=True)
+            validate_boundary(
+                date(
+                    2021,
+                    1,
+                    1,
+                ),
+                previous_end=date(
+                    2022,
+                    1,
+                    1,
+                ),
+                correcting=True,
+            )
         with self.assertRaises(DomainError):
-            validate_boundary(None, date(2022, 1, 1), correcting=True)
-        validate_boundary(date(2022, 1, 1), date(2022, 1, 1))
+            validate_boundary(
+                None,
+                date(
+                    2022,
+                    1,
+                    1,
+                ),
+                correcting=True,
+            )
+        validate_boundary(
+            date(
+                2022,
+                1,
+                1,
+            ),
+            date(
+                2022,
+                1,
+                1,
+            ),
+        )
 
     def test_assignment_and_correction_are_distinct_and_validate_phone(self):
         repo = MagicMock()
         service = DriverService(repo)
-        service.assign(1, " Driver ", "00123", "2022-01-01", OPERATOR)
-        repo.change_driver.assert_called_with(
-            1, {"driver_name": "Driver", "driver_phone": "00123"}, date(2022, 1, 1), OPERATOR
+        service.assign(
+            1,
+            " Driver ",
+            "00123",
+            "2022-01-01",
+            OPERATOR,
         )
-        service.correct(1, "Driver", "00124", None, OPERATOR)
         repo.change_driver.assert_called_with(
-            1, {"driver_name": "Driver", "driver_phone": "00124"}, None, OPERATOR, correcting=True
+            1,
+            {"driver_name": "Driver", "driver_phone": "00123"},
+            date(
+                2022,
+                1,
+                1,
+            ),
+            OPERATOR,
+        )
+        service.correct(
+            1,
+            "Driver",
+            "00124",
+            None,
+            OPERATOR,
+        )
+        repo.change_driver.assert_called_with(
+            1,
+            {"driver_name": "Driver", "driver_phone": "00124"},
+            None,
+            OPERATOR,
+            correcting=True,
         )
         for name, phone in (("", "123"), ("Driver1", "123"), ("Driver", "+123")):
             with self.assertRaises(DomainError):
-                service.assign(1, name, phone, "2022-01-01", OPERATOR)
+                service.assign(
+                    1,
+                    name,
+                    phone,
+                    "2022-01-01",
+                    OPERATOR,
+                )
         with self.assertRaises(DomainError):
-            DriverService(repo, today=lambda: date(2022, 1, 1)).assign(
-                1, "Driver", "123", "2022-01-02", OPERATOR
+            DriverService(
+                repo,
+                today=lambda: date(
+                    2022,
+                    1,
+                    1,
+                ),
+            ).assign(
+                1,
+                "Driver",
+                "123",
+                "2022-01-02",
+                OPERATOR,
             )
 
 
@@ -90,23 +236,56 @@ class DriverHttpTests(TestCase):
         self.app.dependency_overrides[current_user] = lambda: OPERATOR
         self.app.state.vehicles = MagicMock()
         self.app.state.vehicles.get_vehicle.return_value = Vehicle(
-            1, "001", STAMP, vehicle_type="Camry"
+            1,
+            "001",
+            STAMP,
+            vehicle_type="Camry",
         )
         url = "/api/vehicles/1/drivers/4/end/"
         body = {"last_worked_on": "2026-11-10"}
-        self.assertEqual(self.client.post(url, json=body).status_code, 403)
-        response = self.client.post(url, json=body, headers=self.headers)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["vehicle"]["driver_name"], "")
-        self.service.end.assert_called_once_with(1, 4, "2026-11-10", OPERATOR)
         self.assertEqual(
             self.client.post(
-                url, json={**body, "driver_name": "fake"}, headers=self.headers
+                url,
+                json=body,
+            ).status_code,
+            403,
+        )
+        response = self.client.post(
+            url,
+            json=body,
+            headers=self.headers,
+        )
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
+        self.assertEqual(
+            response.json()["vehicle"]["driver_name"],
+            "",
+        )
+        self.service.end.assert_called_once_with(
+            1,
+            4,
+            "2026-11-10",
+            OPERATOR,
+        )
+        self.assertEqual(
+            self.client.post(
+                url,
+                json={**body, "driver_name": "fake"},
+                headers=self.headers,
             ).status_code,
             400,
         )
         self.app.dependency_overrides.clear()
-        self.assertEqual(self.client.post(url, json=body, headers=self.headers).status_code, 401)
+        self.assertEqual(
+            self.client.post(
+                url,
+                json=body,
+                headers=self.headers,
+            ).status_code,
+            401,
+        )
 
     def setUp(self):
         self.app = create_app(Settings())
@@ -120,10 +299,23 @@ class DriverHttpTests(TestCase):
 
     def test_all_driver_routes_require_authentication(self):
         for path in ("/api/drivers/", "/api/vehicles/1/drivers/"):
-            self.assertEqual(self.client.get(path).status_code, 401)
-        self.assertEqual(self.client.get("/drivers/", follow_redirects=False).status_code, 303)
+            self.assertEqual(
+                self.client.get(path).status_code,
+                401,
+            )
         self.assertEqual(
-            self.client.post("/api/vehicles/1/drivers/", json={}, headers=self.headers).status_code,
+            self.client.get(
+                "/drivers/",
+                follow_redirects=False,
+            ).status_code,
+            303,
+        )
+        self.assertEqual(
+            self.client.post(
+                "/api/vehicles/1/drivers/",
+                json={},
+                headers=self.headers,
+            ).status_code,
             401,
         )
 
@@ -134,32 +326,72 @@ class DriverHttpTests(TestCase):
         self.app.dependency_overrides[current_user] = lambda: OPERATOR
         self.app.state.vehicles = MagicMock()
         self.app.state.vehicles.get_vehicle.return_value = Vehicle(
-            1, "001", STAMP, vehicle_type="Camry"
+            1,
+            "001",
+            STAMP,
+            vehicle_type="Camry",
         )
-        self.assertEqual(self.client.get("/drivers/").status_code, 200)
+        self.assertEqual(
+            self.client.get("/drivers/").status_code,
+            200,
+        )
         response = self.client.get("/api/drivers/?q=Driver&on_date=2022-01-01")
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("no-store", response.headers["cache-control"])
-        self.service.history.assert_called_with(None, "Driver", "2022-01-01")
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
+        self.assertIn(
+            "no-store",
+            response.headers["cache-control"],
+        )
+        self.service.history.assert_called_with(
+            None,
+            "Driver",
+            "2022-01-01",
+        )
         body = {"driver_name": "Driver", "driver_phone": "00123", "started_on": "2022-01-01"}
-        self.assertEqual(self.client.post("/api/vehicles/1/drivers/", json=body).status_code, 403)
         self.assertEqual(
             self.client.post(
-                "/api/vehicles/1/drivers/", json=body, headers=self.headers
+                "/api/vehicles/1/drivers/",
+                json=body,
+            ).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.post(
+                "/api/vehicles/1/drivers/",
+                json=body,
+                headers=self.headers,
             ).status_code,
             200,
         )
-        self.service.assign.assert_called_once_with(1, "Driver", "00123", "2022-01-01", OPERATOR)
+        self.service.assign.assert_called_once_with(
+            1,
+            "Driver",
+            "00123",
+            "2022-01-01",
+            OPERATOR,
+        )
         self.assertEqual(
             self.client.patch(
-                "/api/vehicles/1/drivers/current/", json=body, headers=self.headers
+                "/api/vehicles/1/drivers/current/",
+                json=body,
+                headers=self.headers,
             ).status_code,
             200,
         )
-        self.service.correct.assert_called_once_with(1, "Driver", "00123", "2022-01-01", OPERATOR)
+        self.service.correct.assert_called_once_with(
+            1,
+            "Driver",
+            "00123",
+            "2022-01-01",
+            OPERATOR,
+        )
         self.assertEqual(
             self.client.post(
-                "/api/vehicles/1/drivers/", json={**body, "actor": "fake"}, headers=self.headers
+                "/api/vehicles/1/drivers/",
+                json={**body, "actor": "fake"},
+                headers=self.headers,
             ).status_code,
             400,
         )
@@ -169,7 +401,10 @@ class DriverHttpTests(TestCase):
 
         repo = MagicMock()
         with self.assertRaises(DomainError):
-            VehicleService(repo).update_vehicle(1, driver_phone="0079")
+            VehicleService(repo).update_vehicle(
+                1,
+                driver_phone="0079",
+            )
         repo.update_vehicle.assert_not_called()
 
     def test_validation_error_identifies_the_driver_field(self):
@@ -177,13 +412,24 @@ class DriverHttpTests(TestCase):
 
         self.app.dependency_overrides[current_user] = lambda: OPERATOR
         self.service.assign.side_effect = DriverValidationError(
-            "driver_phone", "phoneRule", "Use English digits."
+            "driver_phone",
+            "phoneRule",
+            "Use English digits.",
         )
         response = self.client.post(
             "/api/vehicles/1/drivers/",
             json={"driver_name": "Driver", "driver_phone": "+123", "started_on": "2022-01-01"},
             headers=self.headers,
         )
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["error"]["field"], "driver_phone")
-        self.assertEqual(response.json()["error"]["reason"], "phoneRule")
+        self.assertEqual(
+            response.status_code,
+            400,
+        )
+        self.assertEqual(
+            response.json()["error"]["field"],
+            "driver_phone",
+        )
+        self.assertEqual(
+            response.json()["error"]["reason"],
+            "phoneRule",
+        )

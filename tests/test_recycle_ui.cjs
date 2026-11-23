@@ -20,10 +20,16 @@ async function main() {
     replaceChildren(...items) {
       this.children = items;
     }
-    addEventListener(name, fn) {
+    addEventListener(
+      name,
+      fn,
+    ) {
       this.handlers[name] = fn;
     }
-    setAttribute(name, value) {
+    setAttribute(
+      name,
+      value,
+    ) {
       this[name] = value;
     }
   }
@@ -35,7 +41,10 @@ async function main() {
     'deleted-list',
     'activity-list',
   ])
-    nodes.set(id, new Node());
+    nodes.set(
+      id,
+      new Node(),
+    );
   nodes.get('csrf-token').value = 'csrf';
   const stamp = '2026-01-01T10:00:00Z';
   let items = [
@@ -64,17 +73,23 @@ async function main() {
       deleted_at: stamp,
     },
   ];
-  const history = Array.from({ length: 100 }, (_, index) => ({
-    id: 200 - index,
-    vehicle_id: 1,
-    entity_kind: 'attachment',
-    action: 'DELETE',
-    plate_number: '050-001',
-    label: '<script>file</script>',
-    actor_name: 'Member',
-    created_at: stamp,
-    reason: '',
-  }));
+  const history = Array.from(
+    { length: 100 },
+    (
+      _,
+      index,
+    ) => ({
+      id: 200 - index,
+      vehicle_id: 1,
+      entity_kind: 'attachment',
+      action: 'DELETE',
+      plate_number: '050-001',
+      label: '<script>file</script>',
+      actor_name: 'Member',
+      created_at: stamp,
+      reason: '',
+    }),
+  );
   const document = {
     documentElement: { lang: 'en' },
     getElementById: (id) => nodes.get(id),
@@ -87,12 +102,18 @@ async function main() {
     Date,
     window: {
       confirm: () => true,
-      addEventListener: (name, fn) => {
+      addEventListener: (
+        name,
+        fn,
+      ) => {
         events[name] = fn;
       },
     },
     location: { assign: () => {} },
-    fetch: async (url, options) => {
+    fetch: async (
+      url,
+      options,
+    ) => {
       calls.push([url, options]);
       if (options.method === 'DELETE') {
         items = items.map((item) => ({ ...item, has_current_cover: false }));
@@ -116,22 +137,46 @@ async function main() {
   };
   vm.runInNewContext(
     fs.readFileSync(
-      path.join(__dirname, '../src/limousine/presentation/web/static/web/recycle-bin.js'),
+      path.join(
+        __dirname,
+        '../src/limousine/presentation/web/static/web/recycle-bin.js',
+      ),
       'utf8',
     ),
     context,
   );
   await new Promise((resolve) => setImmediate(resolve));
   const list = nodes.get('deleted-list');
-  assert.equal(list.children.length, 2);
-  assert.equal(list.children[0].children[1].disabled, false);
-  assert.equal(list.children[1].children[1].disabled, true);
-  assert.equal(list.children[1].children[0].children[1].textContent, '<script>file</script>');
-  assert.equal(nodes.get('activity-list').children.length, 100);
-  assert.equal(nodes.get('older-activity').hidden, false);
+  assert.equal(
+    list.children.length,
+    2,
+  );
+  assert.equal(
+    list.children[0].children[1].disabled,
+    false,
+  );
+  assert.equal(
+    list.children[1].children[1].disabled,
+    true,
+  );
+  assert.equal(
+    list.children[1].children[0].children[1].textContent,
+    '<script>file</script>',
+  );
+  assert.equal(
+    nodes.get('activity-list').children.length,
+    100,
+  );
+  assert.equal(
+    nodes.get('older-activity').hidden,
+    false,
+  );
   await nodes.get('older-activity').handlers.click();
   assert.ok(calls.some(([url]) => url.includes('before=101')));
-  assert.equal(nodes.get('older-activity').hidden, true);
+  assert.equal(
+    nodes.get('older-activity').hidden,
+    true,
+  );
   await list.children[0].children[1].handlers.click();
   assert.ok(
     calls.some(
@@ -141,8 +186,14 @@ async function main() {
         options.headers['X-CSRFToken'] === 'csrf',
     ),
   );
-  assert.equal(list.children.length, 1);
-  assert.equal(list.children[0].children[1].disabled, false);
+  assert.equal(
+    list.children.length,
+    1,
+  );
+  assert.equal(
+    list.children[0].children[1].disabled,
+    false,
+  );
   document.documentElement.lang = 'ar';
   events['hspace:language']();
   assert.equal(
@@ -162,7 +213,10 @@ async function main() {
   });
   await nodes.get('refresh-trash').handlers.click();
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(list.children[1].children.length, 3);
+  assert.equal(
+    list.children[1].children.length,
+    3,
+  );
   await list.children[1].children[2].handlers.click();
   assert.ok(
     calls.some(
@@ -172,7 +226,10 @@ async function main() {
         options.headers['X-CSRFToken'] === 'csrf',
     ),
   );
-  assert.equal(list.children[1].children.length, 2);
+  assert.equal(
+    list.children[1].children.length,
+    2,
+  );
   console.log(
     'Recycle UI parent-first gating, actor history, safe labels, cursor pagination, CSRF restoration and Arabic passed.',
   );

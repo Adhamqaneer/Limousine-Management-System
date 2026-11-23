@@ -6,7 +6,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(
+    0,
+    str(ROOT / "src"),
+)
 
 
 def main():
@@ -17,10 +20,13 @@ def main():
     from limousine.infrastructure.migrations import backup_database, migrate
 
     settings = load_settings()
-    if settings.db_name != "limousine_local" or settings.db_host not in (
+    if (
+        settings.db_name != "limousine_local"
+        or settings.db_host not in (
         "127.0.0.1",
         "localhost",
         "::1",
+    )
     ):
         raise ValueError("Media organization requires the intended local database.")
     database = Database(settings)
@@ -30,8 +36,15 @@ def main():
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
     media_backup = ROOT / ".local/backups" / ("media-before-organization-" + stamp)
     if settings.media_root.exists():
-        shutil.make_archive(str(media_backup), "zip", settings.media_root)
-    organizer = MediaOrganizer(database, LocalAttachmentStore(settings.media_root))
+        shutil.make_archive(
+            str(media_backup),
+            "zip",
+            settings.media_root,
+        )
+    organizer = MediaOrganizer(
+        database,
+        LocalAttachmentStore(settings.media_root),
+    )
     organizer.organize_all()
     print("Media organized. Database/media backups are under .local/backups/.")
 

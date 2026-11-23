@@ -16,7 +16,10 @@
     const validFields = selected.filter((name) => fields.includes(name));
     return [...new Set(validFields)];
   }
-  function rows(vehicles, selected) {
+  function rows(
+    vehicles,
+    selected,
+  ) {
     const names = columns(selected);
     return vehicles.map((vehicle) =>
       names.map((name) =>

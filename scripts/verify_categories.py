@@ -8,7 +8,10 @@ from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(
+    0,
+    str(ROOT / "src"),
+)
 
 
 def main():
@@ -65,17 +68,31 @@ def main():
             }
 
     original_records = snapshot()
-    with database.connect() as connection, TemporaryDirectory(
-        prefix="hspace-category-"
-    ) as directory:
+    with (
+        database.connect() as connection,
+        TemporaryDirectory(prefix="hspace-category-") as directory,
+    ):
 
         class FixtureConnection:
-            def execute(self, query, *args):
+            def execute(
+                self,
+                query,
+                *args,
+            ):
                 # The outer read/write fixture transaction provides the snapshot.
                 # Production selection still uses its own read-only transaction.
-                if isinstance(query, str) and query.startswith("SET TRANSACTION"):
+                if (
+                    isinstance(
+                    query,
+                    str,
+                )
+                    and query.startswith("SET TRANSACTION")
+                ):
                     return None
-                return connection.execute(query, *args)
+                return connection.execute(
+                    query,
+                    *args,
+                )
 
         class FixtureDatabase:
             @contextmanager
@@ -100,12 +117,25 @@ def main():
         client.get("/login/")
         headers = {"X-CSRFToken": client.cookies["csrftoken"]}
 
-        def post(url, payload, status=200):
-            response = client.post(url, json=payload, headers=headers)
+        def post(
+            url,
+            payload,
+            status=200,
+        ):
+            response = client.post(
+                url,
+                json=payload,
+                headers=headers,
+            )
             assert response.status_code == status, (url, response.status_code)
             return response.json()
 
-        def upload(url, name, content, category_id=None):
+        def upload(
+            url,
+            name,
+            content,
+            category_id=None,
+        ):
             response = client.post(
                 url,
                 files={"file": (name, content)},
@@ -119,44 +149,118 @@ def main():
             initial = client.get("/api/attachment-categories/").json()["categories"]
             assert initial[-1]["is_other"]
             other = initial[-1]["id"]
-            source = post("/api/attachment-categories/", {"name": "Fixture Insurance"})["category"][
-                "id"
-            ]
-            exact = post("/api/attachment-categories/", {"name": " fixture-insurance "})[
+            source = post(
+                "/api/attachment-categories/",
+                {"name": "Fixture Insurance"},
+            )[
+                "category"
+            ]["id"]
+            exact = post(
+                "/api/attachment-categories/",
+                {"name": " fixture-insurance "},
+            )[
                 "category"
             ]["id"]
             assert exact == source
-            post("/api/attachment-categories/", {"name": "Fixture Insurance extra"}, 409)
+            post(
+                "/api/attachment-categories/",
+                {"name": "Fixture Insurance extra"},
+                409,
+            )
             target = post(
                 "/api/attachment-categories/",
                 {"name": "Fixture Insurance extra", "allow_similar": True},
             )["category"]["id"]
-            post(f"/api/attachment-categories/{source}/aliases/", {"name": "Fixture policy"})
+            post(
+                f"/api/attachment-categories/{source}/aliases/",
+                {"name": "Fixture policy"},
+            )
             assert (
-                post("/api/attachment-categories/", {"name": "FIXTURE POLICY"})["category"]["id"]
+                post(
+                    "/api/attachment-categories/",
+                    {"name": "FIXTURE POLICY"},
+                )[
+                    "category"
+                ]["id"]
                 == source
             )
-            post(f"/api/attachment-categories/{target}/aliases/", {"name": "Fixture policy"}, 409)
-            post(f"/api/attachment-categories/{source}/merge/", {"target_id": other}, 400)
-            car = app.state.vehicles.create_vehicle(
-                "00999-901", "Camry", actor=operator, driver_name="Fixture Driver"
+            post(
+                f"/api/attachment-categories/{target}/aliases/",
+                {"name": "Fixture policy"},
+                409,
             )
-            missing_car = app.state.vehicles.create_vehicle("00999-902", "Camry", actor=operator)
+            post(
+                f"/api/attachment-categories/{source}/merge/",
+                {"target_id": other},
+                400,
+            )
+            car = app.state.vehicles.create_vehicle(
+                "00999-901",
+                "Camry",
+                actor=operator,
+                driver_name="Fixture Driver",
+            )
+            missing_car = app.state.vehicles.create_vehicle(
+                "00999-902",
+                "Camry",
+                actor=operator,
+            )
             base = f"/api/vehicles/{car.id}/attachments/"
             image = io.BytesIO()
-            Image.new("RGB", (10, 8), "white").save(image, "PNG")
+            Image.new(
+                "RGB",
+                (10, 8),
+                "white",
+            ).save(
+                image,
+                "PNG",
+            )
             image_bytes = image.getvalue()
-            deleted = upload(base, "Deleted.txt", b"retained deleted bytes", source)
-            assert client.delete(deleted["manage_url"], headers=headers).status_code == 204
-            picture = upload(base, "Picture.png", image_bytes, source)
+            deleted = upload(
+                base,
+                "Deleted.txt",
+                b"retained deleted bytes",
+                source,
+            )
+            assert (
+                client.delete(
+                    deleted["manage_url"],
+                    headers=headers,
+                ).status_code
+                == 204
+            )
+            picture = upload(
+                base,
+                "Picture.png",
+                image_bytes,
+                source,
+            )
             pdf_bytes = b"%PDF-1.7\nfixture original PDF\n%%EOF"
-            pdf = upload(base, "Document.pdf", pdf_bytes, other)
-            upload(base, "Notes.txt", b"original notes", other)
-            office = upload("/api/office/attachments/", "Office.txt", b"office original")
+            pdf = upload(
+                base,
+                "Document.pdf",
+                pdf_bytes,
+                other,
+            )
+            upload(
+                base,
+                "Notes.txt",
+                b"original notes",
+                other,
+            )
+            office = upload(
+                "/api/office/attachments/",
+                "Office.txt",
+                b"office original",
+            )
             assert "category_id" not in office
-            assert connection.execute(
-                "SELECT category_id FROM hspace_office_attachment WHERE id=%s", (office["id"],)
-            ).fetchone()["category_id"] == other
+            assert (
+                connection.execute(
+                    "SELECT category_id FROM hspace_office_attachment WHERE id=%s",
+                    (office["id"],),
+                ).fetchone()["category_id"]
+                == other
+            )
             # Simulate an office attachment classified before that feature was removed.
             connection.execute(
                 "UPDATE hspace_office_attachment SET category_id=%s WHERE id=%s",
@@ -172,17 +276,32 @@ def main():
                 image_bytes,
                 source,
             )
-            post(f"/api/attachment-categories/{source}/merge/", {"target_id": target})
+            post(
+                f"/api/attachment-categories/{source}/merge/",
+                {"target_id": target},
+            )
             assert app.state.categories.get(source)["id"] == target
+            assert (
+                connection.execute(
+                    "SELECT count(*) AS n FROM limo_attachment WHERE category_id=%s",
+                    (source,),
+                ).fetchone()["n"]
+                == 0
+            )
+            assert (
+                connection.execute(
+                    "SELECT category_id FROM hspace_office_attachment WHERE id=%s",
+                    (office["id"],),
+                ).fetchone()["category_id"]
+                == source
+            )
             assert connection.execute(
-                "SELECT count(*) AS n FROM limo_attachment WHERE category_id=%s", (source,)
-            ).fetchone()["n"] == 0
-            assert connection.execute(
-                "SELECT category_id FROM hspace_office_attachment WHERE id=%s", (office["id"],)
-            ).fetchone()["category_id"] == source
-            assert connection.execute(
-                "SELECT category_id,is_deleted FROM limo_attachment WHERE id=%s", (deleted["id"],)
-            ).fetchone() == dict(category_id=target, is_deleted=True)
+                "SELECT category_id,is_deleted FROM limo_attachment WHERE id=%s",
+                (deleted["id"],),
+            ).fetchone() == dict(
+                category_id=target,
+                is_deleted=True,
+            )
             # A stale upload picker resolves the merged source while holding the merge lock.
             rejected = client.post(
                 base,
@@ -194,24 +313,41 @@ def main():
                 rejected.status_code == 409
                 and rejected.json()["error"]["code"] == "category_in_use"
             )
-            stale = upload(base, "Stale.txt", b"stale upload", other)
+            stale = upload(
+                base,
+                "Stale.txt",
+                b"stale upload",
+                other,
+            )
             assert stale["category_id"] == other
             response = client.patch(
-                picture["manage_url"] + "category/", json={"category_id": other}, headers=headers
+                picture["manage_url"] + "category/",
+                json={"category_id": other},
+                headers=headers,
             )
             assert response.status_code == 200
             response = client.patch(
-                picture["manage_url"] + "category/", json={"category_id": source}, headers=headers
+                picture["manage_url"] + "category/",
+                json={"category_id": source},
+                headers=headers,
             )
             assert response.json()["attachment"]["category_id"] == target
             rejected = client.patch(
-                stale["manage_url"] + "category/", json={"category_id": target}, headers=headers
+                stale["manage_url"] + "category/",
+                json={"category_id": target},
+                headers=headers,
             )
             assert (
                 rejected.status_code == 409
                 and rejected.json()["error"]["code"] == "category_in_use"
             )
-            assert app.state.vehicles.get_attachment(car.id, stale["id"]).category_id == other
+            assert (
+                app.state.vehicles.get_attachment(
+                    car.id,
+                    stale["id"],
+                ).category_id
+                == other
+            )
             try:
                 with connection.transaction():
                     connection.execute(
@@ -320,7 +456,13 @@ def main():
                 source,
             )
             assert different_car_file["category_id"] == target
-            assert client.delete(f"/api/vehicles/{car.id}/", headers=headers).status_code == 204
+            assert (
+                client.delete(
+                    f"/api/vehicles/{car.id}/",
+                    headers=headers,
+                ).status_code
+                == 204
+            )
             post(
                 "/api/attachment-download/",
                 {"vehicle_ids": [car.id], "category_ids": [target]},

@@ -30,13 +30,19 @@ class Settings:
 
     def validate(self):
         values = (self.db_name, self.db_user, self.db_password)
-        if any(values) and not all(values):
+        if (
+            any(values)
+            and not all(values)
+        ):
             raise ValueError("Complete DB_NAME, DB_USER and DB_PASSWORD together.")
-        if self.production and (
+        if (
+            self.production
+            and (
             not self.database_configured
             or len(self.secret) < 50
             or not self.allowed_hosts
             or "*" in self.allowed_hosts
+        )
         ):
             raise ValueError(
                 "Production requires PostgreSQL, a strong HSPACE_SECRET_KEY and explicit allowed hosts."
@@ -45,21 +51,46 @@ class Settings:
 
 
 def load_settings():
-    load_dotenv(ROOT / ".env", override=False)
-    production = os.getenv("HSPACE_ENV", "local") == "production"
+    load_dotenv(
+        ROOT / ".env",
+        override=False,
+    )
+    production = (
+        os.getenv(
+            "HSPACE_ENV",
+            "local",
+        )
+        == "production"
+    )
     return Settings(
-        db_name=os.getenv("DB_NAME", "").strip(),
-        db_user=os.getenv("DB_USER", "").strip(),
-        db_password=os.getenv("DB_PASSWORD", ""),
-        db_host=os.getenv("DB_HOST", "127.0.0.1"),
-        db_port=os.getenv("DB_PORT", "5432"),
+        db_name=os.getenv(
+            "DB_NAME",
+            "",
+        ).strip(),
+        db_user=os.getenv(
+            "DB_USER",
+            "",
+        ).strip(),
+        db_password=os.getenv(
+            "DB_PASSWORD",
+            "",
+        ),
+        db_host=os.getenv(
+            "DB_HOST",
+            "127.0.0.1",
+        ),
+        db_port=os.getenv(
+            "DB_PORT",
+            "5432",
+        ),
         secret=os.getenv("HSPACE_SECRET_KEY") or "local-development-only-hspace",
         production=production,
         allowed_hosts=tuple(
             value.strip()
-            for value in os.getenv("HSPACE_ALLOWED_HOSTS", "127.0.0.1,localhost,testserver").split(
-                ","
-            )
+            for value in os.getenv(
+                "HSPACE_ALLOWED_HOSTS",
+                "127.0.0.1,localhost,testserver",
+            ).split(",")
             if value.strip()
         ),
     ).validate()

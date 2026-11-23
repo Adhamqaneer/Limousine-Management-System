@@ -10,6 +10,7 @@
     <script src="{{ static('web/appearance.js') }}"></script>
     <script src="{{ static('web/page-tools.js') }}" defer></script>
     <script src="{{ static('web/office-files.js') }}" defer></script>
+    <script src="{{ static('web/attachment-scroll.js') }}" defer></script>
     <script src="{{ static('web/interactions.js') }}" defer></script>
   </head>
   <body class="workspace-page">
@@ -70,12 +71,18 @@
               </div>
             </div>
             <input type="file" id="office-{{ kind }}-input" accept="{{ accept }}" multiple hidden />
-            <div id="office-{{ kind }}-list" class="file-list"></div>
+            <div
+              id="office-{{ kind }}-list"
+              class="file-list scroll-region scroll-region--list scroll-region--attachments"
+              tabindex="-1"
+              role="region"
+              aria-labelledby="office-{{ kind }}-title"
+            ></div>
             <p class="attachment-help muted" data-office-i18n="hint{{ kind }}">
               {% if kind == 'photos' %}
-                JPG, PNG or WebP · Up to 10 MB and 25 MP per photo
+                JPG, PNG or WebP · Up to 25 MB and 40 MP per photo
               {% else %}
-                PDF, TXT, DOCX or XLSX · Up to 10 MB per file
+                PDF, TXT, DOCX or XLSX · Up to 25 MB per file
               {% endif %}
             </p>
           </section>

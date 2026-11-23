@@ -41,17 +41,36 @@ from .routes import (
 )
 
 
-def create_app(settings=None, *, setup_token=None):
+def create_app(
+    settings=None,
+    *,
+    setup_token=None,
+):
     # Windows MIME registries may omit WebP; serve local artwork consistently.
-    mimetypes.add_type("image/webp", ".webp")
+    mimetypes.add_type(
+        "image/webp",
+        ".webp",
+    )
     settings = (settings or load_settings()).validate()
-    app = FastAPI(title="H SPACE", version="2.0.0", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(
+        title="H SPACE",
+        version="2.0.0",
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
     app.state.settings = settings
     app.state.database = Database(settings)
     app.state.store = LocalAttachmentStore(settings.media_root)
-    app.state.cleanup = FileCleanup(app.state.database, app.state.store)
+    app.state.cleanup = FileCleanup(
+        app.state.database,
+        app.state.store,
+    )
     app.state.media_layout = (
-        MediaOrganizer(app.state.database, app.state.store)
+        MediaOrganizer(
+            app.state.database,
+            app.state.store,
+        )
         if settings.database_configured
         else None
     )
@@ -62,21 +81,33 @@ def create_app(settings=None, *, setup_token=None):
         PostgresAttachmentDownloadRepository(app.state.database),
     )
     app.state.vehicles = VehicleService(
-        PostgresVehicleRepository(app.state.database, media_layout=app.state.media_layout)
+        PostgresVehicleRepository(
+            app.state.database,
+            media_layout=app.state.media_layout,
+        )
     )
     app.state.recycling = RecyclingService(PostgresVehicleRepository(app.state.database))
     app.state.office = OfficeService(PostgresOfficeRepository(app.state.database))
     app.state.drivers = DriverService(
-        PostgresDriverRepository(app.state.database, media_layout=app.state.media_layout)
+        PostgresDriverRepository(
+            app.state.database,
+            media_layout=app.state.media_layout,
+        )
     )
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.allowed_hosts))
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=list(settings.allowed_hosts),
+    )
     app.mount(
         "/static",
         StaticFiles(directory=str(ROOT / "src/limousine/presentation/web/static")),
         name="static",
     )
 
-    configure_http(app, settings)
+    configure_http(
+        app,
+        settings,
+    )
     health.register_routes(app)
     accounts.register_routes(app)
     vehicles.register_routes(app)
@@ -86,5 +117,8 @@ def create_app(settings=None, *, setup_token=None):
     categories.register_routes(app)
     attachment_download.register_routes(app)
     if setup_token:
-        desktop_setup.register_routes(app, setup_token)
+        desktop_setup.register_routes(
+            app,
+            setup_token,
+        )
     return app

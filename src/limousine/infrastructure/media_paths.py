@@ -22,8 +22,15 @@ def vehicle_directory(vehicle_id):
 
 
 def driver_directory(assignment):
-    name = unicodedata.normalize("NFC", assignment["driver_name"])
-    name = re.sub(r'[<>:"/\\|?*]', "-", name)
+    name = unicodedata.normalize(
+        "NFC",
+        assignment["driver_name"],
+    )
+    name = re.sub(
+        r'[<>:"/\\|?*]',
+        "-",
+        name,
+    )
     name = "".join(char for char in name if not unicodedata.category(char).startswith("C"))
     name = name.strip(" .")[:60].rstrip(" .") or "Driver"
     start = assignment["started_on"]

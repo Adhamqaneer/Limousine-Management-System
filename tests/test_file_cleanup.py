@@ -15,8 +15,16 @@ class FileCleanupTests(TestCase):
             {"used": False},
         ]
         store.delete.side_effect = PermissionError()
-        with self.assertLogs("limousine.infrastructure.file_cleanup", level="WARNING"):
-            self.assertFalse(FileCleanup(database, store).process("key"))
+        with self.assertLogs(
+            "limousine.infrastructure.file_cleanup",
+            level="WARNING",
+        ):
+            self.assertFalse(
+                FileCleanup(
+                    database,
+                    store,
+                ).process("key")
+            )
         self.assertFalse(
             any(
                 "DELETE FROM hspace_file_cleanup" in call.args[0]
@@ -24,9 +32,20 @@ class FileCleanupTests(TestCase):
             )
         )
         database.connect.side_effect = psycopg.OperationalError("private")
-        with self.assertLogs("limousine.infrastructure.file_cleanup", level="WARNING") as captured:
-            self.assertFalse(FileCleanup(database, store).process("key"))
-        self.assertNotIn("private", " ".join(captured.output))
+        with self.assertLogs(
+            "limousine.infrastructure.file_cleanup",
+            level="WARNING",
+        ) as captured:
+            self.assertFalse(
+                FileCleanup(
+                    database,
+                    store,
+                ).process("key")
+            )
+        self.assertNotIn(
+            "private",
+            " ".join(captured.output),
+        )
 
     def test_referenced_file_is_never_unlinked(self):
         database, store = MagicMock(), MagicMock()
@@ -35,5 +54,10 @@ class FileCleanupTests(TestCase):
             {"storage_key": "key"},
             {"used": True},
         ]
-        self.assertTrue(FileCleanup(database, store).process("key"))
+        self.assertTrue(
+            FileCleanup(
+                database,
+                store,
+            ).process("key")
+        )
         store.delete.assert_not_called()

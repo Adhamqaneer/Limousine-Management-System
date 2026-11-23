@@ -8,9 +8,15 @@ from limousine.domain.recycling import require_actor
 from limousine.domain.vehicles import DomainError, NotFound
 
 
-def selected_ids(values, limit):
+def selected_ids(
+    values,
+    limit,
+):
     if (
-        not isinstance(values, list)
+        not isinstance(
+            values,
+            list,
+        )
         or not values
         or len(values) > limit
     ):
@@ -19,8 +25,16 @@ def selected_ids(values, limit):
 
 
 class AttachmentDownloadRepository(Protocol):
-    def selection(self, vehicle_ids, category_ids): ...
-    def availability(self, vehicle_ids, category_ids): ...
+    def selection(
+        self,
+        vehicle_ids,
+        category_ids,
+    ): ...
+    def availability(
+        self,
+        vehicle_ids,
+        category_ids,
+    ): ...
 
 
 @dataclass(frozen=True)
@@ -30,13 +44,28 @@ class VehicleArchiveSelection:
 
 
 class AttachmentDownloadService:
-    def __init__(self, repository: AttachmentDownloadRepository):
+    def __init__(
+        self,
+        repository: AttachmentDownloadRepository,
+    ):
         self.repository = repository
 
-    def availability(self, vehicle_ids, category_ids, actor):
+    def availability(
+        self,
+        vehicle_ids,
+        category_ids,
+        actor,
+    ):
         require_actor(actor)
         vehicles, categories, counts = self.repository.availability(
-            selected_ids(vehicle_ids, 500), selected_ids(category_ids, 50)
+            selected_ids(
+                vehicle_ids,
+                500,
+            ),
+            selected_ids(
+                category_ids,
+                50,
+            ),
         )
         totals = {(row["vehicle_id"], row["category_id"]): row["count"] for row in counts}
         rows = [
@@ -46,7 +75,10 @@ class AttachmentDownloadService:
                 "documents": [
                     {
                         "category_id": category["id"],
-                        "count": totals.get((vehicle["id"], category["id"]), 0),
+                        "count": totals.get(
+                            (vehicle["id"], category["id"]),
+                            0,
+                        ),
                     }
                     for category in categories
                 ],
@@ -55,14 +87,29 @@ class AttachmentDownloadService:
         ]
         return {"vehicles": rows, "file_count": sum(totals.values())}
 
-    def select(self, vehicle_ids, category_ids, actor):
+    def select(
+        self,
+        vehicle_ids,
+        category_ids,
+        actor,
+    ):
         require_actor(actor)
         vehicles, categories, files = self.repository.selection(
-            selected_ids(vehicle_ids, 500), selected_ids(category_ids, 50)
+            selected_ids(
+                vehicle_ids,
+                500,
+            ),
+            selected_ids(
+                category_ids,
+                50,
+            ),
         )
         if not files:
             raise NotFound("No matching attachments to download.")
-        if len(files) > 1000 or sum(item["size"] for item in files) > 1024**3:
+        if (
+            len(files) > 1000
+            or sum(item["size"] for item in files) > 1024**3
+        ):
             raise DomainError(
                 "Download up to 1000 files and 1 GB at a time. Use vehicle filters for a smaller group."
             )
@@ -73,4 +120,7 @@ class AttachmentDownloadService:
             for category in categories
             if (vehicle["id"], category["id"]) not in present
         )
-        return VehicleArchiveSelection(tuple(files), missing)
+        return VehicleArchiveSelection(
+            tuple(files),
+            missing,
+        )

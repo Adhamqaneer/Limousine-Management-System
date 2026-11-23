@@ -33,9 +33,19 @@ class OfficeTests(TestCase):
         self.app.state.office = self.service
         self.app.state.cleanup = MagicMock()
         self.image = photo()
-        saved = self.app.state.store.save_office_file(SimpleUploadedFile("office.png", self.image))
+        saved = self.app.state.store.save_office_file(
+            SimpleUploadedFile(
+                "office.png",
+                self.image,
+            )
+        )
         self.item = OfficeAttachment(
-            7, saved.storage_key, "office.png", "image", len(self.image), STAMP
+            7,
+            saved.storage_key,
+            "office.png",
+            "image",
+            len(self.image),
+            STAMP,
         )
         self.repo.get.return_value = self.item
         self.repo.list_files.return_value = [self.item]
@@ -47,48 +57,108 @@ class OfficeTests(TestCase):
 
     def test_member_page_list_originals_and_separate_zip(self):
         response = self.client.get("/office/")
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('aria-current="page"', response.text)
-        self.assertIn("office-files.js", response.text)
-        self.assertNotIn("attachment-categories.js", response.text)
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
+        self.assertIn(
+            'aria-current="page"',
+            response.text,
+        )
+        self.assertIn(
+            "office-files.js",
+            response.text,
+        )
+        self.assertNotIn(
+            "attachment-categories.js",
+            response.text,
+        )
         response = self.client.get(self.base)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
         item = response.json()["attachments"][0]
-        self.assertNotIn("storage_key", item)
-        self.assertNotIn("category_id", item)
-        self.assertEqual(item["manage_url"], self.base + "7/")
+        self.assertNotIn(
+            "storage_key",
+            item,
+        )
+        self.assertNotIn(
+            "category_id",
+            item,
+        )
+        self.assertEqual(
+            item["manage_url"],
+            self.base + "7/",
+        )
         for suffix in ("preview/", "download/"):
             response = self.client.get(self.base + "7/" + suffix)
-            self.assertEqual(response.content, self.image)
-            self.assertIn("no-store", response.headers["cache-control"])
-            self.assertEqual(self.client.head(self.base + "7/" + suffix).status_code, 200)
+            self.assertEqual(
+                response.content,
+                self.image,
+            )
+            self.assertIn(
+                "no-store",
+                response.headers["cache-control"],
+            )
+            self.assertEqual(
+                self.client.head(self.base + "7/" + suffix).status_code,
+                200,
+            )
         archive = self.client.get(self.base + "archive/photos/")
         with ZipFile(io.BytesIO(archive.content)) as zipped:
-            self.assertEqual(zipped.read("office.png"), self.image)
-        self.assertEqual(self.client.get(self.base + "archive/files/").status_code, 404)
-        self.assertEqual(self.client.get(self.base + "archive/all/").status_code, 400)
+            self.assertEqual(
+                zipped.read("office.png"),
+                self.image,
+            )
+        self.assertEqual(
+            self.client.get(self.base + "archive/files/").status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(self.base + "archive/all/").status_code,
+            400,
+        )
 
     def test_upload_uses_office_namespace_and_cleans_failed_metadata(self):
         response = self.client.post(
-            self.base, files={"file": ("office.txt", b"office bytes")}, headers=self.headers
+            self.base,
+            files={"file": ("office.txt", b"office bytes")},
+            headers=self.headers,
         )
-        self.assertEqual(response.status_code, 201)
-        self.assertNotIn("category_id", response.json()["attachment"])
+        self.assertEqual(
+            response.status_code,
+            201,
+        )
+        self.assertNotIn(
+            "category_id",
+            response.json()["attachment"],
+        )
         args = self.repo.add.call_args.args
         self.assertTrue(args[0].startswith("office/"))
-        self.assertEqual(args[1:], ("office.txt", "file", 12, OPERATOR))
-        self.assertEqual(self.app.state.store.path(args[0]).read_bytes(), b"office bytes")
+        self.assertEqual(
+            args[1:],
+            ("office.txt", "file", 12, OPERATOR),
+        )
+        self.assertEqual(
+            self.app.state.store.path(args[0]).read_bytes(),
+            b"office bytes",
+        )
         self.repo.add.side_effect = DomainError("Failed metadata")
         self.assertEqual(
             self.client.post(
-                self.base, files={"file": ("other.txt", b"bytes")}, headers=self.headers
+                self.base,
+                files={"file": ("other.txt", b"bytes")},
+                headers=self.headers,
             ).status_code,
             400,
         )
         self.assertTrue(self.app.state.cleanup.discard.call_args.args[0].startswith("office/"))
         self.assertEqual(
             self.client.post(
-                self.base, files={"file": ("bad.exe", b"bytes")}, headers=self.headers
+                self.base,
+                files={"file": ("bad.exe", b"bytes")},
+                headers=self.headers,
             ).status_code,
             400,
         )
@@ -100,26 +170,45 @@ class OfficeTests(TestCase):
             data={"category_id": "1"},
             headers=self.headers,
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.status_code,
+            400,
+        )
         self.repo.add.assert_not_called()
         self.assertEqual(
             self.client.patch(
-                self.base + "7/category/", json={"category_id": 1}, headers=self.headers
+                self.base + "7/category/",
+                json={"category_id": 1},
+                headers=self.headers,
             ).status_code,
             404,
         )
 
     def test_member_rename_delete_csrf_and_stale_name(self):
-        renamed = replace(self.item, original_name="New.png")
+        renamed = replace(
+            self.item,
+            original_name="New.png",
+        )
         self.repo.rename.return_value = renamed
         response = self.client.patch(
             self.base + "7/",
             json={"name": "New", "expected_name": "office.png"},
             headers=self.headers,
         )
-        self.assertEqual(response.json()["attachment"]["name"], "New.png")
-        self.repo.rename.assert_called_once_with(7, "New.png", "office.png", OPERATOR)
-        self.assertEqual(self.app.state.store.path(self.item.storage_key).read_bytes(), self.image)
+        self.assertEqual(
+            response.json()["attachment"]["name"],
+            "New.png",
+        )
+        self.repo.rename.assert_called_once_with(
+            7,
+            "New.png",
+            "office.png",
+            OPERATOR,
+        )
+        self.assertEqual(
+            self.app.state.store.path(self.item.storage_key).read_bytes(),
+            self.image,
+        )
         self.assertEqual(
             self.client.patch(
                 self.base + "7/",
@@ -137,41 +226,89 @@ class OfficeTests(TestCase):
             400,
         )
         self.assertEqual(
-            self.client.delete(self.base + "7/", headers=self.headers).status_code, 204
+            self.client.delete(
+                self.base + "7/",
+                headers=self.headers,
+            ).status_code,
+            204,
         )
-        self.repo.delete.assert_called_once_with(7, OPERATOR)
+        self.repo.delete.assert_called_once_with(
+            7,
+            OPERATOR,
+        )
         for method, kwargs in [
             ("delete", {}),
             ("patch", {"json": {"name": "A", "expected_name": "office.png"}}),
             ("post", {"files": {"file": ("a.txt", b"a")}}),
         ]:
             url = self.base if method == "post" else self.base + "7/"
-            self.assertEqual(getattr(self.client, method)(url, **kwargs).status_code, 403)
+            self.assertEqual(
+                getattr(
+                    self.client,
+                    method,
+                )(
+                    url,
+                    **kwargs,
+                ).status_code,
+                403,
+            )
 
     def test_all_office_endpoints_require_authentication(self):
         self.app.dependency_overrides.clear()
-        self.assertEqual(self.client.get("/office/", follow_redirects=False).status_code, 303)
+        self.assertEqual(
+            self.client.get(
+                "/office/",
+                follow_redirects=False,
+            ).status_code,
+            303,
+        )
         for path in ("", "7/preview/", "7/download/", "archive/photos/"):
-            self.assertEqual(self.client.get(self.base + path).status_code, 401)
+            self.assertEqual(
+                self.client.get(self.base + path).status_code,
+                401,
+            )
         self.assertEqual(
             self.client.post(
-                self.base, files={"file": ("a.txt", b"a")}, headers=self.headers
+                self.base,
+                files={"file": ("a.txt", b"a")},
+                headers=self.headers,
             ).status_code,
             401,
         )
         self.assertEqual(
-            self.client.patch(self.base + "7/", json={}, headers=self.headers).status_code, 401
+            self.client.patch(
+                self.base + "7/",
+                json={},
+                headers=self.headers,
+            ).status_code,
+            401,
         )
         self.assertEqual(
-            self.client.delete(self.base + "7/", headers=self.headers).status_code, 401
+            self.client.delete(
+                self.base + "7/",
+                headers=self.headers,
+            ).status_code,
+            401,
         )
 
     def test_missing_deleted_files_and_domain_guards(self):
         self.repo.get.side_effect = NotFound("Deleted")
-        self.assertEqual(self.client.get(self.base + "7/preview/").status_code, 404)
+        self.assertEqual(
+            self.client.get(self.base + "7/preview/").status_code,
+            404,
+        )
         with self.assertRaises(AccessDenied):
-            self.service.delete(7, None)
+            self.service.delete(
+                7,
+                None,
+            )
         with self.assertRaises(DomainError):
-            self.service.add("vehicles/key", "x", "file", 1, OPERATOR)
+            self.service.add(
+                "vehicles/key",
+                "x",
+                "file",
+                1,
+                OPERATOR,
+            )
         with self.assertRaises(DomainError):
             self.service.download("all")

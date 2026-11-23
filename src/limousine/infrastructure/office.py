@@ -16,11 +16,19 @@ def attachment(row):
 
 
 class PostgresOfficeRepository:
-    def __init__(self, database):
+    def __init__(
+        self,
+        database,
+    ):
         self.database = database
 
     @staticmethod
-    def _event(connection, actor, row, action):
+    def _event(
+        connection,
+        actor,
+        row,
+        action,
+    ):
         require_actor(actor)
         connection.execute(
             """
@@ -40,16 +48,27 @@ class PostgresOfficeRepository:
                 ).fetchall()
             ]
 
-    def get(self, item_id):
+    def get(
+        self,
+        item_id,
+    ):
         with self.database.connect() as connection:
             row = connection.execute(
-                "SELECT * FROM hspace_office_attachment WHERE id=%s AND NOT is_deleted", (item_id,)
+                "SELECT * FROM hspace_office_attachment WHERE id=%s AND NOT is_deleted",
+                (item_id,),
             ).fetchone()
             if not row:
                 raise NotFound("Office attachment not found.")
             return attachment(row)
 
-    def add(self, storage_key, original_name, kind, size, actor):
+    def add(
+        self,
+        storage_key,
+        original_name,
+        kind,
+        size,
+        actor,
+    ):
         require_actor(actor)
         with self.database.connect() as connection:
             row = connection.execute(
@@ -60,10 +79,21 @@ class PostgresOfficeRepository:
                 """,
                 (storage_key, original_name, kind, size, actor.id),
             ).fetchone()
-            self._event(connection, actor, row, "CREATE")
+            self._event(
+                connection,
+                actor,
+                row,
+                "CREATE",
+            )
             return attachment(row)
 
-    def rename(self, item_id, name, expected_name, actor):
+    def rename(
+        self,
+        item_id,
+        name,
+        expected_name,
+        actor,
+    ):
         require_actor(actor)
         with self.database.connect() as connection:
             row = connection.execute(
@@ -80,10 +110,19 @@ class PostgresOfficeRepository:
                 "UPDATE hspace_office_attachment SET original_name=%s WHERE id=%s RETURNING *",
                 (name, item_id),
             ).fetchone()
-            self._event(connection, actor, row, "RENAME")
+            self._event(
+                connection,
+                actor,
+                row,
+                "RENAME",
+            )
             return attachment(row)
 
-    def delete(self, item_id, actor):
+    def delete(
+        self,
+        item_id,
+        actor,
+    ):
         require_actor(actor)
         with self.database.connect() as connection:
             row = connection.execute(
@@ -97,9 +136,18 @@ class PostgresOfficeRepository:
             ).fetchone()
             if not row:
                 raise NotFound("Office attachment not found.")
-            self._event(connection, actor, row, "DELETE")
+            self._event(
+                connection,
+                actor,
+                row,
+                "DELETE",
+            )
 
-    def restore(self, item_id, actor):
+    def restore(
+        self,
+        item_id,
+        actor,
+    ):
         require_actor(actor)
         with self.database.connect() as connection:
             row = connection.execute(
@@ -113,7 +161,12 @@ class PostgresOfficeRepository:
             ).fetchone()
             if not row:
                 raise NotFound("Deleted office attachment not found.")
-            self._event(connection, actor, row, "RESTORE")
+            self._event(
+                connection,
+                actor,
+                row,
+                "RESTORE",
+            )
 
     def list_deleted(self):
         with self.database.connect() as connection:

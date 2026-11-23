@@ -246,6 +246,13 @@
   font-weight: 700;
   color: #202329;
 }
+@media screen {
+  .report-scroll #report-table thead th {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 1;
+  }
+}
 #report-table #report-letterhead-cell {
   padding: 0 0 12px;
   border: 0;

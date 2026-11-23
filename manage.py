@@ -6,15 +6,28 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT / "src"))
-sys.path.insert(0, str(ROOT))
+sys.path.insert(
+    0,
+    str(ROOT / "src"),
+)
+sys.path.insert(
+    0,
+    str(ROOT),
+)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    commands = parser.add_subparsers(dest="command", required=True)
+    commands = parser.add_subparsers(
+        dest="command",
+        required=True,
+    )
     server = commands.add_parser("runserver")
-    server.add_argument("address", nargs="?", default="127.0.0.1:8000")
+    server.add_argument(
+        "address",
+        nargs="?",
+        default="127.0.0.1:8000",
+    )
     commands.add_parser("check")
     commands.add_parser("test")
     commands.add_parser("migrate")
@@ -24,17 +37,26 @@ def main():
     if args.command == "runserver":
         import uvicorn
 
-        host, port = args.address.rsplit(":", 1)
+        host, port = args.address.rsplit(
+            ":",
+            1,
+        )
         if host not in ("127.0.0.1", "localhost", "::1"):
             parser.error("Development server must stay on loopback.")
         uvicorn.run(
-            "limousine.presentation.web.app:app", host=host, port=int(port), access_log=False
+            "limousine.presentation.web.app:app",
+            host=host,
+            port=int(port),
+            access_log=False,
         )
     elif args.command == "test":
         import unittest
 
         result = unittest.TextTestRunner(verbosity=2).run(
-            unittest.defaultTestLoader.discover(str(ROOT / "tests"), top_level_dir=str(ROOT))
+            unittest.defaultTestLoader.discover(
+                str(ROOT / "tests"),
+                top_level_dir=str(ROOT),
+            )
         )
         return 0 if result.wasSuccessful() else 1
     elif args.command == "check":
@@ -62,7 +84,10 @@ def main():
 
         database = Database(load_settings())
         password = prompt_password() if needs_operator_setup(database) else None
-        backup = migrate(database, operator_password=password)
+        backup = migrate(
+            database,
+            operator_password=password,
+        )
         print("PostgreSQL migration completed. Existing vehicles/files preserved.")
         if backup:
             print("Pre-migration database backup saved under .local/backups/.")
@@ -74,7 +99,8 @@ def main():
 
         settings = load_settings()
         completed, pending = FileCleanup(
-            Database(settings), LocalAttachmentStore(settings.media_root)
+            Database(settings),
+            LocalAttachmentStore(settings.media_root),
         ).retry_pending()
         print(
             f"Cleanup batch: {completed} completed; {pending} deferred. Up to 100 entries per run."

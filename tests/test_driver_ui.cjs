@@ -3,7 +3,10 @@ const assert = require('node:assert/strict'),
   vm = require('node:vm'),
   path = require('node:path');
 const source = fs.readFileSync(
-  path.join(__dirname, '../src/limousine/presentation/web/static/web/drivers.js'),
+  path.join(
+    __dirname,
+    '../src/limousine/presentation/web/static/web/drivers.js',
+  ),
   'utf8',
 );
 const tick = () => new Promise((resolve) => setImmediate(resolve));
@@ -21,7 +24,10 @@ function page(globalPage) {
       this.value = '';
       this.classes = new Set();
       this.classList = {
-        toggle: (name, on) => (on ? this.classes.add(name) : this.classes.delete(name)),
+        toggle: (
+          name,
+          on,
+        ) => (on ? this.classes.add(name) : this.classes.delete(name)),
       };
     }
     append(...children) {
@@ -33,10 +39,16 @@ function page(globalPage) {
     replaceChildren(...children) {
       this.children = children;
     }
-    addEventListener(name, fn) {
+    addEventListener(
+      name,
+      fn,
+    ) {
       this.handlers[name] = fn;
     }
-    setAttribute(name, value) {
+    setAttribute(
+      name,
+      value,
+    ) {
       this[name] = value;
     }
     showModal() {
@@ -80,9 +92,15 @@ function page(globalPage) {
     'driver-form',
     'save-driver',
   ])
-    nodes.set(id, new Node());
+    nodes.set(
+      id,
+      new Node(),
+    );
   for (const field of ['driver_name', 'driver_phone', 'started_on'])
-    nodes.set('error-' + field, new Node());
+    nodes.set(
+      'error-' + field,
+      new Node(),
+    );
   for (const id of [
     'driver-end-name',
     'driver-last-worked',
@@ -92,7 +110,10 @@ function page(globalPage) {
     'driver-end-save',
     'driver-end-cancel',
   ])
-    nodes.set(id, new Node());
+    nodes.set(
+      id,
+      new Node(),
+    );
   nodes.get('csrf-token').value = 'csrf';
   nodes.get('change-driver').parentElement = new Node();
   const original = {
@@ -118,7 +139,10 @@ function page(globalPage) {
     getElementById: (id) => nodes.get(id),
     createElement: (tag) => new Node(tag),
     querySelectorAll: () => [],
-    addEventListener: (name, fn) => {
+    addEventListener: (
+      name,
+      fn,
+    ) => {
       events[name] = fn;
     },
     dispatchEvent: (event) => {
@@ -132,22 +156,37 @@ function page(globalPage) {
     URLSearchParams,
     location: { hash: globalPage ? '' : '#vehicle/1', search: '', assign: () => {} },
     window: {
-      addEventListener: (name, fn) => {
+      addEventListener: (
+        name,
+        fn,
+      ) => {
         events[name] = fn;
       },
       print: () => printed++,
     },
     CustomEvent: class {
-      constructor(type, options) {
+      constructor(
+        type,
+        options,
+      ) {
         this.type = type;
         this.detail = options.detail;
       }
     },
-    fetch: async (url, options) => {
+    fetch: async (
+      url,
+      options,
+    ) => {
       calls.push([url, options]);
-      if (fail) return { ok: false, status: 503 };
-      if (options.method && validationError)
+      if (fail) {
+        return { ok: false, status: 503 };
+      }
+      if (
+        options.method
+        && validationError
+      ) {
         return { ok: false, status: 400, json: async () => ({ error: validationError }) };
+      }
       if (url.endsWith('/end/')) {
         const payload = JSON.parse(options.body);
         rows = rows.map((row) =>
@@ -171,13 +210,18 @@ function page(globalPage) {
         if (options.method === 'POST') {
           rows = rows.map((row) => ({ ...row, is_current: false, ended_on: payload.started_on }));
           rows.unshift({ ...original, ...payload, id: 2 });
-        } else rows = rows.map((row) => (row.is_current ? { ...row, ...payload } : row));
+        } else {
+          rows = rows.map((row) => (row.is_current ? { ...row, ...payload } : row));
+        }
         return { ok: true, status: 200, json: async () => ({ vehicle: { id: 1, ...payload } }) };
       }
       return { ok: true, status: 200, json: async () => ({ assignments: rows, corrections: [] }) };
     },
   };
-  vm.runInNewContext(source, context);
+  vm.runInNewContext(
+    source,
+    context,
+  );
   return {
     nodes,
     events,
@@ -197,8 +241,14 @@ async function main() {
   const g = page(true),
     get = (id) => g.nodes.get(id);
   await tick();
-  assert.equal(get('driver-report-head').children.length, 6);
-  assert.equal(get('driver-report-body').children[0].children[1].children[0].textContent, '00123');
+  assert.equal(
+    get('driver-report-head').children.length,
+    6,
+  );
+  assert.equal(
+    get('driver-report-body').children[0].children[1].children[0].textContent,
+    '00123',
+  );
   get('driver-query').value = 'Old';
   get('driver-on-date').value = '2022-01-01';
   await get('driver-search-form').handlers.submit({ preventDefault() {} });
@@ -207,12 +257,21 @@ async function main() {
   get('print-driver-history').handlers.click();
   assert.ok(get('driver-print-dialog').open);
   get('driver-print-without').handlers.click();
-  assert.equal(g.printed(), 1);
+  assert.equal(
+    g.printed(),
+    1,
+  );
   assert.ok(get('report-paper').classes.has('preprinted-paper'));
   get('print-driver-history').handlers.click();
   get('driver-print-with').handlers.click();
-  assert.equal(g.printed(), 2);
-  assert.equal(get('report-paper').classes.has('preprinted-paper'), false);
+  assert.equal(
+    g.printed(),
+    2,
+  );
+  assert.equal(
+    get('report-paper').classes.has('preprinted-paper'),
+    false,
+  );
   g.document.documentElement.lang = 'ar';
   g.events['hspace:language']();
   assert.equal(
@@ -227,10 +286,19 @@ async function main() {
   const h = page(false),
     input = (id) => h.nodes.get(id);
   await tick();
-  assert.equal(input('vehicle-driver-history').children.length, 1);
+  assert.equal(
+    input('vehicle-driver-history').children.length,
+    1,
+  );
   input('correct-driver').handlers.click();
-  assert.equal(input('new-driver-name').value, 'Old Driver');
-  assert.equal(input('driver-start').required, false);
+  assert.equal(
+    input('new-driver-name').value,
+    'Old Driver',
+  );
+  assert.equal(
+    input('driver-start').required,
+    false,
+  );
   input('new-driver-phone').value = '00124';
   await input('driver-form').handlers.submit({ preventDefault() {} });
   assert.ok(
@@ -241,21 +309,36 @@ async function main() {
         options.headers['X-CSRFToken'] === 'csrf',
     ),
   );
-  assert.equal(input('vehicle-driver-history').children.length, 1);
+  assert.equal(
+    input('vehicle-driver-history').children.length,
+    1,
+  );
   assert.ok(h.dispatched.some((event) => event.type === 'hspace:driver-updated'));
   input('change-driver').handlers.click();
-  assert.equal(input('driver-start').required, true);
+  assert.equal(
+    input('driver-start').required,
+    true,
+  );
   input('new-driver-name').value = 'New Driver';
   input('new-driver-phone').value = '0079';
   input('driver-start').value = '2022-01-01';
   await input('driver-form').handlers.submit({ preventDefault() {} });
-  assert.equal(input('vehicle-driver-history').children.length, 2);
+  assert.equal(
+    input('vehicle-driver-history').children.length,
+    2,
+  );
   assert.ok(
     h.calls.some(([url, options]) => url.endsWith('/drivers/') && options.method === 'POST'),
   );
   const record = input('vehicle-driver-history').children[0];
-  assert.equal(record.children[1].dir, 'ltr');
-  assert.equal(record.children[2].dir, 'ltr');
+  assert.equal(
+    record.children[1].dir,
+    'ltr',
+  );
+  assert.equal(
+    record.children[2].dir,
+    'ltr',
+  );
   for (const [field, reason, id] of [
     ['driver_phone', 'phoneRule', 'new-driver-phone'],
     ['started_on', 'overlapStart', 'driver-start'],
@@ -266,19 +349,37 @@ async function main() {
     h.setValidation({ field, reason });
     await input('driver-form').handlers.submit({ preventDefault() {} });
     assert.ok(input('driver-dialog').open);
-    assert.equal(h.document.activeElement, input(id));
-    assert.equal(input(id)['aria-invalid'], 'true');
+    assert.equal(
+      h.document.activeElement,
+      input(id),
+    );
+    assert.equal(
+      input(id)['aria-invalid'],
+      'true',
+    );
     assert.ok(input('error-' + field).textContent);
-    assert.equal(input('new-driver-name').value, 'Keep this name');
+    assert.equal(
+      input('new-driver-name').value,
+      'Keep this name',
+    );
     input(id).handlers.input();
-    assert.equal(input(id)['aria-invalid'], 'false');
-    assert.equal(input('error-' + field).textContent, '');
+    assert.equal(
+      input(id)['aria-invalid'],
+      'false',
+    );
+    assert.equal(
+      input('error-' + field).textContent,
+      '',
+    );
   }
   h.document.documentElement.lang = 'ar';
   h.events['hspace:language']();
   h.setValidation({ field: 'driver_phone', reason: 'phoneRule' });
   await input('driver-form').handlers.submit({ preventDefault() {} });
-  assert.match(input('error-driver_phone').textContent, /أرقام/);
+  assert.match(
+    input('error-driver_phone').textContent,
+    /أرقام/,
+  );
   h.setValidation(null);
   h.document.documentElement.lang = 'en';
   h.events['hspace:language']();
@@ -293,8 +394,14 @@ async function main() {
   assert.ok(input('driver-end-dialog').open);
   input('driver-last-worked').value = '2022-01-01';
   await input('driver-end-form').handlers.submit({ preventDefault() {} });
-  assert.equal(input('driver-end-dialog').open, false);
-  assert.equal(input('change-driver').textContent, 'Add driver');
+  assert.equal(
+    input('driver-end-dialog').open,
+    false,
+  );
+  assert.equal(
+    input('change-driver').textContent,
+    'Add driver',
+  );
   assert.ok(
     h.dispatched.some(
       (event) => event.type === 'hspace:driver-updated' && event.detail.vehicle.driver_name === '',

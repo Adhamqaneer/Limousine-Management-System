@@ -23,7 +23,7 @@
         ></a
       >
       <div class="page-heading preview-heading">
-        <h1 dir="auto">{{ attachment.name }}</h1>
+        <h1 id="document-preview-title" dir="auto">{{ attachment.name }}</h1>
         <a class="button secondary" href="{{ attachment.download_url }}" data-i18n="download"
           >Download original</a
         >
@@ -41,7 +41,12 @@
             This is a limited preview of a large document. Download the original to see everything.
           </p>
         {% endif %}
-        <article class="panel document-content">
+        <article
+          class="panel document-content scroll-region"
+          tabindex="0"
+          role="region"
+          aria-labelledby="document-preview-title"
+        >
           {% for block in preview.blocks %}
             {% if block.heading %}<h2 dir="auto">{{ block.heading }}</h2>{% endif %}
             {% if block.rows %}

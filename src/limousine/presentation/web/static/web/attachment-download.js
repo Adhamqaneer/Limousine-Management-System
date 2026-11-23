@@ -86,8 +86,10 @@
     previewError = false,
     availability = null;
   const chosen = () =>
-    Array.from(get('download-types').querySelectorAll('input:checked'), (input) =>
-      Number(input.value),
+    Array.from(
+      get('download-types').querySelectorAll('input:checked'),
+      (input) =>
+        Number(input.value),
     );
   function state() {
     get('download-types').disabled = busy || !loaded;
@@ -121,21 +123,33 @@
         input.type = 'checkbox';
         input.value = String(category.id);
         input.checked = selected.has(category.id);
-        input.addEventListener('change', updateAvailability);
+        input.addEventListener(
+          'change',
+          updateAvailability,
+        );
         const title = document.createElement('span');
         title.dir = 'auto';
         title.textContent = category.code ? text(category.code) : category.name;
-        label.append(input, title);
+        label.append(
+          input,
+          title,
+        );
         return label;
       }),
     );
   }
-  async function request(url, options = {}) {
-    const response = await fetch(url, {
-      ...options,
-      credentials: 'same-origin',
-      cache: 'no-store',
-    });
+  async function request(
+    url,
+    options = {},
+  ) {
+    const response = await fetch(
+      url,
+      {
+        ...options,
+        credentials: 'same-origin',
+        cache: 'no-store',
+      },
+    );
     if (response.status === 401) {
       location.assign('/login/');
       throw new Error();
@@ -175,7 +189,10 @@
       categories = types.categories;
       vehicles = scope.filtered
         ? HSpaceSearch.search(
-            HSpaceVehicleFilters.apply(list.vehicles, scope.selected),
+            HSpaceVehicleFilters.apply(
+              list.vehicles,
+              scope.selected,
+            ),
             scope.query,
           )
         : list.vehicles;
@@ -195,53 +212,70 @@
       }
     }
   }
-  get('attachment-download-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    if (
-      busy ||
-      previewBusy ||
-      !loaded ||
-      !chosen().length ||
-      !vehicles.length ||
-      !availability?.file_count
-    ) {
-      return;
-    }
-    busy = true;
-    result = null;
-    messageKey = 'preparing';
-    state();
-    try {
-      const response = await request('/api/attachment-download/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': get('csrf-token').value },
-        body: JSON.stringify({
-          vehicle_ids: vehicles.map((vehicle) => vehicle.id),
-          category_ids: chosen(),
-        }),
-      });
-      const blob = await response.blob(),
-        url = URL.createObjectURL(blob),
-        link = document.createElement('a');
-      link.href = url;
-      link.download = 'HSPACE-attachments.zip';
-      document.body.append(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-      result = {
-        files: Number(response.headers.get('X-HSpace-File-Count') || 0),
-        missing: Number(response.headers.get('X-HSpace-Missing-Count') || 0),
-      };
-      messageKey = '';
-    } catch (error) {
-      messageKey = error.status === 404 ? 'empty' : 'failed';
-    } finally {
-      busy = false;
+  get('attachment-download-form').addEventListener(
+    'submit',
+    async (event) => {
+      event.preventDefault();
+      if (
+        busy
+        ||
+        previewBusy
+        ||
+        !loaded
+        ||
+        !chosen().length
+        ||
+        !vehicles.length
+        ||
+        !availability?.file_count
+      ) {
+        return;
+      }
+      busy = true;
+      result = null;
+      messageKey = 'preparing';
       state();
-    }
-  });
-  function cell(tag, value) {
+      try {
+        const response = await request(
+          '/api/attachment-download/',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': get('csrf-token').value },
+            body: JSON.stringify({
+              vehicle_ids: vehicles.map((vehicle) => vehicle.id),
+              category_ids: chosen(),
+            }),
+          },
+        );
+        const blob = await response.blob(),
+          url = URL.createObjectURL(blob),
+          link = document.createElement('a');
+        link.href = url;
+        link.download = 'HSPACE-attachments.zip';
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(
+          () => URL.revokeObjectURL(url),
+          60000,
+        );
+        result = {
+          files: Number(response.headers.get('X-HSpace-File-Count') || 0),
+          missing: Number(response.headers.get('X-HSpace-Missing-Count') || 0),
+        };
+        messageKey = '';
+      } catch (error) {
+        messageKey = error.status === 404 ? 'empty' : 'failed';
+      } finally {
+        busy = false;
+        state();
+      }
+    },
+  );
+  function cell(
+    tag,
+    value,
+  ) {
     const item = document.createElement(tag);
     item.textContent = value;
     return item;
@@ -256,12 +290,17 @@
         : availability?.file_count === 0
           ? text('empty')
           : '';
-    get('download-availability').setAttribute('aria-busy', String(previewBusy));
+    get('download-availability').setAttribute(
+      'aria-busy',
+      String(previewBusy),
+    );
     get('availability-head').replaceChildren();
     get('availability-body').replaceChildren();
     if (
-      !availability ||
-      previewBusy ||
+      !availability
+      ||
+      previewBusy
+      ||
       previewError
     ) {
       return;
@@ -272,7 +311,10 @@
       text('plate'),
       ...types.map((category) => (category.code ? text(category.code) : category.name)),
     ]) {
-      const title = cell('th', value);
+      const title = cell(
+        'th',
+        value,
+      );
       title.scope = 'col';
       heading.append(title);
     }
@@ -280,7 +322,10 @@
     for (const vehicle of availability.vehicles) {
       const row = document.createElement('tr'),
         number = document.createElement('th'),
-        plate = cell('bdi', vehicle.plate_number);
+        plate = cell(
+          'bdi',
+          vehicle.plate_number,
+        );
       number.scope = 'row';
       plate.dir = 'ltr';
       number.append(plate);
@@ -308,8 +353,10 @@
     result = null;
     messageKey = '';
     if (
-      !loaded ||
-      !ids.length ||
+      !loaded
+      ||
+      !ids.length
+      ||
       !vehicles.length
     ) {
       previewBusy = false;
@@ -321,14 +368,17 @@
     renderAvailability();
     state();
     try {
-      const response = await request('/api/attachment-download/availability/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': get('csrf-token').value },
-        body: JSON.stringify({
-          vehicle_ids: vehicles.map((vehicle) => vehicle.id),
-          category_ids: ids,
-        }),
-      });
+      const response = await request(
+        '/api/attachment-download/availability/',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': get('csrf-token').value },
+          body: JSON.stringify({
+            vehicle_ids: vehicles.map((vehicle) => vehicle.id),
+            category_ids: ids,
+          }),
+        },
+      );
       const data = await response.json();
       if (current === previewSequence) {
         availability = data;
@@ -345,7 +395,10 @@
       }
     }
   }
-  get('availability-refresh').addEventListener('click', updateAvailability);
+  get('availability-refresh').addEventListener(
+    'click',
+    updateAvailability,
+  );
   function translate() {
     document.title = 'H SPACE | ' + text('title');
     document.querySelectorAll('[data-download-i18n],[data-i18n]').forEach((item) => {
@@ -356,14 +409,23 @@
     });
     document
       .querySelectorAll('[data-i18n-aria]')
-      .forEach((item) => item.setAttribute('aria-label', text(item.dataset.i18nAria)));
+      .forEach((item) => item.setAttribute(
+        'aria-label',
+        text(item.dataset.i18nAria),
+      ));
     get('download-scope').textContent = loaded ? text('scope') + vehicles.length : '';
     renderTypes();
     renderAvailability();
     state();
   }
-  window.addEventListener('hspace:language', translate);
-  window.addEventListener('hashchange', load);
+  window.addEventListener(
+    'hspace:language',
+    translate,
+  );
+  window.addEventListener(
+    'hashchange',
+    load,
+  );
   translate();
   load();
 })();

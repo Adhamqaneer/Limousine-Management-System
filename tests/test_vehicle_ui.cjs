@@ -3,7 +3,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs'),
   path = require('node:path'),
   vm = require('node:vm');
-const staticDir = path.join(__dirname, '../src/limousine/presentation/web/static/web');
+const staticDir = path.join(
+  __dirname,
+  '../src/limousine/presentation/web/static/web',
+);
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 function page() {
@@ -16,7 +19,10 @@ function page() {
     mutationWait = null;
   const document = {
     cookie: '',
-    addEventListener: (name, fn) => {
+    addEventListener: (
+      name,
+      fn,
+    ) => {
       events[name] = fn;
     },
     dispatchEvent: (event) => events[event.type]?.(event),
@@ -55,16 +61,23 @@ function page() {
       this.children.unshift(child);
     }
     replaceChildren(...children) {
-      if (this !== document.body && this.contains(document.activeElement))
+      if (
+        this !== document.body
+        && this.contains(document.activeElement)
+      ) {
         document.activeElement = document.body;
+      }
       for (const child of this.children) child.parentElement = null;
       this.children = [];
       this.append(...children);
     }
     matches(selector) {
-      if (selector.startsWith('.')) return this.className.split(' ').includes(selector.slice(1));
-      if (selector.startsWith('[data-action='))
+      if (selector.startsWith('.')) {
+        return this.className.split(' ').includes(selector.slice(1));
+      }
+      if (selector.startsWith('[data-action=')) {
         return this.dataset.action === selector.match(/"([^"]+)"/)[1];
+      }
       return this.tagName === selector;
     }
     closest(selector) {
@@ -82,10 +95,16 @@ function page() {
     contains(node) {
       return !!node && (node === this || this.children.some((child) => child.contains(node)));
     }
-    addEventListener(name, fn) {
+    addEventListener(
+      name,
+      fn,
+    ) {
       this.handlers[name] = fn;
     }
-    setAttribute(name, value) {
+    setAttribute(
+      name,
+      value,
+    ) {
       this.attributes[name] = value;
     }
     getAttribute(name) {
@@ -93,7 +112,9 @@ function page() {
     }
     removeAttribute(name) {
       delete this.attributes[name];
-      if (name === 'href') delete this.href;
+      if (name === 'href') {
+        delete this.href;
+      }
     }
     setCustomValidity(value) {
       this.validityMessage = value;
@@ -116,31 +137,59 @@ function page() {
   document.documentElement = new Node('html');
   document.documentElement.dataset.theme = 'dark';
   for (const name of ['home.html', '_header.html']) {
-    const html = fs.readFileSync(path.join(staticDir, '../../templates/web', name), 'utf8');
+    const html = fs.readFileSync(
+      path.join(
+        staticDir,
+        '../../templates/web',
+        name,
+      ),
+      'utf8',
+    );
     for (const match of html.matchAll(/\bid="([^"]+)"/g)) {
       const node = new Node();
       node.id = match[1];
-      nodes.set(node.id, node);
+      nodes.set(
+        node.id,
+        node,
+      );
       document.body.append(node);
     }
   }
-  nodes.set('language-label', new Node());
-  nodes.set('theme-toggle', new Node());
-  nodes.set('language-toggle', new Node());
+  nodes.set(
+    'language-label',
+    new Node(),
+  );
+  nodes.set(
+    'theme-toggle',
+    new Node(),
+  );
+  nodes.set(
+    'language-toggle',
+    new Node(),
+  );
   const meta = new Node();
-  Object.assign(document, {
-    getElementById: (id) => nodes.get(id),
-    createElement: (tag) => new Node(tag),
-    createElementNS: (_, tag) => new Node(tag),
-    createTextNode: (text) => {
-      const node = new Node('#text');
-      node.textContent = text;
-      return node;
+  Object.assign(
+    document,
+    {
+      getElementById: (id) => nodes.get(id),
+      createElement: (tag) => new Node(tag),
+      createElementNS: (
+        _,
+        tag,
+      ) => new Node(tag),
+      createTextNode: (text) => {
+        const node = new Node('#text');
+        node.textContent = text;
+        return node;
+      },
+      querySelector: () => meta,
+      querySelectorAll: (selector) => document.body.querySelectorAll(selector),
     },
-    querySelector: () => meta,
-    querySelectorAll: (selector) => document.body.querySelectorAll(selector),
-  });
-  const vehicle = (id, plate) => ({
+  );
+  const vehicle = (
+    id,
+    plate,
+  ) => ({
     id,
     plate_number: plate,
     vehicle_type: 'Camry',
@@ -150,13 +199,19 @@ function page() {
     driver_phone: '0079',
     chassis_number: 'VIN001',
     manufacture_year: '2022',
-    created_at: '2026-01-01T10:00:00Z',
+    created_at: '2026-01-22T23:00:00Z',
     attachment_count: 0,
     attachments: [],
   });
   const records = new Map([
-    [1, vehicle(1, '050-001')],
-    [2, vehicle(2, '050-002')],
+    [1, vehicle(
+      1,
+      '050-001',
+    )],
+    [2, vehicle(
+      2,
+      '050-002',
+    )],
   ]);
   records.get(1).attachments = [
     {
@@ -183,10 +238,16 @@ function page() {
   const window = {
     location,
     scrollY: 0,
-    scrollTo: (_, y) => {
+    scrollTo: (
+      _,
+      y,
+    ) => {
       window.scrollY = y;
     },
-    addEventListener: (name, fn) => {
+    addEventListener: (
+      name,
+      fn,
+    ) => {
       windowEvents[name] = fn;
     },
     dispatchEvent: (event) => windowEvents[event.type]?.(event),
@@ -211,49 +272,90 @@ function page() {
       }
     },
     CustomEvent: class {
-      constructor(type, options) {
+      constructor(
+        type,
+        options,
+      ) {
         this.type = type;
         this.detail = options.detail;
       }
     },
     requestAnimationFrame: (fn) => {
-      frames.set(++frameId, fn);
+      frames.set(
+        ++frameId,
+        fn,
+      );
       return frameId;
     },
     cancelAnimationFrame: (id) => frames.delete(id),
-    fetch: async (url, options) => {
+    fetch: async (
+      url,
+      options,
+    ) => {
       calls.push({ url, options });
-      if (options.method && mutationWait) await mutationWait;
+      if (
+        options.method
+        && mutationWait
+      ) {
+        await mutationWait;
+      }
       const id = Number(url.match(/vehicles\/(\d+)/)?.[1]);
-      if (options.method === 'PATCH' && url.includes('/attachments/')) {
+      if (
+        url === '/api/vehicles/'
+        && options.method === 'POST'
+      ) {
+        return {
+          ok: false,
+          status: 409,
+          json: async () => ({ error: { code: 'vehicle_number_in_use' } }),
+        };
+      }
+      if (
+        options.method === 'PATCH'
+        && url.includes('/attachments/')
+      ) {
         const attachmentId = Number(url.match(/attachments\/(\d+)/)[1]),
           body = JSON.parse(options.body);
         const old = records.get(id).attachments.find((file) => file.id === attachmentId),
           dot = old.name.lastIndexOf('.');
-        if (body.expected_name !== old.name)
+        if (body.expected_name !== old.name) {
           return {
             ok: false,
             status: 409,
             json: async () => ({ error: { code: 'attachment_name_conflict' } }),
           };
+        }
         const updated = { ...old, name: body.name + old.name.slice(dot) };
-        records.set(id, {
-          ...records.get(id),
-          attachments: records
-            .get(id)
-            .attachments.map((file) => (file.id === attachmentId ? updated : file)),
-        });
+        records.set(
+          id,
+          {
+            ...records.get(id),
+            attachments: records
+              .get(id)
+              .attachments.map((file) => (file.id === attachmentId ? updated : file)),
+          },
+        );
         return {
           ok: true,
           status: 200,
           json: async () => ({ attachment: JSON.parse(JSON.stringify(updated)) }),
         };
       }
-      if (options.method === 'PATCH')
-        records.set(id, { ...records.get(id), ...JSON.parse(options.body) });
-      if (options.method === 'DELETE') records.delete(id);
-      if (url.endsWith('/cover/'))
-        records.set(id, { ...records.get(id), cover_url: '/private/photo' });
+      if (options.method === 'PATCH') {
+        records.set(
+          id,
+          { ...records.get(id), ...JSON.parse(options.body) },
+        );
+      }
+      if (options.method === 'DELETE') {
+        records.delete(id);
+      }
+      if (url.endsWith('/cover/')) {
+        records.set(
+          id,
+          { ...records.get(id), cover_url: '/private/photo' },
+        );
+      }
       const payload = id ? { vehicle: records.get(id) } : { vehicles: [...records.values()] };
       return { ok: true, status: 200, json: async () => JSON.parse(JSON.stringify(payload)) };
     },
@@ -266,7 +368,16 @@ function page() {
     'ui-state.js',
     'app.js',
   ])
-    vm.runInContext(fs.readFileSync(path.join(staticDir, name), 'utf8'), context);
+    vm.runInContext(
+      fs.readFileSync(
+        path.join(
+          staticDir,
+          name,
+        ),
+        'utf8',
+      ),
+      context,
+    );
   return {
     nodes,
     calls,
@@ -313,33 +424,177 @@ async function main() {
   const p = page(),
     get = (id) => p.nodes.get(id);
   await tick();
+  const newType = get('new-type');
+  newType.value = 'Accord2';
+  newType.handlers.input({});
+  assert.equal(
+    newType.attributes['aria-invalid'],
+    'true',
+  );
+  assert.equal(
+    get('new-type-error').hidden,
+    false,
+  );
+  newType.value = 'اكورد Accord';
+  newType.handlers.input({});
+  assert.equal(
+    newType.attributes['aria-invalid'],
+    undefined,
+  );
+  assert.equal(
+    get('new-type-error').hidden,
+    true,
+  );
+
+  const newPlate = get('new-plate');
+  newPlate.value = 'A50-31142';
+  newPlate.handlers.input({});
+  assert.equal(
+    newPlate.attributes['aria-invalid'],
+    'true',
+  );
+  assert.equal(
+    get('new-plate-error').hidden,
+    false,
+  );
+  newPlate.value = '50-';
+  newPlate.handlers.input({});
+  assert.equal(
+    get('new-plate-error').hidden,
+    true,
+  );
+  newPlate.handlers.blur();
+  assert.equal(
+    get('new-plate-error').hidden,
+    false,
+  );
+  newPlate.value = '5076523';
+  newPlate.handlers.input({});
+  assert.equal(
+    get('new-plate-error').hidden,
+    true,
+  );
+  newPlate.handlers.blur();
+  assert.equal(
+    get('new-plate-error').hidden,
+    false,
+  );
+  newPlate.value = '50-31142';
+  newPlate.handlers.input({});
+  assert.equal(
+    newPlate.attributes['aria-invalid'],
+    undefined,
+  );
+  assert.equal(
+    get('new-plate-error').hidden,
+    true,
+  );
+  newPlate.value = '050-001';
+  get('add-dialog').showModal();
+  await get('add-form').handlers.submit({ preventDefault() {} });
+  assert.equal(
+    get('add-dialog').open,
+    true,
+  );
+  assert.equal(
+    newPlate.value,
+    '050-001',
+  );
+  assert.equal(
+    get('add-message').textContent,
+    'A vehicle with this number already exists.',
+  );
+  get('add-dialog').close();
+
   const first = get('vehicle-grid').children[0];
+  get('vehicle-grid').scrollTop = 180;
   p.search('٠٠١');
-  assert.equal(get('vehicle-grid').children.length, 1);
-  assert.equal(get('vehicle-grid').children[0], first, 'typing should retain unchanged card nodes');
-  assert.equal(first.querySelector('mark').textContent, '001');
-  assert.equal(first.querySelector('h2').querySelector('bdi').dir, 'ltr');
+  assert.equal(
+    get('vehicle-grid').scrollTop,
+    0,
+  );
+  assert.equal(
+    get('vehicle-grid').children.length,
+    1,
+  );
+  assert.equal(
+    get('vehicle-grid').children[0],
+    first,
+    'typing should retain unchanged card nodes',
+  );
+  assert.equal(
+    first.querySelector('mark').textContent,
+    '001',
+  );
+  assert.equal(
+    first.querySelector('h2').querySelector('bdi').dir,
+    'ltr',
+  );
   p.window.scrollY = 320;
+  get('vehicle-grid').scrollTop = 150;
   await p.route('#vehicle/1');
-  assert.equal(get('detail-plate').value, '050-001');
-  assert.equal(get('download-photos').href, '/api/vehicles/1/attachments/archive/photos/');
-  assert.equal(get('download-photos').attributes['aria-disabled'], 'false');
-  assert.equal(get('download-files').attributes['aria-disabled'], 'true');
-  assert.equal(get('download-files').href, undefined);
-  assert.equal(get('detail-title').children[2].dir, 'ltr');
-  assert.equal(get('photo-grid').children.length, 2);
+  assert.equal(
+    get('detail-plate').value,
+    '050-001',
+  );
+  assert.ok(get('detail-created').textContent.includes('23/01/2026'));
+  assert.equal(
+    get('download-photos').href,
+    '/api/vehicles/1/attachments/archive/photos/',
+  );
+  assert.equal(
+    get('download-photos').attributes['aria-disabled'],
+    'false',
+  );
+  assert.equal(
+    get('download-files').attributes['aria-disabled'],
+    'true',
+  );
+  assert.equal(
+    get('download-files').href,
+    undefined,
+  );
+  assert.equal(
+    get('detail-title').children[2].dir,
+    'ltr',
+  );
+  assert.equal(
+    get('photo-grid').children.length,
+    2,
+  );
   for (const [index, row] of get('photo-grid').children.entries()) {
     const file = p.records.get(1).attachments[index],
       thumbnail = row.children[0],
       image = thumbnail.children[0],
       actions = row.children[2];
-    assert.equal(image.width, 64);
-    assert.equal(image.height, 48);
-    assert.equal(thumbnail.href, file.preview_url);
-    assert.equal(thumbnail.target, '_blank');
-    assert.equal(row.children[1].children[0].textContent, file.name);
-    assert.equal(actions.children[0].href, file.preview_url);
-    assert.equal(actions.children[1].href, file.download_url);
+    assert.equal(
+      image.width,
+      64,
+    );
+    assert.equal(
+      image.height,
+      48,
+    );
+    assert.equal(
+      thumbnail.href,
+      file.preview_url,
+    );
+    assert.equal(
+      thumbnail.target,
+      '_blank',
+    );
+    assert.equal(
+      row.children[1].children[0].textContent,
+      file.name,
+    );
+    assert.equal(
+      actions.children[0].href,
+      file.preview_url,
+    );
+    assert.equal(
+      actions.children[1].href,
+      file.download_url,
+    );
     assert.ok(actions.children[2].attributes['aria-label'].includes(file.name));
   }
   get('detail-owner').value = 'New Owner';
@@ -347,51 +602,125 @@ async function main() {
   let edit = get('photo-grid').children[0].querySelector('button');
   edit.handlers.click();
   assert.ok(get('rename-dialog').open);
-  assert.equal(get('rename-extension').textContent, '.png');
+  assert.equal(
+    get('rename-extension').textContent,
+    '.png',
+  );
   get('rename-name').value = 'صورة جديدة';
   await get('rename-form').handlers.submit({ preventDefault() {} });
-  assert.equal(get('detail-owner').value, 'New Owner');
-  assert.equal(get('rename-dialog').open, false);
-  assert.equal(get('photo-grid').children[0].children[1].children[0].textContent, 'صورة جديدة.png');
-  assert.equal(p.document.activeElement.dataset.attachmentId, '7');
+  assert.equal(
+    get('detail-owner').value,
+    'New Owner',
+  );
+  assert.equal(
+    get('rename-dialog').open,
+    false,
+  );
+  assert.equal(
+    get('photo-grid').children[0].children[1].children[0].textContent,
+    'صورة جديدة.png',
+  );
+  assert.equal(
+    p.document.activeElement.dataset.attachmentId,
+    '7',
+  );
   edit = get('photo-grid').children[0].querySelector('button');
   edit.handlers.click();
   p.records.get(1).attachments[0].name = 'Other name.png';
   get('rename-name').value = 'Keep my input';
   await get('rename-form').handlers.submit({ preventDefault() {} });
   assert.ok(get('rename-dialog').open);
-  assert.equal(get('rename-name').value, 'Keep my input');
-  assert.equal(get('detail-owner').value, 'New Owner');
-  assert.equal(p.document.activeElement, get('rename-name'));
+  assert.equal(
+    get('rename-name').value,
+    'Keep my input',
+  );
+  assert.equal(
+    get('detail-owner').value,
+    'New Owner',
+  );
+  assert.equal(
+    p.document.activeElement,
+    get('rename-name'),
+  );
   get('cancel-rename').handlers.click();
-  p.records.set(1, { ...p.records.get(1), driver_name: 'New Driver', driver_phone: '0088' });
+  p.records.set(
+    1,
+    { ...p.records.get(1), driver_name: 'New Driver', driver_phone: '0088' },
+  );
   p.events['hspace:driver-updated']({ detail: { vehicle: { ...p.records.get(1) } } });
-  assert.equal(get('detail-owner').value, 'New Owner');
-  assert.equal(get('detail-driver').value, 'New Driver');
-  assert.equal(get('detail-driver-phone').value, '0088');
-  assert.equal(get('save-information').disabled, false);
+  assert.equal(
+    get('detail-owner').value,
+    'New Owner',
+  );
+  assert.equal(
+    get('detail-driver').value,
+    'New Driver',
+  );
+  assert.equal(
+    get('detail-driver-phone').value,
+    '0088',
+  );
+  assert.equal(
+    get('save-information').disabled,
+    false,
+  );
   await p.route('#vehicles');
-  assert.equal(p.window.scrollY, 320);
-  assert.equal(p.document.activeElement, get('vehicle-search'));
-  assert.equal(get('vehicle-search').value, '٠٠١');
+  assert.equal(
+    p.window.scrollY,
+    320,
+  );
+  assert.equal(
+    get('vehicle-grid').scrollTop,
+    150,
+  );
+  assert.equal(
+    p.document.activeElement,
+    get('vehicle-search'),
+  );
+  assert.equal(
+    get('vehicle-search').value,
+    '٠٠١',
+  );
   assert.ok(p.hasUnsaved());
   await p.route('#vehicle/2');
-  assert.equal(get('detail-owner').value, 'Old Owner');
-  assert.equal(get('download-photos').attributes['aria-disabled'], 'true');
-  assert.equal(get('download-photos').href, undefined);
+  assert.equal(
+    get('detail-owner').value,
+    'Old Owner',
+  );
+  assert.equal(
+    get('download-photos').attributes['aria-disabled'],
+    'true',
+  );
+  assert.equal(
+    get('download-photos').href,
+    undefined,
+  );
   await p.route('#vehicle/1');
-  assert.equal(get('detail-owner').value, 'New Owner');
+  assert.equal(
+    get('detail-owner').value,
+    'New Owner',
+  );
   get('detail-owner').value = 'Old Owner';
   get('detail-owner').handlers.input();
-  assert.equal(p.hasUnsaved(), false, 'reverting the active draft should clear the warning');
+  assert.equal(
+    p.hasUnsaved(),
+    false,
+    'reverting the active draft should clear the warning',
+  );
   get('detail-owner').value = 'Saved Owner';
   get('detail-owner').handlers.input();
   await get('vehicle-information-form').handlers.submit({ preventDefault() {} });
   const patch = p.calls.find(
     (call) => call.options.method === 'PATCH' && !call.url.includes('/attachments/'),
   );
-  assert.deepEqual(JSON.parse(patch.options.body), { owner_name: 'Saved Owner' });
-  assert.equal(p.hasUnsaved(), false);
+  assert.deepEqual(
+    JSON.parse(patch.options.body),
+    { owner_name: 'Saved Owner' },
+  );
+  assert.equal(
+    p.hasUnsaved(),
+    false,
+  );
   await p.route('#vehicles');
   p.search('');
   const card = get('vehicle-grid').children[0],
@@ -402,10 +731,19 @@ async function main() {
   input.value = 'car.jpg';
   input.handlers.change();
   await tick();
-  assert.equal(input.value, '');
-  assert.equal(p.document.activeElement.dataset.action, 'photo');
+  assert.equal(
+    input.value,
+    '',
+  );
+  assert.equal(
+    p.document.activeElement.dataset.action,
+    'photo',
+  );
   let replacement = get('vehicle-grid').children[0];
-  assert.notEqual(replacement, card);
+  assert.notEqual(
+    replacement,
+    card,
+  );
   const release = p.pauseMutation(),
     nextInput = replacement.querySelector('input');
   replacement.querySelector('[data-action="photo"]').focus();
@@ -422,9 +760,18 @@ async function main() {
   replacement = get('vehicle-grid').children[0];
   replacement.querySelector('[data-action="delete"]').focus();
   await replacement.querySelector('[data-action="delete"]').handlers.click();
-  assert.equal(get('vehicle-grid').children.length, 1);
-  assert.equal(p.document.activeElement.dataset.action, 'delete');
-  assert.equal(p.document.activeElement.closest('.vehicle-card').dataset.vehicleId, '2');
+  assert.equal(
+    get('vehicle-grid').children.length,
+    1,
+  );
+  assert.equal(
+    p.document.activeElement.dataset.action,
+    'delete',
+  );
+  assert.equal(
+    p.document.activeElement.closest('.vehicle-card').dataset.vehicleId,
+    '2',
+  );
   console.log(
     'Vehicle workflow passed: Arabic plate lookup/open, stable cards/highlighting, unsaved driver merge, cross-vehicle drafts, save payload, return position, cover focus and neighbor focus after deletion.',
   );

@@ -9,7 +9,10 @@ from unittest.mock import patch
 from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(
+    0,
+    str(ROOT / "src"),
+)
 
 
 def main():
@@ -73,7 +76,10 @@ def main():
         service = OfficeService(repo)
         recycling = RecyclingService(PostgresVehicleRepository(transaction))
         store = LocalAttachmentStore(directory)
-        cleanup = FileCleanup(transaction, store)
+        cleanup = FileCleanup(
+            transaction,
+            store,
+        )
         app = create_app(settings)
         app.state.media_layout = None  # Fixture storage is managed by this script.
         app.state.office = service
@@ -87,16 +93,36 @@ def main():
         base = "/api/office/attachments/"
         try:
             image = io.BytesIO()
-            Image.new("RGB", (3, 2), "white").save(image, "PNG")
+            Image.new(
+                "RGB",
+                (3, 2),
+                "white",
+            ).save(
+                image,
+                "PNG",
+            )
             image = image.getvalue()
 
-            def upload(name, content):
-                response = client.post(base, files={"file": (name, content)}, headers=headers)
+            def upload(
+                name,
+                content,
+            ):
+                response = client.post(
+                    base,
+                    files={"file": (name, content)},
+                    headers=headers,
+                )
                 assert response.status_code == 201
                 return response.json()["attachment"]
 
-            photo = upload("office.png", image)
-            doc = upload("office.txt", b"office original")
+            photo = upload(
+                "office.png",
+                image,
+            )
+            doc = upload(
+                "office.txt",
+                b"office original",
+            )
             assert client.get("/office/").status_code == 200
             assert client.get(photo["preview_url"]).content == image
             assert client.head(doc["download_url"]).status_code == 200
@@ -135,14 +161,32 @@ def main():
                 raise RuntimeError("Audit failure fixture")
 
             try:
-                with conn.transaction(), patch.object(repo, "_event", side_effect=fail):
-                    service.rename(doc["id"], "Rollback", "Renamed.txt", operator)
+                with (
+                    conn.transaction(),
+                    patch.object(
+                        repo,
+                        "_event",
+                        side_effect=fail,
+                    ),
+                ):
+                    service.rename(
+                        doc["id"],
+                        "Rollback",
+                        "Renamed.txt",
+                        operator,
+                    )
             except RuntimeError:
                 pass
             else:
                 raise AssertionError("Audit fixture did not fail.")
             assert service.get(doc["id"]).original_name == "Renamed.txt"
-            assert client.delete(doc["manage_url"], headers=headers).status_code == 204
+            assert (
+                client.delete(
+                    doc["manage_url"],
+                    headers=headers,
+                ).status_code
+                == 204
+            )
             assert client.get(doc["preview_url"]).status_code == 404
             assert client.get(base + "archive/files/").status_code == 404
             assert store.path(item.storage_key).is_file()
@@ -158,7 +202,8 @@ def main():
             )
             assert (
                 client.post(
-                    "/api/recycle-bin/office/" + str(doc["id"]) + "/restore/", headers=headers
+                    "/api/recycle-bin/office/" + str(doc["id"]) + "/restore/",
+                    headers=headers,
                 ).status_code
                 == 204
             )
@@ -184,7 +229,10 @@ def main():
             ]:
                 try:
                     with conn.transaction():
-                        conn.execute(query, params)
+                        conn.execute(
+                            query,
+                            params,
+                        )
                 except psycopg.errors.CheckViolation:
                     pass
                 else:

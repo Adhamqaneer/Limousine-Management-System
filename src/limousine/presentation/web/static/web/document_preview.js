@@ -26,9 +26,15 @@
       el.textContent = strings[el.dataset.i18n] ?? en[el.dataset.i18n];
     });
     document.querySelectorAll('[data-i18n-aria]').forEach((el) => {
-      el.setAttribute('aria-label', strings[el.dataset.i18nAria] ?? 'Sign out');
+      el.setAttribute(
+        'aria-label',
+        strings[el.dataset.i18nAria] ?? 'Sign out',
+      );
     });
   }
-  window.addEventListener('hspace:language', apply);
+  window.addEventListener(
+    'hspace:language',
+    apply,
+  );
   apply();
 })();

@@ -5,7 +5,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(
+    0,
+    str(ROOT / "src"),
+)
 
 
 def main():
@@ -74,6 +77,7 @@ def main():
             "hspace_one_active_cover",
             "hspace_activity_vehicle_idx",
             "hspace_deleted_vehicles",
+            "hspace_vehicle_plate_idx",
             "hspace_attachment_vehicle_idx",
             "hspace_session_user_idx",
             "hspace_session_expiry_idx",
@@ -97,6 +101,7 @@ def main():
             {
                 "hspace_activity_scope",
                 "hspace_office_deletion_state",
+                "hspace_office_attachment_size_check",
                 "hspace_attachment_driver",
                 "hspace_driver_vehicle_identity",
                 "hspace_owner_phone_digits",
@@ -122,6 +127,7 @@ def main():
             {
                 "hspace_retain_office",
                 "hspace_vehicle_category_unique",
+                "hspace_vehicle_plate_unique",
                 "hspace_retain_category",
                 "hspace_retain_category_alias",
                 "hspace_retain_vehicle",
@@ -209,9 +215,20 @@ def main():
         and not report["missing_deletion_constraints"]
         and not report["missing_driver_triggers"]
         and not report["driver_state_mismatches"]
-        and report["schema_versions"] == list(range(1, SCHEMA_VERSION + 1))
+        and report["schema_versions"]
+        == list(
+            range(
+                1,
+                SCHEMA_VERSION + 1,
+            )
+        )
     )
-    print(json.dumps(report, indent=2))
+    print(
+        json.dumps(
+            report,
+            indent=2,
+        )
+    )
     return 0 if report["ok"] else 1
 
 

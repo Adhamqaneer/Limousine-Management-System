@@ -6,33 +6,67 @@ from fastapi.exceptions import RequestValidationError
 from starlette.responses import JSONResponse, RedirectResponse
 
 from limousine.domain.accounts import AccessDenied
-from limousine.domain.attachments import AttachmentNameConflict, AttachmentNameError
+from limousine.domain.attachments import (
+    MAX_ATTACHMENT_BYTES,
+    AttachmentNameConflict,
+    AttachmentNameError,
+    ImageDimensionsTooLarge,
+)
 from limousine.domain.categories import CategoryConflict, CategoryInUse, SimilarCategory
 from limousine.domain.drivers import DriverValidationError
-from limousine.domain.vehicles import DomainError, NotFound
-from limousine.infrastructure.attachments import (
-    MAX_ATTACHMENT_BYTES,
-    AttachmentTooLarge,
-)
+from limousine.domain.vehicles import DomainError, NotFound, VehicleNumberInUse
+from limousine.infrastructure.attachments import AttachmentTooLarge
 
 from .security import AuthenticationRequired
 
 
-def error(code, message, status):
-    return JSONResponse({"error": {"code": code, "message": message}}, status_code=status)
+def error(
+    code,
+    message,
+    status,
+):
+    return JSONResponse(
+        {"error": {"code": code, "message": message}},
+        status_code=status,
+    )
 
 
-def configure_http(app, settings):
+def configure_http(
+    app,
+    settings,
+):
     @app.middleware("http")
-    async def security_headers(request, call_next):
+    async def security_headers(
+        request,
+        call_next,
+    ):
         try:
-            length = int(request.headers.get("content-length", "0"))
+            length = int(
+                request.headers.get(
+                    "content-length",
+                    "0",
+                )
+            )
         except ValueError:
-            return error("validation_error", "Invalid content length.", 400)
+            return error(
+                "validation_error",
+                "Invalid content length.",
+                400,
+            )
         if length > MAX_ATTACHMENT_BYTES + 65536:
-            return error("file_too_large", "The file must be 10 MB or smaller.", 413)
-        if settings.production and request.url.scheme != "https":
-            return RedirectResponse(str(request.url.replace(scheme="https")), status_code=307)
+            return error(
+                "file_too_large",
+                "The file must be 25 MB or smaller.",
+                413,
+            )
+        if (
+            settings.production
+            and request.url.scheme != "https"
+        ):
+            return RedirectResponse(
+                str(request.url.replace(scheme="https")),
+                status_code=307,
+            )
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
@@ -46,30 +80,106 @@ def configure_http(app, settings):
         return response
 
     @app.exception_handler(AuthenticationRequired)
-    async def authentication_error(request, exc):
+    async def authentication_error(
+        request,
+        exc,
+    ):
         return (
-            error("authentication_required", "Sign in to continue.", 401)
+            error(
+                "authentication_required",
+                "Sign in to continue.",
+                401,
+            )
             if request.url.path.startswith("/api/")
-            else RedirectResponse("/login/", 303)
+            else RedirectResponse(
+                "/login/",
+                303,
+            )
         )
 
     @app.exception_handler(AccessDenied)
-    async def denied(request, exc):
-        return error("forbidden", str(exc), 403)
+    async def denied(
+        request,
+        exc,
+    ):
+        return error(
+            "forbidden",
+            str(exc),
+            403,
+        )
 
     @app.exception_handler(DomainError)
-    async def domain_error(request, exc):
-        if isinstance(exc, CategoryInUse):
-            return error("category_in_use", str(exc), 409)
-        if isinstance(exc, SimilarCategory):
-            return error("similar_category", str(exc), 409)
-        if isinstance(exc, CategoryConflict):
-            return error("category_conflict", str(exc), 409)
-        if isinstance(exc, AttachmentNameConflict):
-            return error("attachment_name_conflict", str(exc), 409)
-        if isinstance(exc, AttachmentNameError):
-            return error("invalid_attachment_name", str(exc), 400)
-        if isinstance(exc, DriverValidationError):
+    async def domain_error(
+        request,
+        exc,
+    ):
+        if isinstance(
+            exc,
+            VehicleNumberInUse,
+        ):
+            return error(
+                "vehicle_number_in_use",
+                str(exc),
+                409,
+            )
+        if isinstance(
+            exc,
+            CategoryInUse,
+        ):
+            return error(
+                "category_in_use",
+                str(exc),
+                409,
+            )
+        if isinstance(
+            exc,
+            SimilarCategory,
+        ):
+            return error(
+                "similar_category",
+                str(exc),
+                409,
+            )
+        if isinstance(
+            exc,
+            CategoryConflict,
+        ):
+            return error(
+                "category_conflict",
+                str(exc),
+                409,
+            )
+        if isinstance(
+            exc,
+            AttachmentNameConflict,
+        ):
+            return error(
+                "attachment_name_conflict",
+                str(exc),
+                409,
+            )
+        if isinstance(
+            exc,
+            AttachmentNameError,
+        ):
+            return error(
+                "invalid_attachment_name",
+                str(exc),
+                400,
+            )
+        if isinstance(
+            exc,
+            ImageDimensionsTooLarge,
+        ):
+            return error(
+                "image_dimensions_too_large",
+                str(exc),
+                400,
+            )
+        if isinstance(
+            exc,
+            DriverValidationError,
+        ):
             return JSONResponse(
                 {
                     "error": {
@@ -82,19 +192,46 @@ def configure_http(app, settings):
                 status_code=400,
             )
         return error(
-            "file_too_large" if isinstance(exc, AttachmentTooLarge) else "validation_error",
+            (
+                "file_too_large"
+                if isinstance(
+                    exc,
+                    AttachmentTooLarge,
+                )
+                else "validation_error"
+            ),
             str(exc),
-            413 if isinstance(exc, AttachmentTooLarge) else 400,
+            (
+                413
+                if isinstance(
+                    exc,
+                    AttachmentTooLarge,
+                )
+                else 400
+            ),
         )
 
     @app.exception_handler(NotFound)
-    async def missing(request, exc):
-        return error("not_found", "This record could not be found.", 404)
+    async def missing(
+        request,
+        exc,
+    ):
+        return error(
+            "not_found",
+            "This record could not be found.",
+            404,
+        )
 
     @app.exception_handler(psycopg.Error)
-    async def database_error(request, exc):
+    async def database_error(
+        request,
+        exc,
+    ):
         if (
-            isinstance(exc, psycopg.errors.UniqueViolation)
+            isinstance(
+                exc,
+                psycopg.errors.UniqueViolation,
+            )
             and exc.diag.constraint_name == "hspace_vehicle_category_unique"
         ):
             return error(
@@ -102,20 +239,55 @@ def configure_http(app, settings):
                 "This vehicle already has an attachment in this category, in Photos or Files.",
                 409,
             )
-        return error("storage_unavailable", "Storage is temporarily unavailable.", 503)
+        return error(
+            "storage_unavailable",
+            "Storage is temporarily unavailable.",
+            503,
+        )
 
     @app.exception_handler(OSError)
-    async def file_error(request, exc):
+    async def file_error(
+        request,
+        exc,
+    ):
         return error(
-            "not_found" if isinstance(exc, FileNotFoundError) else "storage_unavailable",
+            (
+                "not_found"
+                if isinstance(
+                    exc,
+                    FileNotFoundError,
+                )
+                else "storage_unavailable"
+            ),
             "The file is unavailable.",
-            404 if isinstance(exc, FileNotFoundError) else 503,
+            (
+                404
+                if isinstance(
+                    exc,
+                    FileNotFoundError,
+                )
+                else 503
+            ),
         )
 
     @app.exception_handler(RequestValidationError)
-    async def request_error(request, exc):
-        return error("validation_error", "Invalid request parameters.", 400)
+    async def request_error(
+        request,
+        exc,
+    ):
+        return error(
+            "validation_error",
+            "Invalid request parameters.",
+            400,
+        )
 
     @app.exception_handler(HTTPException)
-    async def http_error(request, exc):
-        return error("request_failed", str(exc.detail), exc.status_code)
+    async def http_error(
+        request,
+        exc,
+    ):
+        return error(
+            "request_failed",
+            str(exc.detail),
+            exc.status_code,
+        )

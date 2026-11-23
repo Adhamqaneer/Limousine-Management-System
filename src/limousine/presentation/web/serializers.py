@@ -4,7 +4,10 @@ from limousine.domain.office import OfficeAttachment
 
 
 def attachment_payload(item):
-    if isinstance(item, OfficeAttachment):
+    if isinstance(
+        item,
+        OfficeAttachment,
+    ):
         prefix = "/api/office"
     else:
         prefix = f"/api/vehicles/{item.vehicle_id}"
@@ -21,12 +24,18 @@ def attachment_payload(item):
         "preview_url": base + "/preview/",
         "manage_url": base + "/",
     }
-    if not isinstance(item, OfficeAttachment):
+    if not isinstance(
+        item,
+        OfficeAttachment,
+    ):
         payload["category_id"] = item.category_id
     return payload
 
 
-def vehicle_payload(item, detailed=False):
+def vehicle_payload(
+    item,
+    detailed=False,
+):
     payload = {
         "id": item.id,
         "plate_number": item.plate_number,

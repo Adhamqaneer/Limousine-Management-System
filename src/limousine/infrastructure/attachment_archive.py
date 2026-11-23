@@ -10,8 +10,25 @@ CHUNK_BYTES = 64 * 1024
 SPOOL_BYTES = 8 * 1024 * 1024
 
 
-def _entry_name(original_name, attachment_id, used):
-    name = unicodedata.normalize("NFC", original_name).replace("\\", "/").rsplit("/", 1)[-1]
+def _entry_name(
+    original_name,
+    attachment_id,
+    used,
+):
+    name = (
+        unicodedata.normalize(
+            "NFC",
+            original_name,
+        )
+        .replace(
+            "\\",
+            "/",
+        )
+        .rsplit(
+            "/",
+            1,
+        )[-1]
+    )
     name = "".join(
         "_" if char in '<>:"|?*' else char
         for char in name
@@ -19,7 +36,10 @@ def _entry_name(original_name, attachment_id, used):
     ).strip(" .")
     if not name:
         name = f"attachment-{attachment_id}"
-    if re.fullmatch(r"(?i:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])", name.split(".")[0]):
+    if re.fullmatch(
+        r"(?i:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])",
+        name.split(".")[0],
+    ):
         name = "_" + name
     suffix = PurePosixPath(name).suffix
     stem = name[: -len(suffix)] if suffix else name
@@ -31,11 +51,20 @@ def _entry_name(original_name, attachment_id, used):
     return candidate
 
 
-def _write_original(archive, store, entry_name, storage_key, expected_size):
+def _write_original(
+    archive,
+    store,
+    entry_name,
+    storage_key,
+    expected_size,
+):
     copied = 0
     with (
         store.open(storage_key) as source,
-        archive.open(entry_name, "w") as destination,
+        archive.open(
+            entry_name,
+            "w",
+        ) as destination,
     ):
         while chunk := source.read(CHUNK_BYTES):
             copied += len(chunk)
@@ -47,15 +76,36 @@ def _write_original(archive, store, entry_name, storage_key, expected_size):
             raise OSError("Attachment size differs from its metadata.")
 
 
-def build_attachment_archive(attachments, store):
+def build_attachment_archive(
+    attachments,
+    store,
+):
     """Finish before responding so a missing file never produces a partial ZIP."""
-    output = SpooledTemporaryFile(max_size=SPOOL_BYTES, mode="w+b")
+    output = SpooledTemporaryFile(
+        max_size=SPOOL_BYTES,
+        mode="w+b",
+    )
     try:
         used = set()
-        with ZipFile(output, "w", compression=ZIP_DEFLATED, compresslevel=1) as archive:
+        with ZipFile(
+            output,
+            "w",
+            compression=ZIP_DEFLATED,
+            compresslevel=1,
+        ) as archive:
             for item in attachments:
-                name = _entry_name(item.original_name, item.id, used)
-                _write_original(archive, store, name, item.storage_key, item.size)
+                name = _entry_name(
+                    item.original_name,
+                    item.id,
+                    used,
+                )
+                _write_original(
+                    archive,
+                    store,
+                    name,
+                    item.storage_key,
+                    item.size,
+                )
         output.seek(0)
         return output
     except BaseException:
@@ -63,33 +113,62 @@ def build_attachment_archive(attachments, store):
         raise
 
 
-def build_vehicle_archive(selection, store):
+def build_vehicle_archive(
+    selection,
+    store,
+):
     """Group by plate; retain every original byte and report missing document types."""
-    output = SpooledTemporaryFile(max_size=SPOOL_BYTES, mode="w+b")
+    output = SpooledTemporaryFile(
+        max_size=SPOOL_BYTES,
+        mode="w+b",
+    )
     try:
         folders = {}
         used_folders = set()
         used_names = {}
-        with ZipFile(output, "w", compression=ZIP_DEFLATED, compresslevel=1) as archive:
+        with ZipFile(
+            output,
+            "w",
+            compression=ZIP_DEFLATED,
+            compresslevel=1,
+        ) as archive:
             for item in selection.files:
                 vehicle_id = item["vehicle_id"]
                 if vehicle_id not in folders:
                     folders[vehicle_id] = _entry_name(
-                        item["plate_number"], vehicle_id, used_folders
+                        item["plate_number"],
+                        vehicle_id,
+                        used_folders,
                     )
-                names = used_names.setdefault(vehicle_id, set())
+                names = used_names.setdefault(
+                    vehicle_id,
+                    set(),
+                )
                 name = (
                     folders[vehicle_id]
                     + "/"
-                    + _entry_name(item["original_name"], item["id"], names)
+                    + _entry_name(
+                        item["original_name"],
+                        item["id"],
+                        names,
+                    )
                 )
-                _write_original(archive, store, name, item["storage_key"], item["size"])
+                _write_original(
+                    archive,
+                    store,
+                    name,
+                    item["storage_key"],
+                    item["size"],
+                )
             if selection.missing:
                 report = "Missing documents / المرفقات الناقصة\n\n" + "\n".join(
                     item["plate_number"] + " : " + item["category_name"]
                     for item in selection.missing
                 )
-                archive.writestr("_missing-documents.txt", report.encode("utf-8-sig"))
+                archive.writestr(
+                    "_missing-documents.txt",
+                    report.encode("utf-8-sig"),
+                )
         output.seek(0)
         return output
     except BaseException:

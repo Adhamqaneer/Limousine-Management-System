@@ -13,7 +13,7 @@ Use the Python interpreter configured for the project; on this checkout that can
 | python scripts/check_database.py | Read-only local schema/role/index/constraint/file audit |
 | git diff --check | Whitespace problems in the patch |
 
-Keep Python at four-space indentation and web files at two spaces (see .editorconfig). Long calls/conditions should wrap; keep validation and transaction decisions explicit. Black (100-column style), Ruff (F/E9/I) and Prettier were used as local authoring tools for this refactoring. They are not runtime dependencies. Keep meaningful explanations of boundaries/security; remove comments that just narrate the next line.
+Keep Python at four-space indentation and web files at two spaces (see .editorconfig). Use one parameter per line for Python and JavaScript definitions with multiple parameters, including `self`, and one argument per line in calls with multiple arguments. Use trailing commas where the language permits them. Put each clause of a compound condition on its own line. Keep validation and transaction decisions explicit. Black, Ruff and Prettier are local authoring tools. Keep comments that explain boundaries or security decisions.
 
 ## Optional real-database verification
 

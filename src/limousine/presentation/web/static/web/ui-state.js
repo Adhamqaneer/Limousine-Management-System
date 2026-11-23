@@ -1,6 +1,10 @@
 /* Pure draft merging; no browser persistence of business data. */
 (() => {
-  function merge(original, draft, saved) {
+  function merge(
+    original,
+    draft,
+    saved,
+  ) {
     return Object.fromEntries(
       Object.entries(draft).map(([key, value]) => [
         key,

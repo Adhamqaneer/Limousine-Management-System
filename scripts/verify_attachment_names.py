@@ -10,7 +10,10 @@ from unittest.mock import patch
 from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(
+    0,
+    str(ROOT / "src"),
+)
 
 
 def main():
@@ -72,14 +75,40 @@ def main():
         service = VehicleService(repo)
         store = LocalAttachmentStore(directory)
         try:
-            car = service.create_vehicle("00999-002", "Camry", actor=operator)
+            car = service.create_vehicle(
+                "00999-002",
+                "Camry",
+                actor=operator,
+            )
             image = io.BytesIO()
-            Image.new("RGB", (2, 2), "white").save(image, "PNG")
+            Image.new(
+                "RGB",
+                (2, 2),
+                "white",
+            ).save(
+                image,
+                "PNG",
+            )
             items, contents = [], [image.getvalue(), b"original document 00123"]
-            for name, content in zip(["Original.PNG", "Original.txt"], contents):
+            for name, content in zip(
+                ["Original.PNG", "Original.txt"],
+                contents,
+            ):
                 source = io.BytesIO(content)
-                stored = store.save(SimpleNamespace(name=name, size=len(content), read=source.read))
-                items.append(service.add_attachment(car.id, actor=operator, **vars(stored)))
+                stored = store.save(
+                    SimpleNamespace(
+                        name=name,
+                        size=len(content),
+                        read=source.read,
+                    )
+                )
+                items.append(
+                    service.add_attachment(
+                        car.id,
+                        actor=operator,
+                        **vars(stored),
+                    )
+                )
             app = create_app(settings)
             app.state.media_layout = None  # Fixture storage is managed by this script.
             app.state.vehicles = service
@@ -88,13 +117,22 @@ def main():
             client = TestClient(app)
             client.get("/login/")
             headers = {"X-CSRFToken": client.cookies["csrftoken"]}
-            for item, stem, content in zip(items, ["صورة جديدة", "New document"], contents):
+            for item, stem, content in zip(
+                items,
+                ["صورة جديدة", "New document"],
+                contents,
+            ):
                 url = f"/api/vehicles/{car.id}/attachments/{item.id}/"
                 response = client.patch(
-                    url, json={"name": stem, "expected_name": item.original_name}, headers=headers
+                    url,
+                    json={"name": stem, "expected_name": item.original_name},
+                    headers=headers,
                 )
                 assert response.status_code == 200
-                updated = service.get_attachment(car.id, item.id)
+                updated = service.get_attachment(
+                    car.id,
+                    item.id,
+                )
                 assert (updated.storage_key, updated.size, updated.created_at) == (
                     item.storage_key,
                     item.size,
@@ -131,28 +169,54 @@ def main():
             assert len(events) == 2 and all(
                 event["actor_name"] == operator.username for event in events
             )
-            current = service.get_attachment(car.id, items[0].id)
+            current = service.get_attachment(
+                car.id,
+                items[0].id,
+            )
             try:
                 repo.rename_attachment(
-                    car.id, current.id, "Stale.PNG", expected_name="old.PNG", actor=operator
+                    car.id,
+                    current.id,
+                    "Stale.PNG",
+                    expected_name="old.PNG",
+                    actor=operator,
                 )
             except AttachmentNameConflict:
                 pass
             else:
                 raise AssertionError("Missing locked-row conflict check.")
             try:
-                with conn.transaction(), patch.object(
-                    repo, "_event", side_effect=RuntimeError("fixture rollback")
+                with (
+                    conn.transaction(),
+                    patch.object(
+                        repo,
+                        "_event",
+                        side_effect=RuntimeError("fixture rollback"),
+                    ),
                 ):
                     service.rename_attachment(
-                        car.id, current.id, "Not saved", current.original_name, actor=operator
+                        car.id,
+                        current.id,
+                        "Not saved",
+                        current.original_name,
+                        actor=operator,
                     )
             except RuntimeError:
                 pass
             else:
                 raise AssertionError("Expected the audit write to fail.")
-            assert service.get_attachment(car.id, current.id).original_name == current.original_name
-            service.delete_attachment(car.id, current.id, actor=operator)
+            assert (
+                service.get_attachment(
+                    car.id,
+                    current.id,
+                ).original_name
+                == current.original_name
+            )
+            service.delete_attachment(
+                car.id,
+                current.id,
+                actor=operator,
+            )
             assert (
                 client.patch(
                     f"/api/vehicles/{car.id}/attachments/{current.id}/",
@@ -161,7 +225,10 @@ def main():
                 ).status_code
                 == 404
             )
-            repo.delete_vehicle(car.id, operator)
+            repo.delete_vehicle(
+                car.id,
+                operator,
+            )
             assert (
                 client.patch(
                     f"/api/vehicles/{car.id}/attachments/{items[1].id}/",

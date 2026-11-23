@@ -16,12 +16,22 @@ def driver_snapshot(row):
         "driver_phone": row["driver_phone"],
         "started_on": row["started_on"].isoformat() if row["started_on"] else None,
         "ended_on": row["ended_on"].isoformat() if row.get("ended_on") else None,
-        "is_current": row.get("is_current", True),
+        "is_current": row.get(
+            "is_current",
+            True,
+        ),
     }
 
 
-def seed_driver(connection, vehicle, actor=None):
-    if vehicle["driver_name"] or vehicle["driver_phone"]:
+def seed_driver(
+    connection,
+    vehicle,
+    actor=None,
+):
+    if (
+        vehicle["driver_name"]
+        or vehicle["driver_phone"]
+    ):
         row = connection.execute(
             """
 
@@ -38,10 +48,26 @@ def seed_driver(connection, vehicle, actor=None):
             ),
         ).fetchone()
         if actor:
-            record_driver_change(connection, vehicle["id"], row["id"], "ASSIGN", actor, None, row)
+            record_driver_change(
+                connection,
+                vehicle["id"],
+                row["id"],
+                "ASSIGN",
+                actor,
+                None,
+                row,
+            )
 
 
-def record_driver_change(connection, vehicle_id, assignment_id, action, actor, before, after):
+def record_driver_change(
+    connection,
+    vehicle_id,
+    assignment_id,
+    action,
+    actor,
+    before,
+    after,
+):
     connection.execute(
         """
 
@@ -62,14 +88,26 @@ def record_driver_change(connection, vehicle_id, assignment_id, action, actor, b
 
 
 class PostgresDriverRepository:
-    def __init__(self, database, media_layout=None):
+    def __init__(
+        self,
+        database,
+        media_layout=None,
+    ):
         self.database = database
         self.media_layout = media_layout
 
     def _media_operation(self):
         return self.media_layout.operation() if self.media_layout else nullcontext()
 
-    def change_driver(self, vehicle_id, details, started_on, actor, *, correcting=False):
+    def change_driver(
+        self,
+        vehicle_id,
+        details,
+        started_on,
+        actor,
+        *,
+        correcting=False,
+    ):
         with self._media_operation(), self.database.connect() as connection:
             if not connection.execute(
                 "SELECT id FROM limo_vehicle WHERE id=%s AND NOT is_deleted FOR UPDATE",
@@ -145,12 +183,27 @@ class PostgresDriverRepository:
                 row,
             )
             if self.media_layout:
-                if current_assignment and not correcting:
-                    self.media_layout.organize_driver(connection, current_assignment["id"])
-                self.media_layout.organize_driver(connection, row["id"])
+                if (
+                    current_assignment
+                    and not correcting
+                ):
+                    self.media_layout.organize_driver(
+                        connection,
+                        current_assignment["id"],
+                    )
+                self.media_layout.organize_driver(
+                    connection,
+                    row["id"],
+                )
             return row
 
-    def end_driver(self, vehicle_id, assignment_id, ended_on, actor):
+    def end_driver(
+        self,
+        vehicle_id,
+        assignment_id,
+        ended_on,
+        actor,
+    ):
         with self._media_operation(), self.database.connect() as connection:
             if not connection.execute(
                 "SELECT id FROM limo_vehicle WHERE id=%s AND NOT is_deleted FOR UPDATE",
@@ -186,25 +239,54 @@ class PostgresDriverRepository:
                 (ended_on, actor.id, actor.username, assignment_id),
             ).fetchone()
             connection.execute(
-                "UPDATE limo_vehicle SET driver_name='',driver_phone='' WHERE id=%s", (vehicle_id,)
+                "UPDATE limo_vehicle SET driver_name='',driver_phone='' WHERE id=%s",
+                (vehicle_id,),
             )
             record_driver_change(
-                connection, vehicle_id, assignment_id, "END", actor, current_assignment, row
+                connection,
+                vehicle_id,
+                assignment_id,
+                "END",
+                actor,
+                current_assignment,
+                row,
             )
             if self.media_layout:
-                self.media_layout.organize_driver(connection, assignment_id)
+                self.media_layout.organize_driver(
+                    connection,
+                    assignment_id,
+                )
             return row
 
-    def history(self, vehicle_id=None, query="", on_date=None):
+    def history(
+        self,
+        vehicle_id=None,
+        query="",
+        on_date=None,
+    ):
         with self.database.connect() as connection:
             if (
                 vehicle_id is not None
                 and not connection.execute(
-                    "SELECT 1 FROM limo_vehicle WHERE id=%s AND NOT is_deleted", (vehicle_id,)
+                    "SELECT 1 FROM limo_vehicle WHERE id=%s AND NOT is_deleted",
+                    (vehicle_id,),
                 ).fetchone()
             ):
                 raise NotFound("Vehicle not found.")
-            literal = query.replace("!", "!!").replace("%", "!%").replace("_", "!_")
+            literal = (
+                query.replace(
+                    "!",
+                    "!!",
+                )
+                .replace(
+                    "%",
+                    "!%",
+                )
+                .replace(
+                    "_",
+                    "!_",
+                )
+            )
             return connection.execute(
                 """
 
@@ -233,7 +315,10 @@ class PostgresDriverRepository:
                 (vehicle_id, vehicle_id, "%" + literal + "%", on_date, on_date, on_date),
             ).fetchall()
 
-    def corrections(self, vehicle_id):
+    def corrections(
+        self,
+        vehicle_id,
+    ):
         with self.database.connect() as connection:
             return connection.execute(
                 """

@@ -7,8 +7,14 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
-sys.path.insert(0, str(ROOT))
+sys.path.insert(
+    0,
+    str(ROOT / "src"),
+)
+sys.path.insert(
+    0,
+    str(ROOT),
+)
 
 
 def main():
@@ -82,12 +88,28 @@ def main():
         repo = PostgresVehicleRepository(transactional)
         vehicles, recycling = VehicleService(repo), RecyclingService(repo)
         store = LocalAttachmentStore(Path(directory))
-        cleanup = FileCleanup(transactional, store)
-        car = vehicles.create_vehicle(
-            "00999-001", "Camry", actor=operator, owner_name="Test owner", manufacture_year="2022"
+        cleanup = FileCleanup(
+            transactional,
+            store,
         )
-        sibling = vehicles.create_vehicle("00999-002", "Accord", actor=operator)
-        stored = store.save(SimpleUploadedFile("note.txt", b"retained content"))
+        car = vehicles.create_vehicle(
+            "00999-001",
+            "Camry",
+            actor=operator,
+            owner_name="Test owner",
+            manufacture_year="2022",
+        )
+        sibling = vehicles.create_vehicle(
+            "00999-002",
+            "Accord",
+            actor=operator,
+        )
+        stored = store.save(
+            SimpleUploadedFile(
+                "note.txt",
+                b"retained content",
+            )
+        )
         attachment = vehicles.add_attachment(
             car.id,
             storage_key=stored.storage_key,
@@ -96,7 +118,12 @@ def main():
             size=stored.size,
             actor=operator,
         )
-        stored_two = store.save(SimpleUploadedFile("other.txt", b"separate file"))
+        stored_two = store.save(
+            SimpleUploadedFile(
+                "other.txt",
+                b"separate file",
+            )
+        )
         second = vehicles.add_attachment(
             car.id,
             storage_key=stored_two.storage_key,
@@ -106,8 +133,20 @@ def main():
             actor=operator,
         )
         image = io.BytesIO()
-        Image.new("RGB", (2, 2), "white").save(image, "PNG")
-        photo = store.save_card_photo(SimpleUploadedFile("cover.png", image.getvalue()))
+        Image.new(
+            "RGB",
+            (2, 2),
+            "white",
+        ).save(
+            image,
+            "PNG",
+        )
+        photo = store.save_card_photo(
+            SimpleUploadedFile(
+                "cover.png",
+                image.getvalue(),
+            )
+        )
         vehicles.replace_cover(
             car.id,
             storage_key=photo.storage_key,
@@ -127,13 +166,25 @@ def main():
         headers = {"X-CSRFToken": client.cookies["csrftoken"]}
         url = f"/api/vehicles/{car.id}/attachments/{attachment.id}"
         assert client.get(url + "/preview/").content == b"retained content"
-        assert client.delete(url + "/", headers=headers).status_code == 204
+        assert (
+            client.delete(
+                url + "/",
+                headers=headers,
+            ).status_code
+            == 204
+        )
         assert client.get(url + "/preview/").status_code == 404
         assert client.get(url + "/download/").status_code == 404
         assert client.get("/api/vehicles/").json()["vehicles"][-2]["attachment_count"] == 1
         cleanup.discard(stored.storage_key)
         assert store.path(stored.storage_key).read_bytes() == b"retained content"
-        assert client.delete(f"/api/vehicles/{car.id}/", headers=headers).status_code == 204
+        assert (
+            client.delete(
+                f"/api/vehicles/{car.id}/",
+                headers=headers,
+            ).status_code
+            == 204
+        )
         assert car.id not in [
             item["id"] for item in client.get("/api/vehicles/").json()["vehicles"]
         ]
@@ -145,30 +196,42 @@ def main():
         )
         assert (
             client.patch(
-                f"/api/vehicles/{car.id}/", json={"owner_name": "Changed"}, headers=headers
+                f"/api/vehicles/{car.id}/",
+                json={"owner_name": "Changed"},
+                headers=headers,
             ).status_code
             == 404
         )
         assert (
             client.post(
-                f"/api/recycle-bin/attachment/{attachment.id}/restore/", headers=headers
+                f"/api/recycle-bin/attachment/{attachment.id}/restore/",
+                headers=headers,
             ).status_code
             == 404
         )
         assert (
-            client.post(f"/api/recycle-bin/vehicle/{car.id}/restore/", headers=headers).status_code
+            client.post(
+                f"/api/recycle-bin/vehicle/{car.id}/restore/",
+                headers=headers,
+            ).status_code
             == 204
         )
         assert vehicles.get_vehicle(car.id).cover.storage_key == photo.storage_key
         assert [item.id for item in vehicles.get_vehicle(car.id).attachments] == [second.id]
         assert (
             client.post(
-                f"/api/recycle-bin/attachment/{attachment.id}/restore/", headers=headers
+                f"/api/recycle-bin/attachment/{attachment.id}/restore/",
+                headers=headers,
             ).status_code
             == 204
         )
         assert client.get(url + "/preview/").content == b"retained content"
-        replacement = store.save_card_photo(SimpleUploadedFile("new.png", image.getvalue()))
+        replacement = store.save_card_photo(
+            SimpleUploadedFile(
+                "new.png",
+                image.getvalue(),
+            )
+        )
         vehicles.replace_cover(
             car.id,
             storage_key=replacement.storage_key,
@@ -182,10 +245,25 @@ def main():
             if item["kind"] == "cover" and item["vehicle_id"] == car.id
         )
         restore_cover = f"/api/recycle-bin/cover/{deleted_cover['id']}/restore/"
-        assert client.post(restore_cover, headers=headers).status_code == 400
+        assert (
+            client.post(
+                restore_cover,
+                headers=headers,
+            ).status_code
+            == 400
+        )
         assert vehicles.get_cover(car.id).storage_key == replacement.storage_key
-        vehicles.delete_cover(car.id, actor=operator)
-        assert client.post(restore_cover, headers=headers).status_code == 204
+        vehicles.delete_cover(
+            car.id,
+            actor=operator,
+        )
+        assert (
+            client.post(
+                restore_cover,
+                headers=headers,
+            ).status_code
+            == 204
+        )
         assert vehicles.get_cover(car.id).storage_key == photo.storage_key
         history = recycling.list_activity(operator)
         assert {"CREATE", "DELETE", "RESTORE"} <= {item["action"] for item in history}
@@ -203,7 +281,10 @@ def main():
         ]:
             try:
                 with conn.transaction():
-                    conn.execute(query, params)
+                    conn.execute(
+                        query,
+                        params,
+                    )
             except psycopg.errors.CheckViolation:
                 pass
             else:

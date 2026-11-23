@@ -30,17 +30,31 @@ class CategoryInUse(DomainError):
     """A named category already has an active gallery attachment on this vehicle."""
 
 
-def require_free_category(is_other, occupied):
-    if not is_other and occupied:
+def require_free_category(
+    is_other,
+    occupied,
+):
+    if (
+        not is_other
+        and occupied
+    ):
         raise CategoryInUse(
             "This vehicle already has an attachment in this category, in Photos or Files."
         )
 
 
 def category_name(value):
-    if not isinstance(value, str):
+    if not isinstance(
+        value,
+        str,
+    ):
         raise DomainError("Enter a category name.")
-    value = " ".join(unicodedata.normalize("NFKC", value).split())
+    value = " ".join(
+        unicodedata.normalize(
+            "NFKC",
+            value,
+        ).split()
+    )
     if (
         not value
         or len(value) > 100
@@ -58,27 +72,52 @@ def category_key(value):
         )
     )
     value = "".join(c for c in value if unicodedata.category(c) != "Mn")
-    value = re.sub(r"[^\w\s]", " ", value, flags=re.UNICODE)
+    value = re.sub(
+        r"[^\w\s]",
+        " ",
+        value,
+        flags=re.UNICODE,
+    )
     value = " ".join(value.split())
-    if not value or len(value) > 160:
+    if (
+        not value
+        or len(value) > 160
+    ):
         raise DomainError(
             "Enter a category name containing letters or digits, within 160 normalized characters."
         )
     return value
 
 
-def similar_categories(categories, name):
+def similar_categories(
+    categories,
+    name,
+):
     key = category_key(name)
     matches = []
     for category in categories:
         if category["is_other"]:
             continue
         aliases = [category["name"], *category["aliases"]]
-        score = max(SequenceMatcher(None, key, category_key(alias)).ratio() for alias in aliases)
-        if score >= 0.72 or any(
+        score = max(
+            SequenceMatcher(
+                None,
+                key,
+                category_key(alias),
+            ).ratio()
+            for alias in aliases
+        )
+        if (
+            score >= 0.72
+            or any(
             key in category_key(alias) or category_key(alias) in key for alias in aliases
+        )
         ):
             matches.append((score, category))
     return [
-        category for _, category in sorted(matches, key=lambda item: (-item[0], item[1]["id"]))[:5]
+        category
+        for _, category in sorted(
+            matches,
+            key=lambda item: (-item[0], item[1]["id"]),
+        )[:5]
     ]

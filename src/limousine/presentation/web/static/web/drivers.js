@@ -148,7 +148,11 @@
   };
   const getText = (key) =>
     (document.documentElement.lang === 'ar' ? ar[key] : en[key]) || en[key] || key;
-  const createElement = (tag, text = '', cls = '') => {
+  const createElement = (
+    tag,
+    text = '',
+    cls = '',
+  ) => {
     const node = document.createElement(tag);
     node.textContent = text;
     node.className = cls;
@@ -156,11 +160,14 @@
   };
   const stamp = (value) =>
     value
-      ? new Intl.DateTimeFormat(document.documentElement.lang === 'ar' ? 'ar-JO' : 'en-GB', {
-          dateStyle: 'medium',
-          timeStyle: 'short',
-          timeZone: 'Asia/Amman',
-        }).format(new Date(value))
+      ? new Intl.DateTimeFormat(
+        document.documentElement.lang === 'ar' ? 'ar-JO' : 'en-GB',
+        {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+            timeZone: 'Asia/Amman',
+          },
+      ).format(new Date(value))
       : getText('unknown');
   let openEnd = () => {};
   let rows = [],
@@ -173,16 +180,22 @@
     query = '',
     onDate = '',
     statusKey = '';
-  async function api(url, options = {}) {
-    const response = await fetch(url, {
-      ...options,
-      credentials: 'same-origin',
-      cache: 'no-store',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getElement('csrf-token').value,
+  async function api(
+    url,
+    options = {},
+  ) {
+    const response = await fetch(
+      url,
+      {
+        ...options,
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getElement('csrf-token').value,
+        },
       },
-    });
+    );
     if (response.status === 401) {
       location.assign('/login/');
       throw new Error();
@@ -201,15 +214,24 @@
     }
     return response.json();
   }
-  const isolated = (text, dir = 'auto') => {
-    const node = createElement('bdi', text);
+  const isolated = (
+    text,
+    dir = 'auto',
+  ) => {
+    const node = createElement(
+      'bdi',
+      text,
+    );
     node.dir = dir;
     return node;
   };
   const lastDay = (iso) => {
     const day = new Date(iso + 'T00:00:00Z');
     day.setUTCDate(day.getUTCDate() - 1);
-    return day.toISOString().slice(0, 10);
+    return day.toISOString().slice(
+      0,
+      10,
+    );
   };
   const columns = [
     ['driver_name', 'name'],
@@ -219,7 +241,10 @@
     ['started_on', 'start'],
     ['ended_on', 'end'],
   ];
-  function value(row, key) {
+  function value(
+    row,
+    key,
+  ) {
     if (key === 'ended_on') {
       return row.is_current
         ? getText('current')
@@ -240,7 +265,10 @@
       getElement('print-driver-history').disabled = busy || !loaded || !rows.length;
       getElement('report-paper').hidden = !loaded || !rows.length;
       const head = columns.map(([, label]) => {
-        const th = createElement('th', getText(label));
+        const th = createElement(
+          'th',
+          getText(label),
+        );
         th.scope = 'col';
         return th;
       });
@@ -250,7 +278,13 @@
           const tr = createElement('tr');
           columns.forEach(([key]) => {
             const td = createElement('td'),
-              bdi = createElement('bdi', value(row, key));
+              bdi = createElement(
+                'bdi',
+                value(
+                  row,
+                  key,
+                ),
+              );
             bdi.dir = ['driver_phone', 'plate_number', 'started_on', 'ended_on'].includes(key)
               ? 'ltr'
               : 'auto';
@@ -260,7 +294,13 @@
           return tr;
         }),
       );
-      const scope = [createElement('span', getText('count').replace('{count}', rows.length))];
+      const scope = [createElement(
+        'span',
+        getText('count').replace(
+          '{count}',
+          rows.length,
+        ),
+      )];
       for (const [label, text, dir] of [
         [vehicleId ? 'vehicle' : '', rows[0]?.plate_number || vehicleId, 'ltr'],
         [query ? 'name' : '', query, 'auto'],
@@ -269,14 +309,26 @@
         if (!label) {
           continue;
         }
-        const part = createElement('span', getText(label) + ': ');
-        part.append(isolated(text, dir));
+        const part = createElement(
+          'span',
+          getText(label) + ': ',
+        );
+        part.append(isolated(
+          text,
+          dir,
+        ));
         scope.push(part);
       }
       const parts = [];
-      scope.forEach((part, index) => {
+      scope.forEach((
+        part,
+        index,
+      ) => {
         if (index) {
-          parts.push(createElement('span', ' · '));
+          parts.push(createElement(
+            'span',
+            ' · ',
+          ));
         }
         parts.push(part);
       });
@@ -291,14 +343,27 @@
       getElement('all-driver-history').href = '/drivers/?vehicle_id=' + vehicleId;
       getElement('vehicle-driver-history').replaceChildren(
         ...rows.map((row) => {
-          const line = createElement('div', '', 'driver-record');
-          const name = createElement('strong', row.driver_name || getText('unknown'));
+          const line = createElement(
+            'div',
+            '',
+            'driver-record',
+          );
+          const name = createElement(
+            'strong',
+            row.driver_name || getText('unknown'),
+          );
           name.dir = 'auto';
           line.append(
             name,
-            isolated(row.driver_phone || getText('unknown'), 'ltr'),
             isolated(
-              (row.started_on || getText('unknown')) + ' → ' + value(row, 'ended_on'),
+              row.driver_phone || getText('unknown'),
+              'ltr',
+            ),
+            isolated(
+              (row.started_on || getText('unknown')) + ' → ' + value(
+                row,
+                'ended_on',
+              ),
               'ltr',
             ),
             createElement(
@@ -306,7 +371,11 @@
               getText('recordedBy') + ': ' + (row.created_by_name || getText('unknown')),
             ),
           );
-          const actions = createElement('span', '', 'driver-row-actions');
+          const actions = createElement(
+            'span',
+            '',
+            'driver-row-actions',
+          );
           const files = createElement(
             'button',
             getText('attachments') + ' (' + (row.attachment_count || 0) + ')',
@@ -315,16 +384,24 @@
           files.dataset.assignmentId = String(row.id);
           files.type = 'button';
           files.disabled = busy;
-          files.setAttribute('aria-label', getText('attachments') + ': ' + row.driver_name);
-          files.addEventListener('click', () =>
-            document.dispatchEvent(
-              new CustomEvent('hspace:open-driver-files', {
-                detail: {
-                  vehicleId,
-                  assignment: row,
-                },
-              }),
-            ),
+          files.setAttribute(
+            'aria-label',
+            getText('attachments') + ': ' + row.driver_name,
+          );
+          files.addEventListener(
+            'click',
+            () =>
+              document.dispatchEvent(
+                new CustomEvent(
+                  'hspace:open-driver-files',
+                  {
+                    detail: {
+                      vehicleId,
+                      assignment: row,
+                    },
+                  },
+                ),
+              ),
           );
           actions.append(files);
           if (row.is_current) {
@@ -335,7 +412,10 @@
             );
             end.type = 'button';
             end.disabled = busy;
-            end.addEventListener('click', () => openEnd(row));
+            end.addEventListener(
+              'click',
+              () => openEnd(row),
+            );
             actions.append(end);
           }
           line.append(actions);
@@ -344,23 +424,46 @@
       );
       getElement('driver-corrections').replaceChildren(
         ...changes.map((change) => {
-          const row = createElement('div', '', 'driver-record');
+          const row = createElement(
+            'div',
+            '',
+            'driver-record',
+          );
           for (const [key, data] of [
             ['before', change.before_data || {}],
             ['after', change.after_data || {}],
           ]) {
-            const group = createElement('span', '', 'driver-revision');
+            const group = createElement(
+              'span',
+              '',
+              'driver-revision',
+            );
             group.append(
-              createElement('strong', getText(key) + ': '),
+              createElement(
+                'strong',
+                getText(key) + ': ',
+              ),
               isolated(data.driver_name || getText('unknown')),
-              isolated(data.driver_phone || getText('unknown'), 'ltr'),
-              isolated(data.started_on || getText('unknown'), 'ltr'),
-              isolated(data.ended_on ? lastDay(data.ended_on) : getText('current'), 'ltr'),
+              isolated(
+                data.driver_phone || getText('unknown'),
+                'ltr',
+              ),
+              isolated(
+                data.started_on || getText('unknown'),
+                'ltr',
+              ),
+              isolated(
+                data.ended_on ? lastDay(data.ended_on) : getText('current'),
+                'ltr',
+              ),
             );
             row.append(group);
           }
           if (change.action === 'END') {
-            row.prepend(createElement('strong', getText('periodEnded')));
+            row.prepend(createElement(
+              'strong',
+              getText('periodEnded'),
+            ));
           }
           row.append(isolated(change.actor_name + ' · ' + stamp(change.created_at)));
           return row;
@@ -381,7 +484,10 @@
       });
       document.querySelectorAll('[data-i18n-aria]').forEach((node) => {
         if (en[node.dataset.i18nAria]) {
-          node.setAttribute('aria-label', getText(node.dataset.i18nAria));
+          node.setAttribute(
+            'aria-label',
+            getText(node.dataset.i18nAria),
+          );
         }
       });
     }
@@ -400,13 +506,22 @@
       if (globalPage) {
         const params = new URLSearchParams();
         if (vehicleId) {
-          params.set('vehicle_id', vehicleId);
+          params.set(
+            'vehicle_id',
+            vehicleId,
+          );
         }
         if (query) {
-          params.set('q', query);
+          params.set(
+            'q',
+            query,
+          );
         }
         if (onDate) {
-          params.set('on_date', onDate);
+          params.set(
+            'on_date',
+            onDate,
+          );
         }
         url = '/api/drivers/?' + params;
       } else {
@@ -437,55 +552,84 @@
       }
     }
   }
-  document.addEventListener('hspace:driver-files-changed', (event) => {
-    if (String(event.detail.vehicleId) === String(vehicleId)) {
-      rows = rows.map((row) =>
-        row.id === event.detail.assignmentId
-          ? {
-              ...row,
-              attachment_count: event.detail.count,
-            }
-          : row,
-      );
-      render();
-    }
-  });
-  window.addEventListener('hspace:language', translate);
+  document.addEventListener(
+    'hspace:driver-files-changed',
+    (event) => {
+      if (String(event.detail.vehicleId) === String(vehicleId)) {
+        rows = rows.map((row) =>
+          row.id === event.detail.assignmentId
+            ? {
+                ...row,
+                attachment_count: event.detail.count,
+              }
+            : row,
+        );
+        render();
+      }
+    },
+  );
+  window.addEventListener(
+    'hspace:language',
+    translate,
+  );
   if (globalPage) {
     const param = new URLSearchParams(location.search).get('vehicle_id');
-    if (param && /^[0-9]+$/.test(param)) {
+    if (
+      param
+      && /^[0-9]+$/.test(param)
+    ) {
       vehicleId = param;
     }
-    getElement('driver-search-form').addEventListener('submit', (event) => {
-      event.preventDefault();
-      query = getElement('driver-query').value.trim();
-      onDate = getElement('driver-on-date').value;
-      load();
-    });
-    getElement('print-driver-history').addEventListener('click', () => {
-      if (!getElement('print-driver-history').disabled) {
-        getElement('driver-print-dialog').showModal();
-      }
-    });
+    getElement('driver-search-form').addEventListener(
+      'submit',
+      (event) => {
+        event.preventDefault();
+        query = getElement('driver-query').value.trim();
+        onDate = getElement('driver-on-date').value;
+        load();
+      },
+    );
+    getElement('print-driver-history').addEventListener(
+      'click',
+      () => {
+        if (!getElement('print-driver-history').disabled) {
+          getElement('driver-print-dialog').showModal();
+        }
+      },
+    );
     const print = (plain) => {
       if (getElement('print-driver-history').disabled) {
         return;
       }
-      getElement('report-paper').classList.toggle('preprinted-paper', plain);
+      getElement('report-paper').classList.toggle(
+        'preprinted-paper',
+        plain,
+      );
       getElement('driver-print-dialog').close();
       window.print();
     };
-    getElement('driver-print-with').addEventListener('click', () => print(false));
-    getElement('driver-print-without').addEventListener('click', () => print(true));
-    getElement('driver-print-cancel').addEventListener('click', () =>
-      getElement('driver-print-dialog').close(),
+    getElement('driver-print-with').addEventListener(
+      'click',
+      () => print(false),
+    );
+    getElement('driver-print-without').addEventListener(
+      'click',
+      () => print(true),
+    );
+    getElement('driver-print-cancel').addEventListener(
+      'click',
+      () =>
+        getElement('driver-print-dialog').close(),
     );
     translate();
     load();
   } else {
     let endTarget = null;
     openEnd = (row) => {
-      if (busy || !loaded) {
+      if (
+        busy
+        || !loaded
+      ) {
         return;
       }
       endTarget = {
@@ -498,67 +642,85 @@
       getElement('driver-end-dialog').showModal();
       getElement('driver-last-worked').focus();
     };
-    getElement('driver-end-cancel').addEventListener('click', () => {
-      if (!busy) {
-        getElement('driver-end-dialog').close();
-      }
-    });
-    getElement('driver-end-dialog').addEventListener('cancel', (event) => {
-      if (busy) {
+    getElement('driver-end-cancel').addEventListener(
+      'click',
+      () => {
+        if (!busy) {
+          getElement('driver-end-dialog').close();
+        }
+      },
+    );
+    getElement('driver-end-dialog').addEventListener(
+      'cancel',
+      (event) => {
+        if (busy) {
+          event.preventDefault();
+        }
+      },
+    );
+    getElement('driver-dialog').addEventListener(
+      'cancel',
+      (event) => {
+        if (busy) {
+          event.preventDefault();
+        }
+      },
+    );
+    getElement('driver-end-form').addEventListener(
+      'submit',
+      async (event) => {
         event.preventDefault();
-      }
-    });
-    getElement('driver-dialog').addEventListener('cancel', (event) => {
-      if (busy) {
-        event.preventDefault();
-      }
-    });
-    getElement('driver-end-form').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      if (busy || !endTarget) {
-        return;
-      }
-      const target = endTarget,
-        date = getElement('driver-last-worked').value;
-      if (!date) {
-        getElement('driver-end-message').textContent = getText('endRequired');
-        getElement('driver-last-worked').focus();
-        return;
-      }
-      busy = true;
-      getElement('driver-end-save').disabled = true;
-      getElement('driver-end-cancel').disabled = true;
-      getElement('driver-last-worked').disabled = true;
-      render();
-      try {
-        const payload = await api(
-          '/api/vehicles/' + target.vehicleId + '/drivers/' + target.assignment.id + '/end/',
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              last_worked_on: date,
-            }),
-          },
-        );
-        getElement('driver-end-dialog').close();
-        document.dispatchEvent(
-          new CustomEvent('hspace:driver-updated', {
-            detail: payload,
-          }),
-        );
-        await load();
-      } catch (error) {
-        getElement('driver-end-message').textContent = getText(
-          error.reason && en[error.reason] ? error.reason : 'failed',
-        );
-      } finally {
-        busy = false;
-        getElement('driver-end-save').disabled = false;
-        getElement('driver-end-cancel').disabled = false;
-        getElement('driver-last-worked').disabled = false;
+        if (
+          busy
+          || !endTarget
+        ) {
+          return;
+        }
+        const target = endTarget,
+          date = getElement('driver-last-worked').value;
+        if (!date) {
+          getElement('driver-end-message').textContent = getText('endRequired');
+          getElement('driver-last-worked').focus();
+          return;
+        }
+        busy = true;
+        getElement('driver-end-save').disabled = true;
+        getElement('driver-end-cancel').disabled = true;
+        getElement('driver-last-worked').disabled = true;
         render();
-      }
-    });
+        try {
+          const payload = await api(
+            '/api/vehicles/' + target.vehicleId + '/drivers/' + target.assignment.id + '/end/',
+            {
+              method: 'POST',
+              body: JSON.stringify({
+                last_worked_on: date,
+              }),
+            },
+          );
+          getElement('driver-end-dialog').close();
+          document.dispatchEvent(
+            new CustomEvent(
+              'hspace:driver-updated',
+              {
+                detail: payload,
+              },
+            ),
+          );
+          await load();
+        } catch (error) {
+          getElement('driver-end-message').textContent = getText(
+            error.reason && en[error.reason] ? error.reason : 'failed',
+          );
+        } finally {
+          busy = false;
+          getElement('driver-end-save').disabled = false;
+          getElement('driver-end-cancel').disabled = false;
+          getElement('driver-last-worked').disabled = false;
+          render();
+        }
+      },
+    );
     const driverInputs = {
       driver_name: 'new-driver-name',
       driver_phone: 'new-driver-phone',
@@ -566,7 +728,10 @@
     };
     function clearErrors() {
       Object.entries(driverInputs).forEach(([field, id]) => {
-        getElement(id).setAttribute('aria-invalid', 'false');
+        getElement(id).setAttribute(
+          'aria-invalid',
+          'false',
+        );
         const message = getElement('error-' + field);
         if (message) {
           message.textContent = '';
@@ -574,17 +739,26 @@
       });
     }
     Object.entries(driverInputs).forEach(([field, id]) =>
-      getElement(id).addEventListener('input', () => {
-        getElement(id).setAttribute('aria-invalid', 'false');
-        const message = getElement('error-' + field);
-        if (message) {
-          message.textContent = '';
-        }
-        getElement('driver-form-message').textContent = '';
-      }),
+      getElement(id).addEventListener(
+        'input',
+        () => {
+          getElement(id).setAttribute(
+            'aria-invalid',
+            'false',
+          );
+          const message = getElement('error-' + field);
+          if (message) {
+            message.textContent = '';
+          }
+          getElement('driver-form-message').textContent = '';
+        },
+      ),
     );
     function open(correction) {
-      if (busy || !loaded) {
+      if (
+        busy
+        || !loaded
+      ) {
         return;
       }
       clearErrors();
@@ -600,80 +774,113 @@
       getElement('driver-form-message').textContent = '';
       getElement('driver-dialog').showModal();
     }
-    getElement('change-driver').addEventListener('click', () => open(false));
-    getElement('correct-driver').addEventListener('click', () => open(true));
-    getElement('cancel-driver').addEventListener('click', () =>
-      getElement('driver-dialog').close(),
+    getElement('change-driver').addEventListener(
+      'click',
+      () => open(false),
     );
-    const refresh = createElement('button', getText('refresh'), 'button secondary small');
+    getElement('correct-driver').addEventListener(
+      'click',
+      () => open(true),
+    );
+    getElement('cancel-driver').addEventListener(
+      'click',
+      () =>
+        getElement('driver-dialog').close(),
+    );
+    const refresh = createElement(
+      'button',
+      getText('refresh'),
+      'button secondary small',
+    );
     refresh.type = 'button';
     refresh.dataset.driverI18n = 'refresh';
-    refresh.addEventListener('click', load);
+    refresh.addEventListener(
+      'click',
+      load,
+    );
     getElement('change-driver').parentElement.append(refresh);
-    getElement('driver-form').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      if (busy) {
-        return;
-      }
-      const target = vehicleId;
-      busy = true;
-      getElement('save-driver').disabled = true;
-      getElement('cancel-driver').disabled = true;
-      try {
-        const payload = await api(
-          '/api/vehicles/' + target + '/drivers/' + (correcting ? 'current/' : ''),
-          {
-            method: correcting ? 'PATCH' : 'POST',
-            body: JSON.stringify({
-              driver_name: getElement('new-driver-name').value.trim(),
-              driver_phone: getElement('new-driver-phone').value.trim(),
-              started_on: getElement('driver-start').value || null,
-            }),
-          },
-        );
-        getElement('driver-dialog').close();
-        document.dispatchEvent(
-          new CustomEvent('hspace:driver-updated', {
-            detail: payload,
-          }),
-        );
-        await load();
-      } catch (error) {
-        const field = driverInputs[error.field];
-        if (field && en[error.reason]) {
-          const input = getElement(field);
-          input.setAttribute('aria-invalid', 'true');
-          const message = getElement('error-' + error.field);
-          if (message) {
-            message.textContent = getText(error.reason);
-          }
-          input.focus();
-          getElement('driver-form-message').textContent = getText(error.reason);
-        } else {
-          getElement('driver-form-message').textContent = getText(
-            error.status === 400 ? 'invalid' : 'failed',
-          );
+    getElement('driver-form').addEventListener(
+      'submit',
+      async (event) => {
+        event.preventDefault();
+        if (busy) {
+          return;
         }
-      } finally {
-        busy = false;
-        getElement('save-driver').disabled = false;
-        getElement('cancel-driver').disabled = false;
-        render();
-      }
-    });
-    document.addEventListener('hspace:detail-ready', load);
-    window.addEventListener('hashchange', () => {
-      getElement('driver-dialog').close();
-      getElement('driver-end-dialog').close();
-      endTarget = null;
-      if (!location.hash.startsWith('#vehicle/')) {
-        requestId++;
-        rows = [];
-        loaded = false;
-        busy = false;
-        render();
-      }
-    });
+        const target = vehicleId;
+        busy = true;
+        getElement('save-driver').disabled = true;
+        getElement('cancel-driver').disabled = true;
+        try {
+          const payload = await api(
+            '/api/vehicles/' + target + '/drivers/' + (correcting ? 'current/' : ''),
+            {
+              method: correcting ? 'PATCH' : 'POST',
+              body: JSON.stringify({
+                driver_name: getElement('new-driver-name').value.trim(),
+                driver_phone: getElement('new-driver-phone').value.trim(),
+                started_on: getElement('driver-start').value || null,
+              }),
+            },
+          );
+          getElement('driver-dialog').close();
+          document.dispatchEvent(
+            new CustomEvent(
+              'hspace:driver-updated',
+              {
+                detail: payload,
+              },
+            ),
+          );
+          await load();
+        } catch (error) {
+          const field = driverInputs[error.field];
+          if (
+            field
+            && en[error.reason]
+          ) {
+            const input = getElement(field);
+            input.setAttribute(
+              'aria-invalid',
+              'true',
+            );
+            const message = getElement('error-' + error.field);
+            if (message) {
+              message.textContent = getText(error.reason);
+            }
+            input.focus();
+            getElement('driver-form-message').textContent = getText(error.reason);
+          } else {
+            getElement('driver-form-message').textContent = getText(
+              error.status === 400 ? 'invalid' : 'failed',
+            );
+          }
+        } finally {
+          busy = false;
+          getElement('save-driver').disabled = false;
+          getElement('cancel-driver').disabled = false;
+          render();
+        }
+      },
+    );
+    document.addEventListener(
+      'hspace:detail-ready',
+      load,
+    );
+    window.addEventListener(
+      'hashchange',
+      () => {
+        getElement('driver-dialog').close();
+        getElement('driver-end-dialog').close();
+        endTarget = null;
+        if (!location.hash.startsWith('#vehicle/')) {
+          requestId++;
+          rows = [];
+          loaded = false;
+          busy = false;
+          render();
+        }
+      },
+    );
     translate();
     if (location.hash.startsWith('#vehicle/')) {
       load();

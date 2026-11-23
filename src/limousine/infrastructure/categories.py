@@ -13,20 +13,30 @@ CATEGORY_LOCK_ID = 72730806
 
 
 class PostgresCategoryRepository:
-    def __init__(self, database):
+    def __init__(
+        self,
+        database,
+    ):
         self.database = database
 
     @staticmethod
     def _lock(connection):
-        connection.execute("SELECT pg_advisory_xact_lock(%s)", (CATEGORY_LOCK_ID,))
+        connection.execute(
+            "SELECT pg_advisory_xact_lock(%s)",
+            (CATEGORY_LOCK_ID,),
+        )
 
     @staticmethod
-    def _resolve(connection, category_id):
+    def _resolve(
+        connection,
+        category_id,
+    ):
         seen = set()
         while category_id not in seen:
             seen.add(category_id)
             row = connection.execute(
-                "SELECT * FROM hspace_attachment_category WHERE id=%s", (category_id,)
+                "SELECT * FROM hspace_attachment_category WHERE id=%s",
+                (category_id,),
             ).fetchone()
             if not row:
                 raise NotFound("Category not found.")
@@ -48,7 +58,13 @@ class PostgresCategoryRepository:
         """).fetchall()
 
     @staticmethod
-    def _event(connection, actor, category_id, action, label):
+    def _event(
+        connection,
+        actor,
+        category_id,
+        action,
+        label,
+    ):
         connection.execute(
             """
             INSERT INTO hspace_activity(vehicle_id,entity_kind,entity_id,action,actor_id,actor_name,label)
@@ -57,7 +73,10 @@ class PostgresCategoryRepository:
             (category_id, action, actor.id, actor.username, label),
         )
 
-    def list_categories(self, query=""):
+    def list_categories(
+        self,
+        query="",
+    ):
         with self.database.connect() as connection:
             connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
             categories = self._categories(connection)
@@ -72,7 +91,10 @@ class PostgresCategoryRepository:
                 if target is None:
                     continue
                 seen = {source}
-                while links.get(target) is not None and target not in seen:
+                while (
+                    links.get(target) is not None
+                    and target not in seen
+                ):
                     seen.add(target)
                     target = links[target]
                 redirects[source] = target
@@ -81,11 +103,18 @@ class PostgresCategoryRepository:
             if query:
                 key = category_key(query)
                 alias = connection.execute(
-                    "SELECT category_id FROM hspace_category_alias WHERE normalized_name=%s", (key,)
+                    "SELECT category_id FROM hspace_category_alias WHERE normalized_name=%s",
+                    (key,),
                 ).fetchone()
                 if alias:
                     exact = alias["category_id"]
-                suggestions = [item["id"] for item in similar_categories(categories, query)]
+                suggestions = [
+                    item["id"]
+                    for item in similar_categories(
+                        categories,
+                        query,
+                    )
+                ]
             return {
                 "categories": categories,
                 "exact_id": exact,
@@ -93,21 +122,40 @@ class PostgresCategoryRepository:
                 "redirects": redirects,
             }
 
-    def get(self, category_id):
+    def get(
+        self,
+        category_id,
+    ):
         with self.database.connect() as connection:
-            return self._resolve(connection, category_id)
+            return self._resolve(
+                connection,
+                category_id,
+            )
 
-    def create(self, name, key, actor, allow_similar=False):
+    def create(
+        self,
+        name,
+        key,
+        actor,
+        allow_similar=False,
+    ):
         with self.database.connect() as connection:
             self._lock(connection)
             alias = connection.execute(
-                "SELECT category_id FROM hspace_category_alias WHERE normalized_name=%s", (key,)
+                "SELECT category_id FROM hspace_category_alias WHERE normalized_name=%s",
+                (key,),
             ).fetchone()
             if alias:
-                return self._resolve(connection, alias["category_id"])
+                return self._resolve(
+                    connection,
+                    alias["category_id"],
+                )
             if (
                 not allow_similar
-                and similar_categories(self._categories(connection), name)
+                and similar_categories(
+                self._categories(connection),
+                name,
+            )
             ):
                 raise SimilarCategory(
                     "Review the similar categories before adding a distinct type."
@@ -120,17 +168,33 @@ class PostgresCategoryRepository:
                 "INSERT INTO hspace_category_alias(category_id,name,normalized_name) VALUES (%s,%s,%s)",
                 (row["id"], name, key),
             )
-            self._event(connection, actor, row["id"], "CREATE", name)
+            self._event(
+                connection,
+                actor,
+                row["id"],
+                "CREATE",
+                name,
+            )
             return row
 
-    def add_alias(self, category_id, name, key, actor):
+    def add_alias(
+        self,
+        category_id,
+        name,
+        key,
+        actor,
+    ):
         with self.database.connect() as connection:
             self._lock(connection)
-            category = self._resolve(connection, category_id)
+            category = self._resolve(
+                connection,
+                category_id,
+            )
             if category["is_other"]:
                 raise DomainError("Other cannot absorb named document types.")
             existing = connection.execute(
-                "SELECT category_id FROM hspace_category_alias WHERE normalized_name=%s", (key,)
+                "SELECT category_id FROM hspace_category_alias WHERE normalized_name=%s",
+                (key,),
             ).fetchone()
             if existing:
                 if existing["category_id"] != category["id"]:
@@ -142,15 +206,35 @@ class PostgresCategoryRepository:
                 "INSERT INTO hspace_category_alias(category_id,name,normalized_name) VALUES (%s,%s,%s)",
                 (category["id"], name, key),
             )
-            self._event(connection, actor, category["id"], "ALIAS", name + " → " + category["name"])
+            self._event(
+                connection,
+                actor,
+                category["id"],
+                "ALIAS",
+                name + " → " + category["name"],
+            )
             return category
 
-    def merge(self, source_id, target_id, actor):
+    def merge(
+        self,
+        source_id,
+        target_id,
+        actor,
+    ):
         with self.database.connect() as connection:
             self._lock(connection)
-            source = self._resolve(connection, source_id)
-            target = self._resolve(connection, target_id)
-            if source["id"] != source_id or target["id"] != target_id:
+            source = self._resolve(
+                connection,
+                source_id,
+            )
+            target = self._resolve(
+                connection,
+                target_id,
+            )
+            if (
+                source["id"] != source_id
+                or target["id"] != target_id
+            ):
                 raise CategoryConflict("A category changed. Refresh before merging.")
             if (
                 source_id == target_id
@@ -171,16 +255,28 @@ class PostgresCategoryRepository:
                 (target_id, source_id),
             )
             self._event(
-                connection, actor, source_id, "MERGE", source["name"] + " → " + target["name"]
+                connection,
+                actor,
+                source_id,
+                "MERGE",
+                source["name"] + " → " + target["name"],
             )
             return target
 
     def classify(
-        self, vehicle_id, attachment_id, category_id, actor, assignment_id=None
+        self,
+        vehicle_id,
+        attachment_id,
+        category_id,
+        actor,
+        assignment_id=None,
     ):
         with self.database.connect() as connection:
             self._lock(connection)
-            category = self._resolve(connection, category_id)
+            category = self._resolve(
+                connection,
+                category_id,
+            )
             if not connection.execute(
                 "SELECT id FROM limo_vehicle WHERE id=%s AND NOT is_deleted FOR UPDATE",
                 (vehicle_id,),
@@ -200,7 +296,10 @@ class PostgresCategoryRepository:
             if row["category_id"] != category["id"]:
                 if assignment_id is None:
                     ensure_vehicle_category_available(
-                        connection, vehicle_id, category["id"], attachment_id
+                        connection,
+                        vehicle_id,
+                        category["id"],
+                        attachment_id,
                     )
                 row = connection.execute(
                     "UPDATE limo_attachment SET category_id=%s WHERE id=%s RETURNING *",
@@ -224,20 +323,32 @@ class PostgresCategoryRepository:
             return row
 
 
-def resolve_upload_category(connection, category_id):
+def resolve_upload_category(
+    connection,
+    category_id,
+):
     """Resolve stale upload selections under the same lock used for merges."""
     PostgresCategoryRepository._lock(connection)
     if category_id is None:
         return None
-    return PostgresCategoryRepository._resolve(connection, category_id)["id"]
+    return PostgresCategoryRepository._resolve(
+        connection,
+        category_id,
+    )["id"]
 
 
-def ensure_vehicle_category_available(connection, vehicle_id, category_id, exclude_id=None):
+def ensure_vehicle_category_available(
+    connection,
+    vehicle_id,
+    category_id,
+    exclude_id=None,
+):
     """Caller holds category/vehicle locks; Photos and Files share the same slot."""
     if category_id is None:
         return
     category = connection.execute(
-        "SELECT is_other FROM hspace_attachment_category WHERE id=%s", (category_id,)
+        "SELECT is_other FROM hspace_attachment_category WHERE id=%s",
+        (category_id,),
     ).fetchone()
     if not category:
         raise NotFound("Category not found.")
@@ -247,4 +358,7 @@ def ensure_vehicle_category_available(connection, vehicle_id, category_id, exclu
           AND NOT is_deleted AND id IS DISTINCT FROM %s LIMIT 1""",
         (vehicle_id, category_id, exclude_id),
     ).fetchone()
-    require_free_category(category["is_other"], bool(occupied))
+    require_free_category(
+        category["is_other"],
+        bool(occupied),
+    )

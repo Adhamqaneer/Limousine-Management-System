@@ -19,6 +19,8 @@ const cases = [
   ['manufacture_year', '002024', true],
   ['manufacture_year', '\u0662\u0660\u0662\u0664', false],
   ['plate_number', '50-1746', true],
+  ['plate_number', '050-17-46', true],
+  ['plate_number', '5076523', false],
   ['plate_number', '1--2', false],
   ['plate_number', '-12', false],
   ['plate_number', '12-', false],
@@ -28,9 +30,17 @@ const cases = [
   ['owner_phone', '', true],
   ['chassis_number', '', true],
   ['driver_phone', '0'.repeat(33), false],
-  ['plate_number', '0'.repeat(65), false],
+  ['plate_number', '1-' + '0'.repeat(62), true],
+  ['plate_number', '1-' + '0'.repeat(63), false],
 ];
 for (const [name, value, valid] of cases) {
-  assert.equal(!HSpaceVehicleValidation.error(name, value), valid, `${name}: ${value}`);
+  assert.equal(
+    !HSpaceVehicleValidation.error(
+      name,
+      value,
+    ),
+    valid,
+    `${name}: ${value}`,
+  );
 }
 console.log(`${cases.length} vehicle validation cases passed.`);

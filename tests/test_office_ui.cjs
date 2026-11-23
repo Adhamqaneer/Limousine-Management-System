@@ -40,7 +40,10 @@ async function main() {
     replaceChildren(...children) {
       this.children = children;
     }
-    setAttribute(name, value) {
+    setAttribute(
+      name,
+      value,
+    ) {
       this.attributes[name] = String(value);
     }
     getAttribute(name) {
@@ -48,9 +51,14 @@ async function main() {
     }
     removeAttribute(name) {
       delete this.attributes[name];
-      if (name === 'href') delete this.href;
+      if (name === 'href') {
+        delete this.href;
+      }
     }
-    addEventListener(name, fn) {
+    addEventListener(
+      name,
+      fn,
+    ) {
       this.handlers[name] = fn;
     }
     focus() {
@@ -90,7 +98,10 @@ async function main() {
   ids.forEach((id) => {
     const el = new Node();
     el.id = id;
-    nodes.set(id, el);
+    nodes.set(
+      id,
+      el,
+    );
   });
   const all = () =>
     [...nodes.values()].flatMap(function walk(el) {
@@ -100,11 +111,18 @@ async function main() {
     documentElement: { lang: 'en' },
     getElementById: (id) => nodes.get(id) || all().find((el) => el.id === id),
     createElement: (tag) => new Node(tag),
-    createElementNS: (_, tag) => new Node(tag),
+    createElementNS: (
+      _,
+      tag,
+    ) => new Node(tag),
     querySelectorAll: () => [],
   };
   nodes.get('csrf-token').value = 'csrf';
-  const record = (id, name, kind) => ({
+  const record = (
+    id,
+    name,
+    kind,
+  ) => ({
     id,
     name,
     kind,
@@ -121,22 +139,37 @@ async function main() {
     location: { assign() {} },
     confirm: () => true,
     window: {
-      addEventListener: (name, fn) => {
+      addEventListener: (
+        name,
+        fn,
+      ) => {
         events[name] = fn;
       },
     },
     FormData: class {
-      append(_, file) {
+      append(
+        _,
+        file,
+      ) {
         this.file = file;
       }
     },
-    fetch: async (url, options) => {
+    fetch: async (
+      url,
+      options,
+    ) => {
       calls.push([url, options]);
-      if (fail) return { ok: false, status: 503 };
+      if (fail) {
+        return { ok: false, status: 503 };
+      }
       const id = Number(url.match(/attachments\/(\d+)/)?.[1]);
       if (options.method === 'POST') {
         const file = options.body.file,
-          item = record(++next, file.name, /png$/i.test(file.name) ? 'image' : 'file');
+          item = record(
+            ++next,
+            file.name,
+            /png$/i.test(file.name) ? 'image' : 'file',
+          );
         data.push(item);
         return { ok: true, status: 201, json: async () => ({ attachment: item }) };
       }
@@ -145,7 +178,9 @@ async function main() {
         return { ok: true, status: 204 };
       }
       if (options.method === 'PATCH') {
-        if (conflict) return { ok: false, status: 409 };
+        if (conflict) {
+          return { ok: false, status: 409 };
+        }
         const payload = JSON.parse(options.body),
           item = data.find((item) => item.id === id);
         item.name = payload.name + item.name.slice(item.name.lastIndexOf('.'));
@@ -160,7 +195,10 @@ async function main() {
   };
   vm.runInNewContext(
     fs.readFileSync(
-      path.join(__dirname, '../src/limousine/presentation/web/static/web/office-files.js'),
+      path.join(
+        __dirname,
+        '../src/limousine/presentation/web/static/web/office-files.js',
+      ),
       'utf8',
     ),
     context,
@@ -171,59 +209,134 @@ async function main() {
       await tick();
     };
   await wait();
-  assert.equal(get('office-files-zip').getAttribute('aria-disabled'), 'true');
+  assert.equal(
+    get('office-files-zip').getAttribute('aria-disabled'),
+    'true',
+  );
   assert.ok(!get('office-files-zip').href);
-  async function upload(section, files) {
+  async function upload(
+    section,
+    files,
+  ) {
     const input = get('office-' + section + '-input');
     input.handlers.change({ target: { files, value: 'selected' } });
     await wait();
   }
-  await upload('photos', [{ name: 'هوية المكتب.png', size: 100 }]);
-  await upload('files', [{ name: 'office.txt', size: 100 }]);
-  assert.equal(get('office-photos-list').children.length, 1);
-  assert.equal(get('office-files-list').children.length, 1);
-  assert.equal(get('office-photos-zip').href, '/api/office/attachments/archive/photos/');
-  assert.equal(get('office-files-zip').href, '/api/office/attachments/archive/files/');
+  await upload(
+    'photos',
+    [{ name: 'هوية المكتب.png', size: 100 }],
+  );
+  await upload(
+    'files',
+    [{ name: 'office.txt', size: 25 * 1024 * 1024 }],
+  );
+  assert.equal(
+    get('office-photos-list').children.length,
+    1,
+  );
+  assert.equal(
+    get('office-files-list').children.length,
+    1,
+  );
+  assert.equal(
+    get('office-photos-zip').href,
+    '/api/office/attachments/archive/photos/',
+  );
+  assert.equal(
+    get('office-files-zip').href,
+    '/api/office/attachments/archive/files/',
+  );
   const photoRow = get('office-photos-list').children[0];
-  assert.equal(photoRow.children[0].children[0].children[0].width, 64);
-  assert.equal(photoRow.children[0].children[0].href, data[0].preview_url);
-  assert.equal(photoRow.children[1].children[0].href, data[0].preview_url);
-  assert.equal(photoRow.children[1].children[1].href, data[0].download_url);
+  assert.equal(
+    photoRow.children[0].children[0].children[0].width,
+    64,
+  );
+  assert.equal(
+    photoRow.children[0].children[0].href,
+    data[0].preview_url,
+  );
+  assert.equal(
+    photoRow.children[1].children[0].href,
+    data[0].preview_url,
+  );
+  assert.equal(
+    photoRow.children[1].children[1].href,
+    data[0].download_url,
+  );
   get('office-rename-11').click();
   assert.ok(get('office-rename-dialog').open);
-  assert.equal(get('office-rename-extension').textContent, '.png');
+  assert.equal(
+    get('office-rename-extension').textContent,
+    '.png',
+  );
   get('office-rename-name').value = 'New';
   await get('office-rename-form').handlers.submit({ preventDefault() {} });
-  assert.equal(data[0].name, 'New.png');
-  assert.equal(document.activeElement.id, 'office-rename-11');
+  assert.equal(
+    data[0].name,
+    'New.png',
+  );
+  assert.equal(
+    document.activeElement.id,
+    'office-rename-11',
+  );
   const renameCall = calls.find(([, options]) => options.method === 'PATCH');
-  assert.equal(renameCall[1].headers['X-CSRFToken'], 'csrf');
-  assert.equal(JSON.parse(renameCall[1].body).expected_name, 'هوية المكتب.png');
+  assert.equal(
+    renameCall[1].headers['X-CSRFToken'],
+    'csrf',
+  );
+  assert.equal(
+    JSON.parse(renameCall[1].body).expected_name,
+    'هوية المكتب.png',
+  );
   get('office-rename-11').click();
   get('office-rename-name').value = 'Draft';
   conflict = true;
   await get('office-rename-form').handlers.submit({ preventDefault() {} });
-  assert.equal(get('office-rename-name').value, 'Draft');
+  assert.equal(
+    get('office-rename-name').value,
+    'Draft',
+  );
   assert.ok(get('office-rename-error').textContent.includes('Someone changed'));
   assert.ok(get('office-rename-dialog').open);
   get('office-rename-cancel').click();
   conflict = false;
   document.documentElement.lang = 'ar';
   events['hspace:language']();
-  assert.equal(get('office-photos-list').children[0].children[1].children[0].textContent, 'عرض');
+  assert.equal(
+    get('office-photos-list').children[0].children[1].children[0].textContent,
+    'عرض',
+  );
   get('office-delete-11').click();
   await wait();
-  assert.equal(get('office-photos-zip').getAttribute('aria-disabled'), 'true');
-  assert.equal(data.length, 1);
-  assert.equal(document.activeElement.id, 'office-add-photos');
+  assert.equal(
+    get('office-photos-zip').getAttribute('aria-disabled'),
+    'true',
+  );
+  assert.equal(
+    data.length,
+    1,
+  );
+  assert.equal(
+    document.activeElement.id,
+    'office-add-photos',
+  );
   const count = calls.length;
-  await upload('files', [{ name: 'bad.exe', size: 20 }]);
-  assert.equal(calls.length, count);
-  assert.ok(get('office-message').textContent.includes('10 MB'));
+  await upload(
+    'files',
+    [{ name: 'oversized.txt', size: 25 * 1024 * 1024 + 1 }],
+  );
+  assert.equal(
+    calls.length,
+    count,
+  );
+  assert.ok(get('office-message').textContent.includes('25 MB'));
   fail = true;
   get('office-refresh').click();
   await wait();
-  assert.equal(get('office-message').getAttribute('role'), 'alert');
+  assert.equal(
+    get('office-message').getAttribute('role'),
+    'alert',
+  );
   assert.ok(!get('office-refresh').disabled);
   console.log(
     'PASS: office empty/busy/error states, scoped upload/ZIP targets, compact preview, CSRF, fixed-extension rename/conflict/draft/focus, deletion and Arabic labels.',

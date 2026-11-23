@@ -15,9 +15,16 @@ Jinja HTML templates, CSS and plain JavaScript; no build step or npm runtime dep
 | report-data.js / vehicle-report.js / vehicle-report.css | Selected fields, filtered results and printing |
 | attachment-categories.js | Vehicle and driver attachment classification, plus the driver upload picker |
 | attachment-download.js | Select document types and download the filtered vehicle originals as ZIP |
+| attachment-scroll.js | Keep three attachment rows fully visible before a list scrolls |
 | login.js / document_preview.js | Sign-in and local document preview |
 
 English is default; Arabic sets RTL. Phones, plates and period dates use LTR isolation. Only language/theme persist in localStorage. Business records remain on the server; form drafts disappear on reload.
+
+The Add vehicle form shows the vehicle type and plate rules under their inputs and validates each field as it is edited. An unfinished number is allowed while typing. On blur and before submission, the number must contain at least one hyphen between English digit groups. The edit form checks changed numbers when saving.
+
+Add and edit show a localized message when the vehicle number is already in use. Vehicle creation and vehicle attachment dates display as DD/MM/YYYY in both languages, using Amman time.
+
+Long lists use keyboard-focusable scroll regions. Attachment lists scroll from their fourth row and measure the first three rows so wrapped names and actions stay visible. Other lists use viewport-based height limits. Panel headings and actions sit outside the scroll regions. Leaving a vehicle restores the fleet scroll position, and changing search or filters brings the fleet results back to the top. Report previews use the same scrolling on screen and expand for print.
 
 ## Design
 

@@ -13,10 +13,19 @@ def token_hash(token):
 
 
 class PostgresAccountRepository:
-    def __init__(self, database):
+    def __init__(
+        self,
+        database,
+    ):
         self.database = database
 
-    def sign_in(self, username, password, seconds, previous_token=""):
+    def sign_in(
+        self,
+        username,
+        password,
+        seconds,
+        previous_token="",
+    ):
         with self.database.connect() as connection:
             # Hold the credential stable until the session is created.
             row = connection.execute(
@@ -24,7 +33,10 @@ class PostgresAccountRepository:
             ).fetchone()
             encoded = row["password_hash"] if row else "pbkdf2_sha256$1000000$dummy$invalid"
             if (
-                not verify_password(password, encoded)
+                not verify_password(
+                    password,
+                    encoded,
+                )
                 or not row
                 or username != OPERATOR_USERNAME
             ):
@@ -50,10 +62,19 @@ class PostgresAccountRepository:
             row = connection.execute("SELECT user_id FROM hspace_operator").fetchone()
             if not row:
                 raise ValueError("Set up the office account first.")
-            return User(row["user_id"], OPERATOR_USERNAME)
+            return User(
+                row["user_id"],
+                OPERATOR_USERNAME,
+            )
 
-    def session_user(self, token):
-        if not token or len(token) > 128:
+    def session_user(
+        self,
+        token,
+    ):
+        if (
+            not token
+            or len(token) > 128
+        ):
             return None
         with self.database.connect() as connection:
             row = connection.execute(
@@ -62,20 +83,35 @@ class PostgresAccountRepository:
                    WHERE s.token_hash=%s AND s.expires_at>CURRENT_TIMESTAMP""",
                 (token_hash(token),),
             ).fetchone()
-            return User(row["user_id"], OPERATOR_USERNAME) if row else None
+            return (
+                User(
+                    row["user_id"],
+                    OPERATOR_USERNAME,
+                )
+                if row
+                else None
+            )
 
-    def delete_session(self, token):
+    def delete_session(
+        self,
+        token,
+    ):
         if token:
             with self.database.connect() as connection:
                 connection.execute(
-                    "DELETE FROM hspace_session WHERE token_hash=%s", (token_hash(token),)
+                    "DELETE FROM hspace_session WHERE token_hash=%s",
+                    (token_hash(token),),
                 )
 
-    def set_password(self, password):
+    def set_password(
+        self,
+        password,
+    ):
         encoded = hash_password(password)
         with self.database.connect() as connection:
             updated = connection.execute(
-                "UPDATE hspace_operator SET password_hash=%s", (encoded,)
+                "UPDATE hspace_operator SET password_hash=%s",
+                (encoded,),
             )
             if updated.rowcount != 1:
                 raise ValueError("Set up the office account first.")

@@ -16,6 +16,7 @@
     <script src="{{ static('web/app.js') }}" defer></script>
     <script src="{{ static('web/drivers.js') }}" defer></script>
     <script src="{{ static('web/driver-files.js') }}" defer></script>
+    <script src="{{ static('web/attachment-scroll.js') }}" defer></script>
     <script src="{{ static('web/interactions.js') }}" defer></script>
   </head>
   <body class="workspace-page">
@@ -162,7 +163,13 @@
           <p class="muted" data-i18n="trySearch">Try another search or clear the filters.</p>
         </div>
         <p id="cover-message" class="form-message" role="status"></p>
-        <div id="vehicle-grid" class="vehicle-grid"></div>
+        <div
+          id="vehicle-grid"
+          class="vehicle-grid scroll-region scroll-region--list scroll-region--fleet"
+          tabindex="0"
+          role="region"
+          aria-labelledby="list-title"
+        ></div>
       </section>
       <section id="detail-view" aria-labelledby="detail-title" hidden>
         <a class="back-link" href="#vehicles"
@@ -201,12 +208,11 @@
                     name="plate_number"
                     maxlength="64"
                     dir="ltr"
-                    inputmode="numeric"
                     autocomplete="off"
                     aria-describedby="hint-plate"
                     required
                   /><span class="field-hint" id="hint-plate" data-i18n="plateRule"
-                    >English digits; hyphens allowed between digit groups.</span
+                    >English digits with at least one hyphen, for example 50-31142.</span
                   >
                 </div>
                 <div class="field">
@@ -359,10 +365,24 @@
               </div>
             </div>
             <p id="driver-status" class="form-message" role="status"></p>
-            <div id="vehicle-driver-history" class="driver-records"></div>
+            <div
+              id="vehicle-driver-history"
+              class="driver-records scroll-region scroll-region--list"
+              tabindex="0"
+              role="region"
+              aria-labelledby="driver-section-title"
+            ></div>
             <details>
-              <summary data-driver-i18n="corrections">Correction history</summary>
-              <div id="driver-corrections"></div>
+              <summary id="driver-corrections-title" data-driver-i18n="corrections">
+                Correction history
+              </summary>
+              <div
+                id="driver-corrections"
+                class="scroll-region scroll-region--list"
+                tabindex="0"
+                role="region"
+                aria-labelledby="driver-corrections-title"
+              ></div>
             </details>
           </section>
           <section class="panel attachment-panel" aria-labelledby="photos-title">
@@ -401,9 +421,15 @@
               />
             </div>
             <p id="photos-empty" class="section-empty" data-i18n="noPhotos">No photos added yet.</p>
-            <div id="photo-grid" class="photo-grid"></div>
+            <div
+              id="photo-grid"
+              class="photo-grid scroll-region scroll-region--list scroll-region--attachments"
+              tabindex="-1"
+              role="region"
+              aria-labelledby="photos-title"
+            ></div>
             <p class="upload-hint" data-i18n="photoHint">
-              JPG, PNG or WebP · Up to 10 MB and 25 MP per photo
+              JPG, PNG or WebP · Up to 25 MB and 40 MP per photo
             </p>
           </section>
           <section class="panel attachment-panel" aria-labelledby="files-title">
@@ -436,9 +462,15 @@
               <input id="file-input" type="file" accept=".pdf,.txt,.docx,.xlsx" multiple hidden />
             </div>
             <p id="files-empty" class="section-empty" data-i18n="noFiles">No files added yet.</p>
-            <div id="file-list" class="file-list"></div>
+            <div
+              id="file-list"
+              class="file-list scroll-region scroll-region--list scroll-region--attachments"
+              tabindex="-1"
+              role="region"
+              aria-labelledby="files-title"
+            ></div>
             <p class="upload-hint" data-i18n="fileHint">
-              PDF, TXT, DOCX or XLSX · Up to 10 MB per file
+              PDF, TXT, DOCX or XLSX · Up to 25 MB per file
             </p>
           </section>
           <p id="upload-message" class="upload-message" role="status" tabindex="-1"></p>
@@ -473,7 +505,12 @@
             required
             dir="auto"
             autocomplete="off"
+            aria-describedby="new-type-hint new-type-error"
           />
+          <span class="field-hint" id="new-type-hint" data-i18n="addTypeHint"
+            >Arabic or English letters and spaces only.</span
+          >
+          <p class="form-message error" id="new-type-error" aria-live="polite" hidden></p>
         </div>
         <div class="field">
           <label for="new-plate" data-i18n="plateNumber">Vehicle number</label
@@ -481,13 +518,17 @@
             id="new-plate"
             name="plate_number"
             maxlength="64"
-            inputmode="numeric"
             required
             placeholder="e.g. 12-34567"
             data-i18n-placeholder="plateExample"
             dir="ltr"
             autocomplete="off"
+            aria-describedby="new-plate-hint new-plate-error"
           />
+          <span class="field-hint" id="new-plate-hint" data-i18n="plateRule"
+            >English digits with at least one hyphen, for example 50-31142.</span
+          >
+          <p class="form-message error" id="new-plate-error" aria-live="polite" hidden></p>
         </div>
         <p class="form-message" id="add-message" role="status"></p>
         <div class="dialog-actions">
@@ -610,7 +651,13 @@
       <p id="driver-files-empty" class="section-empty" data-driver-file-i18n="empty" hidden>
         No attachments for this driver period.
       </p>
-      <div id="driver-files-list" class="file-list"></div>
+      <div
+        id="driver-files-list"
+        class="file-list scroll-region scroll-region--list scroll-region--attachments"
+        tabindex="-1"
+        role="region"
+        aria-labelledby="driver-files-title"
+      ></div>
     </dialog>
     <footer class="app-footer">
       <span

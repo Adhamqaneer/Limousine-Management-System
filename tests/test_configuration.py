@@ -7,7 +7,10 @@ class ConfigurationTests(TestCase):
     def test_partial_postgres_configuration_is_rejected_without_secret(self):
         with self.assertRaises(ValueError) as result:
             Settings(db_password="private-value").validate()
-        self.assertNotIn("private-value", str(result.exception))
+        self.assertNotIn(
+            "private-value",
+            str(result.exception),
+        )
 
     def test_unconfigured_state_does_not_select_another_database(self):
         self.assertFalse(Settings().validate().database_configured)

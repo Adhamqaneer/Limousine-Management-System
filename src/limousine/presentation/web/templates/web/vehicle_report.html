@@ -94,7 +94,12 @@
         >
           Loading vehicles…
         </p>
-        <div class="report-scroll">
+        <div
+          class="report-scroll scroll-region"
+          tabindex="0"
+          role="region"
+          aria-labelledby="preview-title"
+        >
           <article class="report-paper" id="report-paper" hidden>
             <div class="report-watermark" aria-hidden="true">{% include 'web/_brand.html' %}</div>
             <table id="report-table">

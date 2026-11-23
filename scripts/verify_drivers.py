@@ -5,8 +5,14 @@ from contextlib import contextmanager
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
-sys.path.insert(0, str(ROOT))
+sys.path.insert(
+    0,
+    str(ROOT / "src"),
+)
+sys.path.insert(
+    0,
+    str(ROOT),
+)
 
 
 def main():
@@ -89,7 +95,11 @@ def main():
         drivers = DriverService(PostgresDriverRepository(transactional))
         recycling = RecyclingService(repo)
         car = vehicles.create_vehicle(
-            "00998-001", "Camry", driver_name="Old Driver", driver_phone="00123", actor=operator
+            "00998-001",
+            "Camry",
+            driver_name="Old Driver",
+            driver_phone="00123",
+            actor=operator,
         )
         initial = drivers.history(car.id)
         assert len(initial) == 1 and initial[0]["started_on"] is None
@@ -102,7 +112,12 @@ def main():
         client.get("/login/")
         headers = {"X-CSRFToken": client.cookies["csrftoken"]}
 
-        def write(name, phone, start, correct=False):
+        def write(
+            name,
+            phone,
+            start,
+            correct=False,
+        ):
             response = (client.patch if correct else client.post)(
                 f"/api/vehicles/{car.id}/drivers/" + ("current/" if correct else ""),
                 json={"driver_name": name, "driver_phone": phone, "started_on": start},
@@ -111,7 +126,12 @@ def main():
             assert response.status_code == 200
             return response.json()["vehicle"]
 
-        write("Old Driver", "00124", "2020-01-01", True)
+        write(
+            "Old Driver",
+            "00124",
+            "2020-01-01",
+            True,
+        )
         assert len(drivers.history(car.id)) == 1
         correction = drivers.corrections(car.id)[0]
         assert (
@@ -119,12 +139,42 @@ def main():
             and correction["after_data"]["driver_phone"] == "00124"
         )
         assert correction["actor_name"] == operator.username
-        write("New Driver", "0079", "2022-01-01")
+        write(
+            "New Driver",
+            "0079",
+            "2022-01-01",
+        )
         assert len(drivers.history(car.id)) == 2
-        assert drivers.history(car.id, "", "2021-01-01")[0]["driver_name"] == "Old Driver"
-        assert drivers.history(car.id, "", "2022-01-01")[0]["driver_name"] == "New Driver"
+        assert (
+            drivers.history(
+                car.id,
+                "",
+                "2021-01-01",
+            )[
+                0
+            ]["driver_name"]
+            == "Old Driver"
+        )
+        assert (
+            drivers.history(
+                car.id,
+                "",
+                "2022-01-01",
+            )[
+                0
+            ]["driver_name"]
+            == "New Driver"
+        )
         assert vehicles.get_vehicle(car.id).driver_phone == "0079"
-        assert len(drivers.history(car.id, "old")) == 1 and not drivers.history(car.id, "%")
+        assert len(
+            drivers.history(
+                car.id,
+                "old",
+            )
+        ) == 1 and not drivers.history(
+            car.id,
+            "%",
+        )
         result = client.get(f"/api/drivers/?vehicle_id={car.id}&q=New&on_date=2022-01-01")
         assert result.status_code == 200 and len(result.json()["assignments"]) == 1
         invalid = {
@@ -134,36 +184,57 @@ def main():
         }
         assert (
             client.post(
-                f"/api/vehicles/{car.id}/drivers/", json=invalid, headers=headers
+                f"/api/vehicles/{car.id}/drivers/",
+                json=invalid,
+                headers=headers,
             ).status_code
             == 400
         )
         assert len(drivers.history(car.id)) == 2
         assert (
             client.patch(
-                f"/api/vehicles/{car.id}/", json={"driver_phone": "123"}, headers=headers
+                f"/api/vehicles/{car.id}/",
+                json={"driver_phone": "123"},
+                headers=headers,
             ).status_code
             == 400
         )
-        write("Old Driver", "0009", "2023-01-01")
-        assert len(drivers.history(car.id, "Old")) == 2
+        write(
+            "Old Driver",
+            "0009",
+            "2023-01-01",
+        )
+        assert (
+            len(
+                drivers.history(
+                    car.id,
+                    "Old",
+                )
+            )
+            == 2
+        )
         assert len(drivers.history(car.id)) == 3
         try:
             with conn.transaction():
                 conn.execute(
-                    "UPDATE limo_vehicle SET driver_phone=%s WHERE id=%s", ("wrong", car.id)
+                    "UPDATE limo_vehicle SET driver_phone=%s WHERE id=%s",
+                    ("wrong", car.id),
                 )
         except psycopg.errors.CheckViolation:
             pass
         else:
             raise AssertionError("Direct driver overwrite allowed")
-        recycling.delete_vehicle(car.id, operator)
+        recycling.delete_vehicle(
+            car.id,
+            operator,
+        )
         assert client.get("/api/drivers/?q=Old").status_code == 200
         assert not any(row["vehicle_id"] == car.id for row in drivers.history())
         assert client.get(f"/api/vehicles/{car.id}/drivers/").status_code == 404
         assert (
             conn.execute(
-                "SELECT count(*) AS n FROM hspace_driver_assignment WHERE vehicle_id=%s", (car.id,)
+                "SELECT count(*) AS n FROM hspace_driver_assignment WHERE vehicle_id=%s",
+                (car.id,),
             ).fetchone()["n"]
             == 3
         )

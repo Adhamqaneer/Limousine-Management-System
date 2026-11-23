@@ -18,7 +18,10 @@ async function main() {
     }
     set id(value) {
       this._id = value;
-      nodes.set(value, this);
+      nodes.set(
+        value,
+        this,
+      );
     }
     get id() {
       return this._id;
@@ -35,10 +38,16 @@ async function main() {
     replaceChildren(...items) {
       this.children = items;
     }
-    setAttribute(name, value) {
+    setAttribute(
+      name,
+      value,
+    ) {
       this[name] = value;
     }
-    addEventListener(name, handler) {
+    addEventListener(
+      name,
+      handler,
+    ) {
       this.handlers[name] = handler;
     }
     querySelector(tag) {
@@ -46,7 +55,10 @@ async function main() {
     }
     cloneNode() {
       const result = new Node(this.tagName);
-      Object.assign(result, { href: this.href, target: this.target, rel: this.rel });
+      Object.assign(
+        result,
+        { href: this.href, target: this.target, rel: this.rel },
+      );
       return result;
     }
     showModal() {
@@ -95,24 +107,39 @@ async function main() {
       }
     },
     CustomEvent: class {
-      constructor(type, options) {
+      constructor(
+        type,
+        options,
+      ) {
         this.type = type;
         this.detail = options.detail;
       }
     },
     window: {
-      addEventListener: (name, handler) => (events[name] = handler),
+      addEventListener: (
+        name,
+        handler,
+      ) => (events[name] = handler),
       dispatchEvent: () => {},
     },
-    fetch: async (url, options = {}) => {
+    fetch: async (
+      url,
+      options = {},
+    ) => {
       requests.push({ url, options });
-      if (fail) return { status: 500, ok: false };
-      if (conflict && options.method === 'PATCH')
+      if (fail) {
+        return { status: 500, ok: false };
+      }
+      if (
+        conflict
+        && options.method === 'PATCH'
+      ) {
         return {
           status: 409,
           ok: false,
           json: async () => ({ error: { code: 'category_in_use' } }),
         };
+      }
       if (options.method === 'POST') {
         added = true;
         return {
@@ -141,7 +168,10 @@ async function main() {
   context.HSpaceCategories = undefined;
   vm.runInNewContext(
     fs.readFileSync(
-      path.join(__dirname, '../src/limousine/presentation/web/static/web/attachment-categories.js'),
+      path.join(
+        __dirname,
+        '../src/limousine/presentation/web/static/web/attachment-categories.js',
+      ),
       'utf8',
     ),
     context,
@@ -155,72 +185,144 @@ async function main() {
   };
   const button = context.HSpaceCategories.createButton(item);
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(item.category_id, 1);
-  assert.match(button.textContent, /رخصة السيارة/);
+  assert.equal(
+    item.category_id,
+    1,
+  );
+  assert.match(
+    button.textContent,
+    /رخصة السيارة/,
+  );
   for (const [inputId, buttonId] of [
     ['photo-input', 'add-photos'],
     ['file-input', 'add-files'],
     ['office-photos-input', 'office-add-photos'],
     ['office-files-input', 'office-add-files'],
   ]) {
-    assert.equal(context.HSpaceCategories.selectedFor(inputId), null);
-    assert.equal(nodes.get(buttonId).beforeNode, undefined);
+    assert.equal(
+      context.HSpaceCategories.selectedFor(inputId),
+      null,
+    );
+    assert.equal(
+      nodes.get(buttonId).beforeNode,
+      undefined,
+    );
   }
   const choice = nodes.get('category-for-driver-files-input');
-  assert.equal(choice.value, '99');
+  assert.equal(
+    choice.value,
+    '99',
+  );
   choice.value = '1';
-  assert.equal(context.HSpaceCategories.selectedFor('driver-files-input'), '1');
-  assert.equal(nodes.get('driver-files-add').beforeNode.querySelector('a'), undefined);
+  assert.equal(
+    context.HSpaceCategories.selectedFor('driver-files-input'),
+    '1',
+  );
+  assert.equal(
+    nodes.get('driver-files-add').beforeNode.querySelector('a'),
+    undefined,
+  );
   await button.handlers.click();
   const dialog = body.children[0],
     form = dialog.children[0],
     select = nodes.get('attachment-category-choice');
   assert.ok(dialog.open);
-  assert.equal(select.value, '1');
+  assert.equal(
+    select.value,
+    '1',
+  );
   select.value = '99';
   await form.handlers.submit({ preventDefault() {} });
   const request = requests.find((item) => item.options.method === 'PATCH');
-  assert.equal(request.url, item.manage_url + 'category/');
-  assert.equal(request.options.headers['X-CSRFToken'], 'csrf');
-  assert.deepEqual(JSON.parse(request.options.body), { category_id: 99 });
-  assert.equal(item.category_id, 99);
-  assert.equal(dialog.open, false);
+  assert.equal(
+    request.url,
+    item.manage_url + 'category/',
+  );
+  assert.equal(
+    request.options.headers['X-CSRFToken'],
+    'csrf',
+  );
+  assert.deepEqual(
+    JSON.parse(request.options.body),
+    { category_id: 99 },
+  );
+  assert.equal(
+    item.category_id,
+    99,
+  );
+  assert.equal(
+    dialog.open,
+    false,
+  );
   assert.ok(button.focused);
   root.lang = 'en';
   events['hspace:language']();
-  assert.equal(button.textContent, 'Category: Other');
+  assert.equal(
+    button.textContent,
+    'Category: Other',
+  );
   await button.handlers.click();
   select.value = '99';
   select.handlers.change();
-  assert.equal(nodes.get('attachment-category-name').disabled, false);
+  assert.equal(
+    nodes.get('attachment-category-name').disabled,
+    false,
+  );
   nodes.get('attachment-category-name').value = 'Insurance';
   await form.handlers.submit({ preventDefault() {} });
-  assert.equal(item.category_id, 8);
-  assert.equal(choice.children.at(-1).value, '99');
+  assert.equal(
+    item.category_id,
+    8,
+  );
+  assert.equal(
+    choice.children.at(-1).value,
+    '99',
+  );
   assert.ok(choice.children.some((option) => option.value === '8'));
   const create = requests.find((item) => item.options.method === 'POST');
-  assert.deepEqual(JSON.parse(create.options.body), { name: 'Insurance', allow_similar: false });
+  assert.deepEqual(
+    JSON.parse(create.options.body),
+    { name: 'Insurance', allow_similar: false },
+  );
   const previousPatches = requests.filter((item) => item.options.method === 'PATCH').length;
   choice.value = '99';
   choice.handlers.change();
   await new Promise((resolve) => setImmediate(resolve));
   nodes.get('attachment-category-name').value = 'Insurance';
   await form.handlers.submit({ preventDefault() {} });
-  assert.equal(choice.value, '8');
-  assert.equal(requests.filter((item) => item.options.method === 'PATCH').length, previousPatches);
+  assert.equal(
+    choice.value,
+    '8',
+  );
+  assert.equal(
+    requests.filter((item) => item.options.method === 'PATCH').length,
+    previousPatches,
+  );
   await button.handlers.click();
   select.value = '1';
   conflict = true;
   await form.handlers.submit({ preventDefault() {} });
-  assert.equal(item.category_id, 8);
-  assert.equal(dialog.open, true);
-  assert.match(form.children.at(-2).textContent, /already has an attachment/);
+  assert.equal(
+    item.category_id,
+    8,
+  );
+  assert.equal(
+    dialog.open,
+    true,
+  );
+  assert.match(
+    form.children.at(-2).textContent,
+    /already has an attachment/,
+  );
   conflict = false;
   form.children.at(-1).children[0].handlers.click();
   fail = true;
   await button.handlers.click();
   assert.ok(dialog.open);
-  assert.equal(form.children.at(-1).children.at(-1).disabled, true);
+  assert.equal(
+    form.children.at(-1).children.at(-1).disabled,
+    true,
+  );
   console.log(
     'Category UI passed: vehicle classification, driver upload choices, no office pickers, redirects, CSRF and focus.',
   );

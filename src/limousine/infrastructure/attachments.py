@@ -11,12 +11,16 @@ from pathlib import Path, PurePosixPath
 
 from PIL import Image, UnidentifiedImageError
 
+from limousine.domain.attachments import (
+    MAX_ATTACHMENT_BYTES,
+    MAX_IMAGE_PIXELS,
+    ImageDimensionsTooLarge,
+)
 from limousine.domain.vehicles import DomainError
 from limousine.infrastructure.media_paths import STORAGE_KEY_PATTERN, section_for
 
-MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
-MAX_IMAGE_PIXELS = 25_000_000
 IMAGE_FORMATS = {".jpg": "JPEG", ".jpeg": "JPEG", ".png": "PNG", ".webp": "WEBP"}
+IMAGE_LIMIT_MESSAGE = "Photos must contain no more than 40 million pixels."
 IMAGE_MIMES = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
@@ -44,56 +48,116 @@ class StoredUpload:
 
 
 def safe_original_name(name):
-    name = unicodedata.normalize("NFC", str(name or "")).replace("\\", "/").rsplit("/", 1)[-1]
+    name = (
+        unicodedata.normalize(
+            "NFC",
+            str(name or ""),
+        )
+        .replace(
+            "\\",
+            "/",
+        )
+        .rsplit(
+            "/",
+            1,
+        )[-1]
+    )
     name = "".join(
         character for character in name if not unicodedata.category(character).startswith("C")
     )
     name = name.strip(" .")
-    if not name or len(name) > 180:
+    if (
+        not name
+        or len(name) > 180
+    ):
         raise DomainError("Choose a file with a name of 1 to 180 characters.")
     return name
 
 
-def _validate_image(extension, content):
+def _checked_image_pixels(
+    image,
+    previous_pixels=0,
+):
+    width, height = image.size
+    if (
+        width <= 0
+        or height <= 0
+    ):
+        raise DomainError("Choose an image with valid dimensions.")
+    total = previous_pixels + width * height
+    if total > MAX_IMAGE_PIXELS:
+        raise ImageDimensionsTooLarge(IMAGE_LIMIT_MESSAGE)
+    return total
+
+
+def _validate_image(
+    extension,
+    content,
+):
     expected_format = IMAGE_FORMATS[extension]
     try:
         with warnings.catch_warnings():
-            warnings.simplefilter("error", Image.DecompressionBombWarning)
-            with Image.open(io.BytesIO(content), formats=[expected_format]) as image:
-                if image.format != expected_format:
-                    raise DomainError("The image format does not match its file extension.")
-                width, height = image.size
+            warnings.simplefilter(
+                "error",
+                Image.DecompressionBombWarning,
+            )
+            with Image.open(
+                io.BytesIO(content),
+                formats=[expected_format],
+            ) as image:
+                # Some cameras store a JPEG and its embedded preview in one .jpg.
+                jpeg_bundle = expected_format == "JPEG" and image.format == "MPO"
                 if (
-                    width <= 0
-                    or height <= 0
-                    or width * height > MAX_IMAGE_PIXELS
+                    image.format != expected_format
+                    and not jpeg_bundle
                 ):
-                    raise DomainError("Photos must contain no more than 25 million pixels.")
+                    raise DomainError("The image format does not match its file extension.")
+                _checked_image_pixels(image)
                 image.verify()
             # verify() checks structure but does not decode all pixel data.
             # Reopening and loading also rejects truncated compressed content.
-            with Image.open(io.BytesIO(content), formats=[expected_format]) as image:
-                image.load()
+            with Image.open(
+                io.BytesIO(content),
+                formats=[expected_format],
+            ) as image:
+                if jpeg_bundle:
+                    total_pixels = 0
+                    for index in range(image.n_frames):
+                        image.seek(index)
+                        total_pixels = _checked_image_pixels(
+                            image,
+                            total_pixels,
+                        )
+                        image.load()
+                else:
+                    image.load()
     except DomainError:
         raise
+    except (Image.DecompressionBombError, Image.DecompressionBombWarning) as error:
+        raise ImageDimensionsTooLarge(IMAGE_LIMIT_MESSAGE) from error
     except (
         UnidentifiedImageError,
         OSError,
+        EOFError,
         ValueError,
         SyntaxError,
         OverflowError,
-        Image.DecompressionBombError,
-        Image.DecompressionBombWarning,
     ) as error:
         raise DomainError("Choose a valid, complete JPG, PNG or WebP photo.") from error
 
 
-def _validate_content(extension, content):
+def _validate_content(
+    extension,
+    content,
+):
     if not content:
         raise DomainError("Empty files cannot be uploaded.")
     valid = False
     if extension in IMAGE_FORMATS:
-        _validate_image(extension, content)
+        _validate_image(
+            extension,
+            content,
+        )
         return
     elif extension == ".pdf":
         valid = content.startswith(b"%PDF-")
@@ -124,24 +188,43 @@ def _validate_content(extension, content):
 
 
 class LocalAttachmentStore:
-    def __init__(self, root=None):
+    def __init__(
+        self,
+        root=None,
+    ):
         from limousine.config.runtime import ROOT
 
         self.root = Path(root) if root is not None else ROOT / "media"
 
-    def save(self, upload, *, namespace="vehicles", directory=None, card_photo=False):
+    def save(
+        self,
+        upload,
+        *,
+        namespace="vehicles",
+        directory=None,
+        card_photo=False,
+    ):
         if namespace not in ("vehicles", "office"):
             raise DomainError("Invalid attachment namespace.")
-        if upload.size is not None and upload.size > MAX_ATTACHMENT_BYTES:
-            raise AttachmentTooLarge("The file must be 10 MB or smaller.")
+        if (
+            upload.size is not None
+            and upload.size > MAX_ATTACHMENT_BYTES
+        ):
+            raise AttachmentTooLarge("The file must be 25 MB or smaller.")
         name = safe_original_name(upload.name)
         extension = PurePosixPath(name).suffix.lower()
-        if extension not in IMAGE_MIMES and extension not in FILE_MIMES:
+        if (
+            extension not in IMAGE_MIMES
+            and extension not in FILE_MIMES
+        ):
             raise DomainError("Supported files: JPG, PNG, WebP, PDF, TXT, DOCX and XLSX.")
         content = upload.read(MAX_ATTACHMENT_BYTES + 1)
         if len(content) > MAX_ATTACHMENT_BYTES:
-            raise AttachmentTooLarge("The file must be 10 MB or smaller.")
-        _validate_content(extension, content)
+            raise AttachmentTooLarge("The file must be 25 MB or smaller.")
+        _validate_content(
+            extension,
+            content,
+        )
         kind = "image" if extension in IMAGE_MIMES else "file"
         if directory is not None:
             section = "covers" if card_photo else section_for(kind)
@@ -152,43 +235,84 @@ class LocalAttachmentStore:
             directory = namespace
         key = f"{directory}/{uuid.uuid4().hex}{extension}"
         target = self.path(key)
-        target.parent.mkdir(parents=True, exist_ok=True)
+        target.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
         try:
             with target.open("xb") as output:
                 output.write(content)
         except OSError:
             target.unlink(missing_ok=True)
             raise
-        return StoredUpload(key, name, kind, len(content))
+        return StoredUpload(
+            key,
+            name,
+            kind,
+            len(content),
+        )
 
-    def save_office_file(self, upload):
-        return self.save(upload, namespace="office")
+    def save_office_file(
+        self,
+        upload,
+    ):
+        return self.save(
+            upload,
+            namespace="office",
+        )
 
-    def save_card_photo(self, upload, *, directory=None):
+    def save_card_photo(
+        self,
+        upload,
+        *,
+        directory=None,
+    ):
         if PurePosixPath(safe_original_name(upload.name)).suffix.lower() not in IMAGE_MIMES:
             raise DomainError("Choose a JPG, PNG or WebP card photo.")
-        return self.save(upload, directory=directory, card_photo=True)
+        return self.save(
+            upload,
+            directory=directory,
+            card_photo=True,
+        )
 
     @staticmethod
     def _check_key(key):
         # Keys are generated internally, but validate persisted values before filesystem use.
-        if not isinstance(key, str) or not re.fullmatch(STORAGE_KEY_PATTERN, key):
+        if (
+            not isinstance(
+            key,
+            str,
+        )
+            or not re.fullmatch(
+            STORAGE_KEY_PATTERN,
+            key,
+        )
+        ):
             raise FileNotFoundError("Attachment not found.")
         if any(unicodedata.category(char).startswith("C") or char in '<>:"\\|?*' for char in key):
             raise FileNotFoundError("Attachment not found.")
 
-    def open(self, key):
+    def open(
+        self,
+        key,
+    ):
         self._check_key(key)
         return self.path(key).open("rb")
 
-    def path(self, key):
+    def path(
+        self,
+        key,
+    ):
         self._check_key(key)
         target = (self.root / key).resolve()
         if not target.is_relative_to(self.root.resolve()):
             raise FileNotFoundError("Attachment not found.")
         return target
 
-    def delete(self, key):
+    def delete(
+        self,
+        key,
+    ):
         self._check_key(key)
         target = self.path(key)
         target.unlink(missing_ok=True)
@@ -209,4 +333,7 @@ class LocalAttachmentStore:
     @staticmethod
     def content_type(key):
         extension = PurePosixPath(key).suffix.lower()
-        return IMAGE_MIMES.get(extension) or FILE_MIMES.get(extension, "application/octet-stream")
+        return IMAGE_MIMES.get(extension) or FILE_MIMES.get(
+            extension,
+            "application/octet-stream",
+        )

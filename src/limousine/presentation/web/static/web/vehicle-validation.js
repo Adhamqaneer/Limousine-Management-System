@@ -16,24 +16,41 @@
     let letterSeen = false;
     for (const char of value) {
       const arabic = /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/u.test(char);
-      if (/[A-Za-z]/u.test(char) || (arabic && /\p{L}/u.test(char))) {
+      if (
+        /[A-Za-z]/u.test(char)
+        || (arabic && /\p{L}/u.test(char))
+      ) {
         letterSeen = true;
-      } else if (char !== ' ' && !(arabic && /\p{M}/u.test(char) && letterSeen)) {
+      } else if (
+        char !== ' '
+        && !(arabic && /\p{M}/u.test(char) && letterSeen)
+      ) {
         return false;
       }
     }
     return letterSeen;
   }
-  function error(name, value) {
-    if (typeof value !== 'string' || !(name in limits)) {
+  function error(
+    name,
+    value,
+    { editing = false } = {},
+  ) {
+    if (
+      typeof value !== 'string'
+      || !(name in limits)
+    ) {
       return 'invalidDetails';
     }
     value = value.trim();
-    if (value.length > limits[name] || /\p{Cc}/u.test(value)) {
+    if (
+      value.length > limits[name]
+      || /\p{Cc}/u.test(value)
+    ) {
       return 'invalidDetails';
     }
     if (name === 'plate_number') {
-      return /^[0-9]+(?:-[0-9]+)*$/u.test(value) ? '' : 'invalidPlate';
+      const pattern = editing ? /^[0-9]+(?:-[0-9]+)*-?$/u : /^[0-9]+(?:-[0-9]+)+$/u;
+      return pattern.test(value) ? '' : 'invalidPlate';
     }
     if (!value) {
       return name === 'vehicle_type' ? 'nameRule' : '';

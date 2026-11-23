@@ -8,6 +8,10 @@ On **Print vehicle data**, select fields in the order you want them to appear in
 
 On **Office files**, add photos or files directly and download each section as a ZIP.
 
+Vehicle, office and driver attachment lists show their first three rows before scrolling internally. Other long lists also scroll within their sections. Report previews scroll on screen and print all rows.
+
+When adding a vehicle, use Arabic or English letters and spaces for its type. A new or changed vehicle number requires English digits with at least one hyphen between digit groups, such as `50-31142`. A number assigned to another record cannot be used, including while that record is in Deleted items.
+
 ## Download attachments by type
 
 Add photos or files to a vehicle, then click the category beside an uploaded attachment to classify it. Vehicle uploads start as Other. Vehicle license, Direction card and Customs declaration are available by default. A named type permits one active attachment per vehicle across Photos and Files. Other permits multiple. In the category dialog, choose Other and enter a new type name to add a permanent shared choice. Other stays last.
@@ -52,7 +56,7 @@ Alternatively, use `python manage.py runserver` with the configured interpreter.
 
 Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_desktop.ps1` on this development computer. On a fresh checkout, install `requirements-desktop.txt` in the configured Python environment first. The preview requires WebView2 and PostgreSQL binaries. Pass `-PostgresBin` if PostgreSQL is in a different location.
 
-H SPACE opens in its own window. On first launch, choose a password for `H space` and sign in. The preview starts with empty records and saves changes under `.local/desktop-preview/` in this checkout. See [desktop preview](docs/desktop.md) for details.
+H SPACE opens in its own window with the office logo as its Windows icon. On first launch, choose a password for `H space` and sign in. The preview starts with empty records and saves changes under `.local/desktop-preview/` in this checkout. See [desktop preview](docs/desktop.md) for details.
 
 ## Checks
 
@@ -68,7 +72,7 @@ Use your configured Python interpreter for the last two commands. The database a
 
 ## Data and maintenance
 
-PostgreSQL stores records and file metadata. Private originals are organized under `media/`:
+PostgreSQL stores records and file metadata. Vehicle, driver and office uploads allow up to 25 MB per file, including card photos. Photos also have a 40-megapixel limit. Private originals are organized under `media/`:
 
 ```text
 media/
@@ -81,7 +85,7 @@ Driver folder labels use Arabic text, ISO dates with the year, and "now" while c
 
 Schema 9 introduced these paths; schema 10 adds attachment categories. The existing local originals were reorganized after private database/media backups under `.local/backups/`. New uploads follow the same structure. Restart the server for the new handlers. No automated tests or browser checks were run for this change at the owner's request. Back up **both PostgreSQL and media**, plus private configuration. A Git checkout/push does not include local data or credentials.
 
-- Apply a documented schema update with `python manage.py migrate`. The current schema is 12.
+- Apply a documented schema update with `python manage.py migrate`. The current schema is 14. The desktop preview applies the update on startup after backing up the database.
 - Change the office password with `python manage.py setpassword`. This revokes existing sessions.
 - Retry failed-upload cleanup: `python manage.py cleanupfiles`. Referenced files, including deleted ones, are retained.
 
@@ -89,7 +93,7 @@ Schema 9 introduced these paths; schema 10 adds attachment categories. The exist
 
 Start with [architecture and database](docs/architecture.md), then [frontend](docs/frontend.md). [Maintenance](docs/maintenance.md) covers deeper checks; [remaining work](docs/next-steps.md) records open decisions and limitations.
 
-For code changes, use a block for each JavaScript conditional and put each part of a long condition on its own line. See [maintenance](docs/maintenance.md) for what the pre-desktop cleanup removed.
+For Python and JavaScript, put each parameter or argument on its own line when a function or call takes more than one. Use separate lines for compound conditions and blocks for JavaScript conditionals. See [maintenance](docs/maintenance.md) for formatting and cleanup details.
 
 See maintenance docs for category/download verification results. Restart the server after this update.
 

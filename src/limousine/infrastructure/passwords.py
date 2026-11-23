@@ -12,7 +12,10 @@ ITERATIONS = 1_000_000
 
 def prompt_password():
     with warnings.catch_warnings():
-        warnings.simplefilter("error", GetPassWarning)
+        warnings.simplefilter(
+            "error",
+            GetPassWarning,
+        )
         password = getpass("H space password: ")
         if password != getpass("Confirm H space password: "):
             raise ValueError("Passwords do not match.")
@@ -21,17 +24,28 @@ def prompt_password():
 
 def hash_password(password):
     if (
-        not isinstance(password, str)
+        not isinstance(
+            password,
+            str,
+        )
         or not 8 <= len(password) <= 1024
         or password.isdigit()
     ):
         raise ValueError("Use a password of 8 to 1024 characters, not only numbers.")
     salt = secrets.token_urlsafe(12)
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), ITERATIONS)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode(),
+        salt.encode(),
+        ITERATIONS,
+    )
     return f"pbkdf2_sha256${ITERATIONS}${salt}${base64.b64encode(digest).decode()}"
 
 
-def verify_password(password, encoded):
+def verify_password(
+    password,
+    encoded,
+):
     try:
         algorithm, count, salt, digest = encoded.split("$")
         iterations = int(count)
@@ -41,7 +55,15 @@ def verify_password(password, encoded):
             or len(password) > 1024
         ):
             return False
-        actual = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), iterations)
-        return hmac.compare_digest(base64.b64encode(actual).decode(), digest)
+        actual = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode(),
+            salt.encode(),
+            iterations,
+        )
+        return hmac.compare_digest(
+            base64.b64encode(actual).decode(),
+            digest,
+        )
     except (ValueError, TypeError, AttributeError):
         return False

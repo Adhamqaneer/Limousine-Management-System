@@ -25,22 +25,54 @@ class AttachmentRenameTests(TestCase):
         self.app = create_app(Settings(media_root=Path(directory.name)))
         self.repository = MemoryVehicleRepository()
         self.service = self.app.state.vehicles = VehicleService(self.repository)
-        self.car = self.service.create_vehicle("050-001", "Camry")
+        self.car = self.service.create_vehicle(
+            "050-001",
+            "Camry",
+        )
         self.items, self.contents = [], [photo(), b"original document 00123"]
-        for name, content in zip(["old.PNG", "old.txt"], self.contents):
-            stored = self.app.state.store.save(SimpleUploadedFile(name, content))
-            self.items.append(self.service.add_attachment(self.car.id, **vars(stored)))
+        for name, content in zip(
+            ["old.PNG", "old.txt"],
+            self.contents,
+        ):
+            stored = self.app.state.store.save(
+                SimpleUploadedFile(
+                    name,
+                    content,
+                )
+            )
+            self.items.append(
+                self.service.add_attachment(
+                    self.car.id,
+                    **vars(stored),
+                )
+            )
         self.app.dependency_overrides[current_user] = lambda: OPERATOR
         self.client = TestClient(self.app)
         self.client.get("/login/")
         self.headers = {"X-CSRFToken": self.client.cookies["csrftoken"]}
 
-    def url(self, index=0, vehicle_id=1):
+    def url(
+        self,
+        index=0,
+        vehicle_id=1,
+    ):
         return f"/api/vehicles/{vehicle_id}/attachments/{self.items[index].id}/"
 
     def test_name_rules_preserve_exact_extension_and_reject_unsafe_names(self):
-        self.assertEqual(renamed_attachment_name(" صورة جديدة ", "old.PNG"), "صورة جديدة.PNG")
-        self.assertEqual(renamed_attachment_name("version.2", "old.txt"), "version.2.txt")
+        self.assertEqual(
+            renamed_attachment_name(
+                " صورة جديدة ",
+                "old.PNG",
+            ),
+            "صورة جديدة.PNG",
+        )
+        self.assertEqual(
+            renamed_attachment_name(
+                "version.2",
+                "old.txt",
+            ),
+            "version.2.txt",
+        )
         for name in [
             "",
             "..",
@@ -56,7 +88,10 @@ class AttachmentRenameTests(TestCase):
             123,
         ]:
             with self.subTest(name=name), self.assertRaises(AttachmentNameError):
-                renamed_attachment_name(name, "old.PNG")
+                renamed_attachment_name(
+                    name,
+                    "old.PNG",
+                )
 
     def test_member_rename_changes_display_download_and_zip_without_changing_bytes(self):
         for index, stem in enumerate(["صورة جديدة", "New document"]):
@@ -66,43 +101,94 @@ class AttachmentRenameTests(TestCase):
                 json={"name": stem, "expected_name": item.original_name},
                 headers=self.headers,
             )
-            self.assertEqual(response.status_code, 200)
+            self.assertEqual(
+                response.status_code,
+                200,
+            )
             expected = stem + Path(item.original_name).suffix
-            self.assertEqual(response.json()["attachment"]["name"], expected)
-            self.assertNotIn("storage_key", response.text)
-            updated = self.service.get_attachment(1, item.id)
+            self.assertEqual(
+                response.json()["attachment"]["name"],
+                expected,
+            )
+            self.assertNotIn(
+                "storage_key",
+                response.text,
+            )
+            updated = self.service.get_attachment(
+                1,
+                item.id,
+            )
             self.assertEqual(
                 (updated.id, updated.storage_key, updated.size, updated.created_at),
                 (item.id, item.storage_key, item.size, item.created_at),
             )
             download = self.client.get(self.url(index) + "download/")
-            self.assertEqual(download.content, self.contents[index])
-            self.assertIn(quote(expected), download.headers["content-disposition"])
+            self.assertEqual(
+                download.content,
+                self.contents[index],
+            )
+            self.assertIn(
+                quote(expected),
+                download.headers["content-disposition"],
+            )
             scope = "photos" if index == 0 else "files"
             zipped = self.client.get(f"/api/vehicles/1/attachments/archive/{scope}/")
             with ZipFile(io.BytesIO(zipped.content)) as archive:
-                self.assertEqual(archive.namelist(), [expected])
-                self.assertEqual(archive.read(expected), self.contents[index])
+                self.assertEqual(
+                    archive.namelist(),
+                    [expected],
+                )
+                self.assertEqual(
+                    archive.read(expected),
+                    self.contents[index],
+                )
 
     def test_stale_name_returns_conflict_and_keeps_latest_name(self):
         body = {"name": "First", "expected_name": "old.PNG"}
         self.assertEqual(
-            self.client.patch(self.url(), json=body, headers=self.headers).status_code, 200
+            self.client.patch(
+                self.url(),
+                json=body,
+                headers=self.headers,
+            ).status_code,
+            200,
         )
         response = self.client.patch(
-            self.url(), json={**body, "name": "Second"}, headers=self.headers
+            self.url(),
+            json={**body, "name": "Second"},
+            headers=self.headers,
         )
-        self.assertEqual(response.status_code, 409)
-        self.assertEqual(response.json()["error"]["code"], "attachment_name_conflict")
         self.assertEqual(
-            self.service.get_attachment(1, self.items[0].id).original_name, "First.PNG"
+            response.status_code,
+            409,
+        )
+        self.assertEqual(
+            response.json()["error"]["code"],
+            "attachment_name_conflict",
+        )
+        self.assertEqual(
+            self.service.get_attachment(
+                1,
+                self.items[0].id,
+            ).original_name,
+            "First.PNG",
         )
 
     def test_validation_csrf_authentication_and_wrong_vehicle(self):
         body = {"name": "New", "expected_name": "old.PNG"}
-        self.assertEqual(self.client.patch(self.url(), json=body).status_code, 403)
         self.assertEqual(
-            self.client.patch(self.url(vehicle_id=2), json=body, headers=self.headers).status_code,
+            self.client.patch(
+                self.url(),
+                json=body,
+            ).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.patch(
+                self.url(vehicle_id=2),
+                json=body,
+                headers=self.headers,
+            ).status_code,
             404,
         )
         for invalid in [
@@ -112,9 +198,19 @@ class AttachmentRenameTests(TestCase):
             {**body, "name": None},
         ]:
             self.assertEqual(
-                self.client.patch(self.url(), json=invalid, headers=self.headers).status_code, 400
+                self.client.patch(
+                    self.url(),
+                    json=invalid,
+                    headers=self.headers,
+                ).status_code,
+                400,
             )
         self.app.dependency_overrides.clear()
         self.assertEqual(
-            self.client.patch(self.url(), json=body, headers=self.headers).status_code, 401
+            self.client.patch(
+                self.url(),
+                json=body,
+                headers=self.headers,
+            ).status_code,
+            401,
         )

@@ -8,10 +8,17 @@ logger = logging.getLogger(__name__)
 
 
 class FileCleanup:
-    def __init__(self, database, store):
+    def __init__(
+        self,
+        database,
+        store,
+    ):
         self.database, self.store = database, store
 
-    def discard(self, key):
+    def discard(
+        self,
+        key,
+    ):
         # An uncertain commit must never unlink a referenced (even deleted) file.
         with self.database.connect() as connection:
             connection.execute(
@@ -20,7 +27,10 @@ class FileCleanup:
             )
         return self.process(key)
 
-    def process(self, key):
+    def process(
+        self,
+        key,
+    ):
         try:
             with self.database.connect() as connection:
                 row = connection.execute(
@@ -44,7 +54,10 @@ class FileCleanup:
                 ).fetchone()["used"]
                 if not referenced:
                     self.store.delete(key)
-                connection.execute("DELETE FROM hspace_file_cleanup WHERE storage_key=%s", (key,))
+                connection.execute(
+                    "DELETE FROM hspace_file_cleanup WHERE storage_key=%s",
+                    (key,),
+                )
             return True
         except (OSError, psycopg.Error):
             # The durable queue entry survives both file errors and a failed commit.

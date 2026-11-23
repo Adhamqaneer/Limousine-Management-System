@@ -5,7 +5,10 @@ from psycopg.rows import dict_row
 
 
 class Database:
-    def __init__(self, settings):
+    def __init__(
+        self,
+        settings,
+    ):
         self.settings = settings
 
     def connect(self):

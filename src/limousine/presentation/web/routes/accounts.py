@@ -19,29 +19,58 @@ from ..security import (
 def register_routes(app):
     settings = app.state.settings
 
-    @app.get("/login/", name="login")
+    @app.get(
+        "/login/",
+        name="login",
+    )
     def login_page(request: Request):
         unavailable = not settings.database_configured
         try:
-            if request.cookies.get(SESSION_COOKIE) and app.state.accounts.session_user(
+            if (
+                request.cookies.get(SESSION_COOKIE)
+                and app.state.accounts.session_user(
                 request.cookies[SESSION_COOKIE]
+            )
             ):
-                return RedirectResponse("/", 303)
+                return RedirectResponse(
+                    "/",
+                    303,
+                )
         except psycopg.Error:
             unavailable = True
         return render_page(
-            request, "login.html", {"unavailable": unavailable, "invalid": False, "username": ""}
+            request,
+            "login.html",
+            {"unavailable": unavailable, "invalid": False, "username": ""},
         )
 
     @app.post("/login/")
     async def login_submit(request: Request):
-        async with request.form(max_files=0, max_fields=3) as form:
-            require_csrf(request, form.get("csrfmiddlewaretoken"))
-            username, password = form.get("username", ""), form.get("password", "")
+        async with request.form(
+            max_files=0,
+            max_fields=3,
+        ) as form:
+            require_csrf(
+                request,
+                form.get("csrfmiddlewaretoken"),
+            )
+            username, password = form.get(
+                "username",
+                "",
+            ), form.get(
+                "password",
+                "",
+            )
             if (
-                not isinstance(username, str)
+                not isinstance(
+                    username,
+                    str,
+                )
                 or len(username) > 150
-                or not isinstance(password, str)
+                or not isinstance(
+                    password,
+                    str,
+                )
                 or len(password) > 1024
             ):
                 raise DomainError("Invalid sign-in form.")
@@ -54,10 +83,16 @@ def register_routes(app):
                         username,
                         password,
                         settings.session_seconds,
-                        request.cookies.get(SESSION_COOKIE, ""),
+                        request.cookies.get(
+                            SESSION_COOKIE,
+                            "",
+                        ),
                     )
                 if session:
-                    response = RedirectResponse("/", 303)
+                    response = RedirectResponse(
+                        "/",
+                        303,
+                    )
                     response.set_cookie(
                         SESSION_COOKIE,
                         session,
@@ -66,7 +101,14 @@ def register_routes(app):
                         samesite="lax",
                         max_age=settings.session_seconds,
                     )
-                    set_csrf_cookie(response, csrf_token(settings, session), settings)
+                    set_csrf_cookie(
+                        response,
+                        csrf_token(
+                            settings,
+                            session,
+                        ),
+                        settings,
+                    )
                     return response
             except psycopg.Error:
                 unavailable = True
@@ -77,14 +119,34 @@ def register_routes(app):
                 status_code=503 if unavailable else 200,
             )
 
-    @app.post("/logout/", name="logout")
+    @app.post(
+        "/logout/",
+        name="logout",
+    )
     async def logout(request: Request):
-        async with request.form(max_files=0, max_fields=2) as form:
-            require_csrf(request, form.get("csrfmiddlewaretoken"))
-            await run_in_threadpool(
-                app.state.accounts.delete_session, request.cookies.get(SESSION_COOKIE, "")
+        async with request.form(
+            max_files=0,
+            max_fields=2,
+        ) as form:
+            require_csrf(
+                request,
+                form.get("csrfmiddlewaretoken"),
             )
-        response = RedirectResponse("/login/", 303)
+            await run_in_threadpool(
+                app.state.accounts.delete_session,
+                request.cookies.get(
+                    SESSION_COOKIE,
+                    "",
+                ),
+            )
+        response = RedirectResponse(
+            "/login/",
+            303,
+        )
         response.delete_cookie(SESSION_COOKIE)
-        set_csrf_cookie(response, csrf_token(settings), settings)
+        set_csrf_cookie(
+            response,
+            csrf_token(settings),
+            settings,
+        )
         return response

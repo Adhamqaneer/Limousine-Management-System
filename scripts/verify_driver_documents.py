@@ -9,7 +9,10 @@ from uuid import uuid4
 from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(
+    0,
+    str(ROOT / "src"),
+)
 
 
 def main():
@@ -63,9 +66,15 @@ def main():
         after = snapshot()
         for table, rows in before.items():
             assert len(after[table]) == len(rows)
-            for old, new in zip(rows, after[table]):
+            for old, new in zip(
+                rows,
+                after[table],
+            ):
                 assert all(new[key] == value for key, value in old.items())
-                if table == "limo_attachment" and "driver_assignment_id" not in old:
+                if (
+                    table == "limo_attachment"
+                    and "driver_assignment_id" not in old
+                ):
                     assert new["driver_assignment_id"] is None
         assert media_manifest(settings.media_root) == files
 
@@ -91,28 +100,68 @@ def main():
         app.state.drivers = drivers
         app.state.store = store
         app.state.recycling = RecyclingService(repo)
-        app.state.cleanup = FileCleanup(transaction, store)
+        app.state.cleanup = FileCleanup(
+            transaction,
+            store,
+        )
         app.dependency_overrides[current_user] = lambda: operator
         client = TestClient(app)
         client.get("/login/")
         headers = {"X-CSRFToken": client.cookies["csrftoken"]}
         try:
-            car = vehicles.create_vehicle("00997-001", "Camry", actor=operator)
-            drivers.assign(car.id, "Old Driver", "00123", "2000-01-01", operator)
+            car = vehicles.create_vehicle(
+                "00997-001",
+                "Camry",
+                actor=operator,
+            )
+            drivers.assign(
+                car.id,
+                "Old Driver",
+                "00123",
+                "2000-01-01",
+                operator,
+            )
             old = drivers.history(car.id)[0]
             image = io.BytesIO()
-            Image.new("RGB", (2, 2), "white").save(image, "PNG")
+            Image.new(
+                "RGB",
+                (2, 2),
+                "white",
+            ).save(
+                image,
+                "PNG",
+            )
             image = image.getvalue()
             base = f'/api/vehicles/{car.id}/drivers/{old["id"]}/attachments/'
 
-            def upload(url, name, content):
-                response = client.post(url, files={"file": (name, content)}, headers=headers)
+            def upload(
+                url,
+                name,
+                content,
+            ):
+                response = client.post(
+                    url,
+                    files={"file": (name, content)},
+                    headers=headers,
+                )
                 assert response.status_code == 201
                 return response.json()["attachment"]
 
-            photo = upload(base, "identity.png", image)
-            document = upload(base, "licence.pdf", b"%PDF-1.7\n%%EOF")
-            upload(f"/api/vehicles/{car.id}/attachments/", "vehicle.txt", b"vehicle only")
+            photo = upload(
+                base,
+                "identity.png",
+                image,
+            )
+            document = upload(
+                base,
+                "licence.pdf",
+                b"%PDF-1.7\n%%EOF",
+            )
+            upload(
+                f"/api/vehicles/{car.id}/attachments/",
+                "vehicle.txt",
+                b"vehicle only",
+            )
             assert drivers.history(car.id)[0]["attachment_count"] == 2
             assert len(vehicles.get_vehicle(car.id).attachments) == 1
             assert client.get(photo["preview_url"]).content == image
@@ -135,13 +184,24 @@ def main():
                 ended["ended_on"].isoformat() == "2000-01-11"
                 and ended["last_worked_on"].isoformat() == "2000-01-10"
             )
-            assert drivers.history(car.id, on_date="2000-01-10") and not drivers.history(
-                car.id, on_date="2000-01-11"
+            assert drivers.history(
+                car.id,
+                on_date="2000-01-10",
+            ) and not drivers.history(
+                car.id,
+                on_date="2000-01-11",
             )
-            drivers.assign(car.id, "New Driver", "00456", "2000-01-20", operator)
+            drivers.assign(
+                car.id,
+                "New Driver",
+                "00456",
+                "2000-01-20",
+                operator,
+            )
             current = drivers.history(car.id)[0]
             assert current["attachment_count"] == 0 and not drivers.history(
-                car.id, on_date="2000-01-15"
+                car.id,
+                on_date="2000-01-15",
             )
             assert vehicles.get_vehicle(car.id).driver_phone == "00456"
             assert (
@@ -160,18 +220,42 @@ def main():
                 ).status_code
                 == 400
             )
-            drivers.assign(car.id, "Same Day Driver", "00789", "2000-01-20", operator)
+            drivers.assign(
+                car.id,
+                "Same Day Driver",
+                "00789",
+                "2000-01-20",
+                operator,
+            )
             same_day = next(row for row in drivers.history(car.id) if row["id"] == current["id"])
             assert (
                 same_day["started_on"] == same_day["ended_on"]
                 and same_day["last_worked_on"] is None
             )
-            assert len(drivers.history(car.id, on_date="2000-01-20")) == 1
+            assert (
+                len(
+                    drivers.history(
+                        car.id,
+                        on_date="2000-01-20",
+                    )
+                )
+                == 1
+            )
             assert len(client.get(base).json()["attachments"]) == 2
-            upload(base, "historical.txt", b"historical period document")
+            upload(
+                base,
+                "historical.txt",
+                b"historical period document",
+            )
             other = f'/api/vehicles/{car.id}/drivers/{current["id"]}/attachments/{photo["id"]}/'
             assert client.get(other + "download/").status_code == 404
-            assert client.delete(other, headers=headers).status_code == 404
+            assert (
+                client.delete(
+                    other,
+                    headers=headers,
+                ).status_code
+                == 404
+            )
             renamed = client.patch(
                 base + str(photo["id"]) + "/",
                 json={"name": "هوية الشوفير", "expected_name": "identity.png"},
@@ -187,9 +271,16 @@ def main():
             assert (
                 client.get(f"/api/vehicles/{car.id}/attachments/archive/photos/").status_code == 404
             )
-            assert client.delete(base + str(photo["id"]) + "/", headers=headers).status_code == 204
+            assert (
+                client.delete(
+                    base + str(photo["id"]) + "/",
+                    headers=headers,
+                ).status_code
+                == 204
+            )
             item = conn.execute(
-                "SELECT * FROM limo_attachment WHERE id=%s", (photo["id"],)
+                "SELECT * FROM limo_attachment WHERE id=%s",
+                (photo["id"],),
             ).fetchone()
             assert (
                 item["is_deleted"]
@@ -203,28 +294,37 @@ def main():
             )
             assert (
                 client.post(
-                    f'/api/recycle-bin/attachment/{photo["id"]}/restore/', headers=headers
+                    f'/api/recycle-bin/attachment/{photo["id"]}/restore/',
+                    headers=headers,
                 ).status_code
                 == 204
             )
             assert client.get(photo["download_url"]).content == image
             assert (
                 conn.execute(
-                    "SELECT driver_assignment_id FROM limo_attachment WHERE id=%s", (photo["id"],)
+                    "SELECT driver_assignment_id FROM limo_attachment WHERE id=%s",
+                    (photo["id"],),
                 ).fetchone()["driver_assignment_id"]
                 == old["id"]
             )
-            client.delete(base + str(photo["id"]) + "/", headers=headers)
+            client.delete(
+                base + str(photo["id"]) + "/",
+                headers=headers,
+            )
             app.state.cleanup.discard(item["storage_key"])
             assert store.path(item["storage_key"]).is_file()
-            repo.delete_vehicle(car.id, operator)
+            repo.delete_vehicle(
+                car.id,
+                operator,
+            )
             assert (
                 client.get(base).status_code == 404
                 and client.get(document["preview_url"]).status_code == 404
             )
             assert (
                 client.post(
-                    f"/api/recycle-bin/vehicle/{car.id}/restore/", headers=headers
+                    f"/api/recycle-bin/vehicle/{car.id}/restore/",
+                    headers=headers,
                 ).status_code
                 == 204
             )
@@ -233,7 +333,8 @@ def main():
                 and client.get(document["preview_url"]).status_code == 200
             )
             event = conn.execute(
-                "SELECT * FROM hspace_driver_change WHERE vehicle_id=%s AND action='END'", (car.id,)
+                "SELECT * FROM hspace_driver_change WHERE vehicle_id=%s AND action='END'",
+                (car.id,),
             ).fetchone()
             assert (
                 event["actor_id"] == operator.id
@@ -256,11 +357,20 @@ def main():
             else:
                 raise AssertionError("Current-driver guard was bypassed.")
             other_car = vehicles.create_vehicle(
-                "00997-002", "Camry", driver_name="Legacy Driver", driver_phone="000", actor=operator
+                "00997-002",
+                "Camry",
+                driver_name="Legacy Driver",
+                driver_phone="000",
+                actor=operator,
             )
             legacy = drivers.history(other_car.id)[0]
             assert legacy["started_on"] is None
-            drivers.end(other_car.id, legacy["id"], "2000-01-05", operator)
+            drivers.end(
+                other_car.id,
+                legacy["id"],
+                "2000-01-05",
+                operator,
+            )
             assert (
                 vehicles.get_vehicle(other_car.id).driver_name == ""
                 and drivers.history(other_car.id)[0]["started_on"] is None

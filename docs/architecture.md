@@ -32,7 +32,7 @@ All eight fields are text; leading zeroes matter. Creation requires type and pla
 
 | UI order | Stored field | Accepted input |
 | --- | --- | --- |
-| Vehicle number | plate_number | ASCII digit groups, optionally separated by hyphens |
+| Vehicle number | plate_number | ASCII digit groups separated by at least one hyphen when adding or changing the number |
 | Owner name | owner_name | Arabic/English letters and spaces |
 | Driver name | driver_name | Same name rule; history workflow only |
 | Vehicle type | vehicle_type | Arabic/English letters and spaces |
@@ -43,7 +43,7 @@ All eight fields are text; leading zeroes matter. Creation requires type and pla
 
 Arabic combining marks are allowed after a letter. Unrelated edits preserve legacy values; changed fields use current validation.
 
-## PostgreSQL tables (schema 12)
+## PostgreSQL tables (schema 14)
 
 | Table | Purpose |
 | --- | --- |
@@ -66,13 +66,18 @@ Migrations are transactional/idempotent and restricted to the configured loopbac
 
 Schema 12 adds the singleton credential for H space, revokes legacy sessions and removes the former password hashes and role/status columns. It inserts a new actor ID and keeps all historical actor IDs and names. The first password is entered privately before the migration, which installs the credential in the same transaction as the schema change.
 
+Schema 13 backs up the database and raises the size checks for vehicle and driver attachments, card photos and office attachments to 25 MiB. It preserves the operator credential and sessions.
+
+Schema 14 indexes vehicle numbers and guards new and changed numbers in PostgreSQL, including concurrent requests. Comparison uses the stored number, preserving hyphens and leading zeros. Deleted vehicles keep their numbers. Existing duplicates keep their records and can be corrected to unused numbers. Duplicate assignments return `vehicle_number_in_use` (409).
+
 ## Invariants
 
 - Sessions expire after 12 hours. Changing the office password revokes existing sessions. Cookies are HttpOnly; mutations require signed, session-bound CSRF.
 - The signed-in operator can delete and restore. Metadata and file bytes remain. Parent restoration does not undo separate child deletion.
 - Driver documents use a composite period/vehicle foreign key; NULL assignment means the vehicle gallery. Office documents use their own table and a nullable-vehicle activity scope.
 - Driver changes lock the vehicle first, update period/current cache and append snapshots atomically. Unknown starts stay unknown. ended_on is exclusive; the displayed last working day is inclusive. Gaps before replacements are supported.
-- Uploads use generated UUID filenames in office/photos|files, vehicles/vehicle-ID/photos|files|covers, or a named drivers/period folder. Limit: 10 MiB/file and 25 MP/image. JPG/PNG/WebP/PDF/TXT/DOCX/XLSX are validated locally. Gallery changes never select a card photo.
+- Uploads use generated UUID filenames in office/photos|files, vehicles/vehicle-ID/photos|files|covers, or a named drivers/period folder. Limit: 25 MiB/file and 40 MP/image. JPG/PNG/WebP/PDF/TXT/DOCX/XLSX are validated locally. Gallery changes never select a card photo.
+- Camera JPGs with an embedded preview (MPO) retain their original bytes. The 40 MP limit applies to the combined JPEG frames.
 - Rename preserves the extension and rejects stale names. ZIPs contain active originals from one section only; temporary storage closes on success/failure.
 
 ## Media organization

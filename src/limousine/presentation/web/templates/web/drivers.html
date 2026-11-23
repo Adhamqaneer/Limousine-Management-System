@@ -20,7 +20,7 @@
     <main class="container" id="main-content">
       <div class="page-heading compact-hero branded-page-heading report-controls">
         <div class="heading-copy">
-          <h1 data-driver-i18n="driverHistory">Driver history</h1>
+          <h1 id="driver-history-title" data-driver-i18n="driverHistory">Driver history</h1>
           <p class="muted" data-driver-i18n="historyDescription">
             Find drivers, their vehicle periods and the phone number recorded for each period.
           </p>
@@ -61,7 +61,12 @@
         role="status"
         aria-live="polite"
       ></p>
-      <div class="report-scroll">
+      <div
+        class="report-scroll scroll-region"
+        tabindex="0"
+        role="region"
+        aria-labelledby="driver-history-title"
+      >
         <article id="report-paper" class="report-paper landscape" hidden>
           <div class="report-watermark" aria-hidden="true">{% include 'web/_brand.html' %}</div>
           <table id="report-table">

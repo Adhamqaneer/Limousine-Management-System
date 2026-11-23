@@ -6,40 +6,43 @@
   document.querySelectorAll('[data-i18n]').forEach((el) => {
     en[el.dataset.i18n] = el.textContent;
   });
-  Object.assign(en, {
-    restore: 'Restore',
-    categoryInUse:
-      'This vehicle already has an attachment in that category. Delete or recategorize it before restoring this one.',
-    unknown: 'Unknown (older record)',
-    createdBy: 'Added by',
-    deletedBy: 'Deleted by',
-    driverFiles: 'Driver attachments',
-    vehicle: 'Vehicle',
-    attachment: 'Attachment',
-    cover: 'Card photo',
-    empty: 'No deleted items.',
-    noHistory: 'No recorded activity yet.',
-    failed: 'Could not complete the request. Refresh and try again.',
-    saved: 'Item restored.',
-    parentDeleted: 'Restore the vehicle first.',
-    confirmRestore: 'Restore {label}?',
-    CREATE: 'Added',
-    DELETE: 'Deleted',
-    RESTORE: 'Restored',
-    RENAME: 'Renamed',
-    category: 'Category',
-    LABEL: 'Classified',
-    ALIAS: 'Alternative name added',
-    MERGE: 'Merged categories',
-    replaced: 'Replaced card photo',
-    removeCurrentPhoto: 'Remove current card photo',
-    confirmCurrentPhoto:
-      'Move the current card photo for {plate} to deleted items? You can then restore an older photo.',
-    currentPhotoRemoved: 'Current card photo moved to deleted items.',
-    coverConflict: 'Remove the current card photo before restoring an older photo.',
-    loading: 'Loading…',
-    signOut: 'Sign out',
-  });
+  Object.assign(
+    en,
+    {
+      restore: 'Restore',
+      categoryInUse:
+        'This vehicle already has an attachment in that category. Delete or recategorize it before restoring this one.',
+      unknown: 'Unknown (older record)',
+      createdBy: 'Added by',
+      deletedBy: 'Deleted by',
+      driverFiles: 'Driver attachments',
+      vehicle: 'Vehicle',
+      attachment: 'Attachment',
+      cover: 'Card photo',
+      empty: 'No deleted items.',
+      noHistory: 'No recorded activity yet.',
+      failed: 'Could not complete the request. Refresh and try again.',
+      saved: 'Item restored.',
+      parentDeleted: 'Restore the vehicle first.',
+      confirmRestore: 'Restore {label}?',
+      CREATE: 'Added',
+      DELETE: 'Deleted',
+      RESTORE: 'Restored',
+      RENAME: 'Renamed',
+      category: 'Category',
+      LABEL: 'Classified',
+      ALIAS: 'Alternative name added',
+      MERGE: 'Merged categories',
+      replaced: 'Replaced card photo',
+      removeCurrentPhoto: 'Remove current card photo',
+      confirmCurrentPhoto:
+        'Move the current card photo for {plate} to deleted items? You can then restore an older photo.',
+      currentPhotoRemoved: 'Current card photo moved to deleted items.',
+      coverConflict: 'Remove the current card photo before restoring an older photo.',
+      loading: 'Loading…',
+      signOut: 'Sign out',
+    },
+  );
   en.navOffice = 'Office files';
   en.office = 'Office file';
   const ar = {
@@ -53,7 +56,6 @@
     skip: 'انتقل إلى المحتوى',
     signOut: 'تسجيل الخروج',
     trashTitle: 'المحذوفات',
-    trashDescription: 'الملفات محفوظة. الاسترجاع للأدمن فقط.',
     refreshTrash: 'تحديث',
     deletedTitle: 'الاسترجاع',
     restoreNote:
@@ -100,7 +102,11 @@
     messageKey = '';
   const getText = (key) =>
     (document.documentElement.lang === 'ar' ? ar[key] : en[key]) ?? en[key] ?? key;
-  const createElement = (tag, text, cls = '') => {
+  const createElement = (
+    tag,
+    text,
+    cls = '',
+  ) => {
     const node = document.createElement(tag);
     node.textContent = text;
     node.className = cls;
@@ -108,21 +114,30 @@
   };
   const date = (value) =>
     value
-      ? new Intl.DateTimeFormat(document.documentElement.lang === 'ar' ? 'ar-JO' : 'en-GB', {
-          dateStyle: 'medium',
-          timeStyle: 'short',
-          timeZone: 'Asia/Amman',
-        }).format(new Date(value))
+      ? new Intl.DateTimeFormat(
+        document.documentElement.lang === 'ar' ? 'ar-JO' : 'en-GB',
+        {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+            timeZone: 'Asia/Amman',
+          },
+      ).format(new Date(value))
       : getText('unknown');
-  async function request(url, options = {}) {
-    const response = await fetch(url, {
-      ...options,
-      credentials: 'same-origin',
-      cache: 'no-store',
-      headers: {
-        'X-CSRFToken': getElement('csrf-token').value,
+  async function request(
+    url,
+    options = {},
+  ) {
+    const response = await fetch(
+      url,
+      {
+        ...options,
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: {
+          'X-CSRFToken': getElement('csrf-token').value,
+        },
       },
-    });
+    );
     if (response.status === 401) {
       location.assign('/login/');
       throw new Error();
@@ -139,13 +154,23 @@
     getElement('refresh-trash').disabled = busy;
     getElement('older-activity').disabled = busy;
     getElement('older-activity').hidden = !more;
-    getElement('deleted-list').setAttribute('aria-busy', String(busy));
+    getElement('deleted-list').setAttribute(
+      'aria-busy',
+      String(busy),
+    );
     getElement('deleted-list').replaceChildren(
       ...(items.length
         ? items.map((item) => {
-            const card = createElement('article', '', 'panel recycle-card'),
+            const card = createElement(
+              'article',
+              '',
+              'panel recycle-card',
+            ),
               info = createElement('div');
-            const title = createElement('h3', item.label);
+            const title = createElement(
+              'h3',
+              item.label,
+            );
             title.dir = 'auto';
             info.append(
               createElement(
@@ -185,11 +210,19 @@
             );
             button.type = 'button';
             button.disabled = busy || (item.kind !== 'vehicle' && item.parent_deleted);
-            button.addEventListener('click', () => restore(item));
-            card.append(info, button);
+            button.addEventListener(
+              'click',
+              () => restore(item),
+            );
+            card.append(
+              info,
+              button,
+            );
             if (
-              item.kind === 'cover' &&
-              item.has_current_cover &&
+              item.kind === 'cover'
+              &&
+              item.has_current_cover
+              &&
               !item.parent_deleted
             ) {
               const remove = createElement(
@@ -199,18 +232,32 @@
               );
               remove.type = 'button';
               remove.disabled = busy;
-              remove.addEventListener('click', () => removeCurrentPhoto(item));
+              remove.addEventListener(
+                'click',
+                () => removeCurrentPhoto(item),
+              );
               card.append(remove);
             }
             return card;
           })
-        : [createElement('p', getText(busy ? 'loading' : 'empty'), 'section-empty')]),
+        : [createElement(
+          'p',
+          getText(busy ? 'loading' : 'empty'),
+          'section-empty',
+        )]),
     );
     getElement('activity-list').replaceChildren(
       ...(events.length
         ? events.map((event) => {
-            const card = createElement('article', '', 'panel activity-card'),
-              label = createElement('strong', event.label);
+            const card = createElement(
+              'article',
+              '',
+              'panel activity-card',
+            ),
+              label = createElement(
+                'strong',
+                event.label,
+              );
             label.dir = 'auto';
             card.append(
               createElement(
@@ -225,14 +272,26 @@
                     : ''),
               ),
               label,
-              createElement('p', event.actor_name + ' · ' + date(event.created_at), 'muted'),
+              createElement(
+                'p',
+                event.actor_name + ' · ' + date(event.created_at),
+                'muted',
+              ),
             );
             if (event.reason === 'replaced') {
-              card.append(createElement('p', getText('replaced'), 'muted'));
+              card.append(createElement(
+                'p',
+                getText('replaced'),
+                'muted',
+              ));
             }
             return card;
           })
-        : [createElement('p', getText('noHistory'), 'section-empty')]),
+        : [createElement(
+          'p',
+          getText('noHistory'),
+          'section-empty',
+        )]),
     );
   }
   async function load(older = false) {
@@ -264,8 +323,12 @@
   }
   async function restore(item) {
     if (
-      busy ||
-      !window.confirm(getText('confirmRestore').replace('{label}', item.label))
+      busy
+      ||
+      !window.confirm(getText('confirmRestore').replace(
+        '{label}',
+        item.label,
+      ))
     ) {
       return;
     }
@@ -273,9 +336,12 @@
     messageKey = '';
     render();
     try {
-      await request('/api/recycle-bin/' + item.kind + '/' + item.id + '/restore/', {
-        method: 'POST',
-      });
+      await request(
+        '/api/recycle-bin/' + item.kind + '/' + item.id + '/restore/',
+        {
+          method: 'POST',
+        },
+      );
       messageKey = 'saved';
     } catch (error) {
       messageKey =
@@ -291,8 +357,12 @@
   }
   async function removeCurrentPhoto(item) {
     if (
-      busy ||
-      !window.confirm(getText('confirmCurrentPhoto').replace('{plate}', item.plate_number))
+      busy
+      ||
+      !window.confirm(getText('confirmCurrentPhoto').replace(
+        '{plate}',
+        item.plate_number,
+      ))
     ) {
       return;
     }
@@ -300,9 +370,12 @@
     messageKey = '';
     render();
     try {
-      await request('/api/vehicles/' + item.vehicle_id + '/cover/', {
-        method: 'DELETE',
-      });
+      await request(
+        '/api/vehicles/' + item.vehicle_id + '/cover/',
+        {
+          method: 'DELETE',
+        },
+      );
       messageKey = 'currentPhotoRemoved';
     } catch (_) {
       messageKey = 'failed';
@@ -317,21 +390,36 @@
       el.textContent = getText(el.dataset.i18n);
     });
     document.querySelectorAll('[data-i18n-aria]').forEach((el) => {
-      el.setAttribute('aria-label', getText(el.dataset.i18nAria));
+      el.setAttribute(
+        'aria-label',
+        getText(el.dataset.i18nAria),
+      );
     });
     render();
   }
-  getElement('refresh-trash').addEventListener('click', () => {
-    messageKey = '';
-    load();
-  });
-  getElement('older-activity').addEventListener('click', () => load(true));
-  window.addEventListener('hspace:language', translate);
-  window.addEventListener('pageshow', (event) => {
-    if (event.persisted) {
+  getElement('refresh-trash').addEventListener(
+    'click',
+    () => {
+      messageKey = '';
       load();
-    }
-  });
+    },
+  );
+  getElement('older-activity').addEventListener(
+    'click',
+    () => load(true),
+  );
+  window.addEventListener(
+    'hspace:language',
+    translate,
+  );
+  window.addEventListener(
+    'pageshow',
+    (event) => {
+      if (event.persisted) {
+        load();
+      }
+    },
+  );
   translate();
   load();
 })();

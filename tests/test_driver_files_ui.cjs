@@ -37,11 +37,19 @@ async function main() {
     replaceChildren(...children) {
       this.children = children;
     }
-    setAttribute(name, value) {
+    setAttribute(
+      name,
+      value,
+    ) {
       this.attributes[name] = value;
-      if (name === 'class') this.className = value;
+      if (name === 'class') {
+        this.className = value;
+      }
     }
-    addEventListener(name, fn) {
+    addEventListener(
+      name,
+      fn,
+    ) {
       this.handlers[name] = fn;
     }
     focus() {
@@ -71,7 +79,10 @@ async function main() {
     'driver-files-dialog',
     'driver-files-name',
   ])
-    nodes.set(id, new Node());
+    nodes.set(
+      id,
+      new Node(),
+    );
   const all = () =>
     [...nodes.values()].flatMap(function descend(node) {
       return [node, ...node.children.flatMap(descend)];
@@ -80,12 +91,18 @@ async function main() {
     documentElement: { lang: 'en' },
     getElementById: (id) => nodes.get(id),
     createElement: (tag) => new Node(tag),
-    createElementNS: (_, tag) => new Node(tag),
+    createElementNS: (
+      _,
+      tag,
+    ) => new Node(tag),
     querySelectorAll: (selector) =>
       selector.startsWith('.')
         ? all().filter((node) => node.className.split(' ').includes(selector.slice(1)))
         : [],
-    addEventListener: (name, fn) => {
+    addEventListener: (
+      name,
+      fn,
+    ) => {
       events[name] = fn;
     },
     dispatchEvent: (event) => {
@@ -94,7 +111,12 @@ async function main() {
     },
   };
   nodes.get('csrf-token').value = 'csrf';
-  const record = (id, assignmentId, name, kind = 'image') => ({
+  const record = (
+    id,
+    assignmentId,
+    name,
+    kind = 'image',
+  ) => ({
     id,
     name,
     kind,
@@ -103,8 +125,17 @@ async function main() {
     download_url: `/api/vehicles/1/drivers/${assignmentId}/attachments/${id}/download/`,
   });
   const data = new Map([
-    [5, [record(11, 5, 'هوية.png')]],
-    [6, [record(12, 6, 'old.txt', 'file')]],
+    [5, [record(
+      11,
+      5,
+      'هوية.png',
+    )]],
+    [6, [record(
+      12,
+      6,
+      'old.txt',
+      'file',
+    )]],
   ]);
   const context = {
     document,
@@ -116,29 +147,50 @@ async function main() {
     },
     window: {
       confirm: () => true,
-      addEventListener: (name, fn) => {
+      addEventListener: (
+        name,
+        fn,
+      ) => {
         windowEvents[name] = fn;
       },
     },
     CustomEvent: class {
-      constructor(type, options) {
+      constructor(
+        type,
+        options,
+      ) {
         this.type = type;
         this.detail = options.detail;
       }
     },
     FormData: class {
-      append(_, file) {
+      append(
+        _,
+        file,
+      ) {
         this.file = file;
       }
     },
-    fetch: async (url, options) => {
+    fetch: async (
+      url,
+      options,
+    ) => {
       calls.push([url, options]);
-      if (hold) await hold;
-      if (fail) return { status: 503, ok: false };
+      if (hold) {
+        await hold;
+      }
+      if (fail) {
+        return { status: 503, ok: false };
+      }
       const period = Number(url.match(/drivers\/(\d+)/)[1]),
         fileId = Number(url.match(/attachments\/(\d+)/)?.[1]);
       if (options.method === 'POST') {
-        const file = record(++nextId, period, options.body.file.name, 'file');
+        const file = record(
+          ++nextId,
+          period,
+          options.body.file.name,
+          'file',
+        );
         data.get(period).push(file);
         return { ok: true, status: 201, json: async () => ({ attachment: file }) };
       }
@@ -158,13 +210,19 @@ async function main() {
   };
   vm.runInNewContext(
     fs.readFileSync(
-      path.join(__dirname, '../src/limousine/presentation/web/static/web/driver-files.js'),
+      path.join(
+        __dirname,
+        '../src/limousine/presentation/web/static/web/driver-files.js',
+      ),
       'utf8',
     ),
     context,
   );
   const get = (id) => nodes.get(id),
-    open = async (id, current = true) => {
+    open = async (
+      id,
+      current = true,
+    ) => {
       events['hspace:open-driver-files']({
         detail: {
           vehicleId: 1,
@@ -175,11 +233,23 @@ async function main() {
     };
   await open(5);
   assert.ok(get('driver-files-dialog').open);
-  assert.equal(get('driver-files-list').children.length, 1);
+  assert.equal(
+    get('driver-files-list').children.length,
+    1,
+  );
   let row = get('driver-files-list').children[0];
-  assert.equal(row.children[0].children[0].width, 64);
-  assert.equal(row.children[1].children[0].textContent, 'هوية.png');
-  assert.equal(row.children[2].children[0].href, data.get(5)[0].preview_url);
+  assert.equal(
+    row.children[0].children[0].width,
+    64,
+  );
+  assert.equal(
+    row.children[1].children[0].textContent,
+    'هوية.png',
+  );
+  assert.equal(
+    row.children[2].children[0].href,
+    data.get(5)[0].preview_url,
+  );
   row.children[1].children[0].children[1].handlers.click();
   assert.ok(
     emitted.some(
@@ -192,11 +262,20 @@ async function main() {
   events['hspace:driver-file-renamed']({
     detail: { assignmentId: 5, attachment: { ...data.get(5)[0], name: 'New.png' } },
   });
-  assert.equal(get('driver-files-list').children[0].children[1].children[0].textContent, 'New.png');
-  get('driver-files-input').files = [{ name: 'licence.pdf', size: 200 }];
+  assert.equal(
+    get('driver-files-list').children[0].children[1].children[0].textContent,
+    'New.png',
+  );
+  get('driver-files-input').files = [{ name: 'licence.pdf', size: 25 * 1024 * 1024 }];
   await get('driver-files-input').handlers.change();
-  assert.equal(get('driver-files-list').children.length, 2);
-  assert.equal(get('driver-files-input').value, '');
+  assert.equal(
+    get('driver-files-list').children.length,
+    2,
+  );
+  assert.equal(
+    get('driver-files-input').value,
+    '',
+  );
   assert.equal(
     calls.find(([, options]) => options.method === 'POST')[1].headers['X-CSRFToken'],
     'csrf',
@@ -208,18 +287,36 @@ async function main() {
   );
   row = get('driver-files-list').children[1];
   await row.children[2].children[2].handlers.click();
-  assert.equal(get('driver-files-list').children.length, 1);
+  assert.equal(
+    get('driver-files-list').children.length,
+    1,
+  );
   get('driver-files-close').handlers.click();
-  await open(6, false);
-  assert.equal(get('driver-files-name').textContent, 'Previous');
-  assert.equal(get('driver-files-list').children[0].children[1].children[0].textContent, 'old.txt');
-  get('driver-files-input').files = [{ name: 'licence.pdf', size: 11 * 1024 * 1024 }];
+  await open(
+    6,
+    false,
+  );
+  assert.equal(
+    get('driver-files-name').textContent,
+    'Previous',
+  );
+  assert.equal(
+    get('driver-files-list').children[0].children[1].children[0].textContent,
+    'old.txt',
+  );
+  get('driver-files-input').files = [{ name: 'licence.pdf', size: 25 * 1024 * 1024 + 1 }];
   const before = calls.length;
   await get('driver-files-input').handlers.change();
-  assert.equal(calls.length, before);
+  assert.equal(
+    calls.length,
+    before,
+  );
   context.document.documentElement.lang = 'ar';
   windowEvents['hspace:language']();
-  assert.match(get('driver-files-status').textContent, /ميجابايت/);
+  assert.match(
+    get('driver-files-status').textContent,
+    /ميجابايت/,
+  );
   let release;
   hold = new Promise((resolve) => {
     release = resolve;
@@ -229,12 +326,21 @@ async function main() {
   release();
   hold = null;
   await tick();
-  assert.equal(get('driver-files-list').children.length, 0);
+  assert.equal(
+    get('driver-files-list').children.length,
+    0,
+  );
   fail = true;
   await open(5);
   assert.ok(get('driver-files-add').disabled);
-  assert.equal(get('driver-files-list').children.length, 0);
-  assert.equal(redirected, '');
+  assert.equal(
+    get('driver-files-list').children.length,
+    0,
+  );
+  assert.equal(
+    redirected,
+    '',
+  );
   console.log(
     'Driver attachment dialog passed: period isolation, retained historical access, preview/download, upload/CSRF, delete/count, rename event, size limits, Arabic, stale-response masking and failure gating.',
   );

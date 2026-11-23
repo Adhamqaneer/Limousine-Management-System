@@ -1,6 +1,7 @@
 """PostgreSQL implementation of the framework-independent vehicle contract."""
 
 from psycopg import sql
+from psycopg.errors import UniqueViolation
 
 from limousine.domain.attachments import AttachmentNameConflict
 from limousine.domain.recycling import require_actor, validate_kind
@@ -10,6 +11,7 @@ from limousine.domain.vehicles import (
     NotFound,
     Vehicle,
     VehicleCover,
+    VehicleNumberInUse,
 )
 from limousine.infrastructure.categories import (
     PostgresCategoryRepository,
@@ -34,12 +36,36 @@ def attachment(row):
     )
 
 
+def _write_vehicle(
+    connection,
+    query,
+    parameters,
+):
+    try:
+        return connection.execute(
+            query,
+            parameters,
+        ).fetchone()
+    except UniqueViolation as exc:
+        if exc.diag.constraint_name != "hspace_vehicle_plate_unique":
+            raise
+        raise VehicleNumberInUse("A vehicle with this number already exists.") from exc
+
+
 class PostgresVehicleRepository:
-    def __init__(self, database, media_layout=None):
+    def __init__(
+        self,
+        database,
+        media_layout=None,
+    ):
         self.database = database
         self.media_layout = media_layout
 
-    def _vehicle(self, connection, row):
+    def _vehicle(
+        self,
+        connection,
+        row,
+    ):
         attachments = connection.execute(
             """
                 SELECT *
@@ -52,12 +78,21 @@ class PostgresVehicleRepository:
             (row["id"],),
         ).fetchall()
         photo = connection.execute(
-            "SELECT * FROM limo_vehicle_cover WHERE vehicle_id=%s AND NOT is_deleted", (row["id"],)
+            "SELECT * FROM limo_vehicle_cover WHERE vehicle_id=%s AND NOT is_deleted",
+            (row["id"],),
         ).fetchone()
-        return self._build_vehicle(row, attachments, photo)
+        return self._build_vehicle(
+            row,
+            attachments,
+            photo,
+        )
 
     @staticmethod
-    def _build_vehicle(row, attachments, photo):
+    def _build_vehicle(
+        row,
+        attachments,
+        photo,
+    ):
         return Vehicle(
             row["id"],
             row["plate_number"],
@@ -68,7 +103,12 @@ class PostgresVehicleRepository:
             row["chassis_number"],
             row["manufacture_year"],
             (
-                VehicleCover(row["id"], photo["storage_key"], photo["original_name"], photo["size"])
+                VehicleCover(
+                    row["id"],
+                    photo["storage_key"],
+                    photo["original_name"],
+                    photo["size"],
+                )
                 if photo
                 else None
             ),
@@ -106,20 +146,37 @@ class PostgresVehicleRepository:
                 ).fetchall()
             }
             return [
-                self._build_vehicle(row, attachments[row["id"]], covers.get(row["id"]))
+                self._build_vehicle(
+                    row,
+                    attachments[row["id"]],
+                    covers.get(row["id"]),
+                )
                 for row in rows
             ]
 
-    def get_vehicle(self, vehicle_id):
+    def get_vehicle(
+        self,
+        vehicle_id,
+    ):
         with self.database.connect() as connection:
             row = connection.execute(
-                "SELECT * FROM limo_vehicle WHERE id=%s AND NOT is_deleted", (vehicle_id,)
+                "SELECT * FROM limo_vehicle WHERE id=%s AND NOT is_deleted",
+                (vehicle_id,),
             ).fetchone()
             if not row:
                 raise NotFound("Vehicle not found.")
-            return self._vehicle(connection, row)
+            return self._vehicle(
+                connection,
+                row,
+            )
 
-    def create_vehicle(self, plate_number, *, actor=None, **fields):
+    def create_vehicle(
+        self,
+        plate_number,
+        *,
+        actor=None,
+        **fields,
+    ):
         values = {
             "plate_number": plate_number,
             "vehicle_type": "",
@@ -133,13 +190,29 @@ class PostgresVehicleRepository:
             query = sql.SQL(
                 "INSERT INTO limo_vehicle ({},created_at) VALUES ({},CURRENT_TIMESTAMP) RETURNING *"
             ).format(
-                sql.SQL(",").join(map(sql.Identifier, values)),
+                sql.SQL(",").join(
+                    map(
+                        sql.Identifier,
+                        values,
+                    )
+                ),
                 sql.SQL(",").join(sql.Placeholder() for _ in values),
             )
-            row = connection.execute(query, tuple(values.values())).fetchone()
-            seed_driver(connection, row, actor)
+            row = _write_vehicle(
+                connection,
+                query,
+                tuple(values.values()),
+            )
+            seed_driver(
+                connection,
+                row,
+                actor,
+            )
             if self.media_layout:
-                self.media_layout.ensure_sections(vehicle_directory(row["id"]), covers=True)
+                self.media_layout.ensure_sections(
+                    vehicle_directory(row["id"]),
+                    covers=True,
+                )
             if actor:
                 self._event(
                     connection,
@@ -150,26 +223,58 @@ class PostgresVehicleRepository:
                     "CREATE",
                     row["plate_number"],
                 )
-            return self._vehicle(connection, row)
+            return self._vehicle(
+                connection,
+                row,
+            )
 
-    def update_vehicle(self, vehicle_id, **fields):
+    def update_vehicle(
+        self,
+        vehicle_id,
+        **fields,
+    ):
         with self.database.connect() as connection:
             query = sql.SQL(
                 "UPDATE limo_vehicle SET {} WHERE id=%s AND NOT is_deleted RETURNING id"
             ).format(
                 sql.SQL(",").join(sql.SQL("{}=%s").format(sql.Identifier(name)) for name in fields)
             )
-            if not connection.execute(query, (*fields.values(), vehicle_id)).fetchone():
+            if not _write_vehicle(
+                connection,
+                query,
+                (*fields.values(), vehicle_id),
+            ):
                 raise NotFound("Vehicle not found.")
         return self.get_vehicle(vehicle_id)
 
-    def add_attachment(self, vehicle_id, *, actor=None, assignment_id=None, **metadata):
+    def add_attachment(
+        self,
+        vehicle_id,
+        *,
+        actor=None,
+        assignment_id=None,
+        **metadata,
+    ):
         with self.database.connect() as connection:
-            category_id = resolve_upload_category(connection, metadata.get("category_id"))
-            self._lock_vehicle(connection, vehicle_id)
-            self._check_assignment(connection, vehicle_id, assignment_id)
+            category_id = resolve_upload_category(
+                connection,
+                metadata.get("category_id"),
+            )
+            self._lock_vehicle(
+                connection,
+                vehicle_id,
+            )
+            self._check_assignment(
+                connection,
+                vehicle_id,
+                assignment_id,
+            )
             if assignment_id is None:
-                ensure_vehicle_category_available(connection, vehicle_id, category_id)
+                ensure_vehicle_category_available(
+                    connection,
+                    vehicle_id,
+                    category_id,
+                )
             row = connection.execute(
                 """
                     INSERT INTO limo_attachment (vehicle_id,
@@ -200,7 +305,13 @@ class PostgresVehicleRepository:
                 )
             return attachment(row)
 
-    def get_attachment(self, vehicle_id, attachment_id, *, assignment_id=None):
+    def get_attachment(
+        self,
+        vehicle_id,
+        attachment_id,
+        *,
+        assignment_id=None,
+    ):
         with self.database.connect() as connection:
             row = connection.execute(
                 """
@@ -221,7 +332,11 @@ class PostgresVehicleRepository:
             return attachment(row)
 
     @staticmethod
-    def _check_assignment(connection, vehicle_id, assignment_id):
+    def _check_assignment(
+        connection,
+        vehicle_id,
+        assignment_id,
+    ):
         if (
             assignment_id is not None
             and not connection.execute(
@@ -231,13 +346,22 @@ class PostgresVehicleRepository:
         ):
             raise NotFound("Driver period not found for this vehicle.")
 
-    def driver_attachments(self, vehicle_id, assignment_id):
+    def driver_attachments(
+        self,
+        vehicle_id,
+        assignment_id,
+    ):
         with self.database.connect() as connection:
             if not connection.execute(
-                "SELECT id FROM limo_vehicle WHERE id=%s AND NOT is_deleted", (vehicle_id,)
+                "SELECT id FROM limo_vehicle WHERE id=%s AND NOT is_deleted",
+                (vehicle_id,),
             ).fetchone():
                 raise NotFound("Vehicle not found.")
-            self._check_assignment(connection, vehicle_id, assignment_id)
+            self._check_assignment(
+                connection,
+                vehicle_id,
+                assignment_id,
+            )
             return [
                 attachment(row)
                 for row in connection.execute(
@@ -247,7 +371,12 @@ class PostgresVehicleRepository:
             ]
 
     @staticmethod
-    def _lock_vehicle(connection, vehicle_id, *, deleted=False):
+    def _lock_vehicle(
+        connection,
+        vehicle_id,
+        *,
+        deleted=False,
+    ):
         row = connection.execute(
             "SELECT * FROM limo_vehicle WHERE id=%s AND is_deleted=%s FOR UPDATE",
             (vehicle_id, deleted),
@@ -257,7 +386,16 @@ class PostgresVehicleRepository:
         return row
 
     @staticmethod
-    def _event(connection, actor, kind, item_id, vehicle_id, action, label, reason=""):
+    def _event(
+        connection,
+        actor,
+        kind,
+        item_id,
+        vehicle_id,
+        action,
+        label,
+        reason="",
+    ):
         require_actor(actor)
         connection.execute(
             """
@@ -268,10 +406,18 @@ class PostgresVehicleRepository:
             (vehicle_id, kind, item_id, action, actor.id, actor.username, label, reason),
         )
 
-    def replace_cover(self, cover, *, actor=None):
+    def replace_cover(
+        self,
+        cover,
+        *,
+        actor=None,
+    ):
         require_actor(actor)
         with self.database.connect() as connection:
-            self._lock_vehicle(connection, cover.vehicle_id)
+            self._lock_vehicle(
+                connection,
+                cover.vehicle_id,
+            )
             old = connection.execute(
                 "SELECT * FROM limo_vehicle_cover WHERE vehicle_id=%s AND NOT is_deleted FOR UPDATE",
                 (cover.vehicle_id,),
@@ -310,22 +456,45 @@ class PostgresVehicleRepository:
             )
             return cover, None
 
-    def delete_vehicle(self, vehicle_id, actor):
+    def delete_vehicle(
+        self,
+        vehicle_id,
+        actor,
+    ):
         require_actor(actor)
         with self.database.connect() as connection:
-            row = self._lock_vehicle(connection, vehicle_id)
+            row = self._lock_vehicle(
+                connection,
+                vehicle_id,
+            )
             connection.execute(
                 "UPDATE limo_vehicle SET is_deleted=TRUE,deleted_at=CURRENT_TIMESTAMP,deleted_by=%s WHERE id=%s",
                 (actor.id, vehicle_id),
             )
             self._event(
-                connection, actor, "vehicle", vehicle_id, vehicle_id, "DELETE", row["plate_number"]
+                connection,
+                actor,
+                "vehicle",
+                vehicle_id,
+                vehicle_id,
+                "DELETE",
+                row["plate_number"],
             )
 
-    def delete_attachment(self, vehicle_id, attachment_id, *, actor, assignment_id=None):
+    def delete_attachment(
+        self,
+        vehicle_id,
+        attachment_id,
+        *,
+        actor,
+        assignment_id=None,
+    ):
         require_actor(actor)
         with self.database.connect() as connection:
-            self._lock_vehicle(connection, vehicle_id)
+            self._lock_vehicle(
+                connection,
+                vehicle_id,
+            )
             row = connection.execute(
                 """
                     UPDATE limo_attachment
@@ -350,10 +519,18 @@ class PostgresVehicleRepository:
                 row["original_name"],
             )
 
-    def delete_cover(self, vehicle_id, *, actor):
+    def delete_cover(
+        self,
+        vehicle_id,
+        *,
+        actor,
+    ):
         require_actor(actor)
         with self.database.connect() as connection:
-            self._lock_vehicle(connection, vehicle_id)
+            self._lock_vehicle(
+                connection,
+                vehicle_id,
+            )
             row = connection.execute(
                 """
                     UPDATE limo_vehicle_cover
@@ -366,15 +543,31 @@ class PostgresVehicleRepository:
             if not row:
                 raise NotFound("Card photo not found.")
             self._event(
-                connection, actor, "cover", row["id"], vehicle_id, "DELETE", row["original_name"]
+                connection,
+                actor,
+                "cover",
+                row["id"],
+                vehicle_id,
+                "DELETE",
+                row["original_name"],
             )
 
     def rename_attachment(
-        self, vehicle_id, attachment_id, original_name, *, expected_name, actor, assignment_id=None
+        self,
+        vehicle_id,
+        attachment_id,
+        original_name,
+        *,
+        expected_name,
+        actor,
+        assignment_id=None,
     ):
         require_actor(actor)
         with self.database.connect() as connection:
-            self._lock_vehicle(connection, vehicle_id)
+            self._lock_vehicle(
+                connection,
+                vehicle_id,
+            )
             row = connection.execute(
                 """
                     SELECT *
@@ -400,7 +593,13 @@ class PostgresVehicleRepository:
                 (original_name, vehicle_id, attachment_id),
             ).fetchone()
             self._event(
-                connection, actor, "attachment", attachment_id, vehicle_id, "RENAME", original_name
+                connection,
+                actor,
+                "attachment",
+                attachment_id,
+                vehicle_id,
+                "RENAME",
+                original_name,
             )
             return attachment(updated)
 
@@ -419,8 +618,7 @@ class PostgresVehicleRepository:
                     if kind == "attachment"
                     else "NULL::text"
                 )
-                query = sql.SQL(
-                    """
+                query = sql.SQL("""
                     SELECT t.id,
                            {} AS label,
                            {} AS driver_name,
@@ -443,22 +641,43 @@ class PostgresVehicleRepository:
                     LEFT JOIN hspace_user d ON d.id=t.deleted_by
                     WHERE t.is_deleted
                     ORDER BY t.deleted_at DESC,t.id DESC
-                    """
-                ).format(sql.SQL(label), sql.SQL(driver), sql.Identifier(table), sql.SQL(parent))
+                    """).format(
+                    sql.SQL(label),
+                    sql.SQL(driver),
+                    sql.Identifier(table),
+                    sql.SQL(parent),
+                )
                 for row in connection.execute(query).fetchall():
-                    result.append(dict(row, kind=kind))
+                    result.append(
+                        dict(
+                            row,
+                            kind=kind,
+                        )
+                    )
         from .office import PostgresOfficeRepository
 
         result.extend(PostgresOfficeRepository(self.database).list_deleted())
-        return sorted(result, key=lambda row: row["deleted_at"], reverse=True)
+        return sorted(
+            result,
+            key=lambda row: row["deleted_at"],
+            reverse=True,
+        )
 
-    def restore_item(self, kind, item_id, actor):
+    def restore_item(
+        self,
+        kind,
+        item_id,
+        actor,
+    ):
         require_actor(actor)
         validate_kind(kind)
         if kind == "office":
             from .office import PostgresOfficeRepository
 
-            return PostgresOfficeRepository(self.database).restore(item_id, actor)
+            return PostgresOfficeRepository(self.database).restore(
+                item_id,
+                actor,
+            )
         table = {
             "vehicle": "limo_vehicle",
             "attachment": "limo_attachment",
@@ -467,7 +686,11 @@ class PostgresVehicleRepository:
         with self.database.connect() as connection:
             PostgresCategoryRepository._lock(connection)
             if kind == "vehicle":
-                row = self._lock_vehicle(connection, item_id, deleted=True)
+                row = self._lock_vehicle(
+                    connection,
+                    item_id,
+                    deleted=True,
+                )
                 vehicle_id = item_id
             else:
                 item = connection.execute(
@@ -480,7 +703,10 @@ class PostgresVehicleRepository:
                     raise NotFound("Deleted item not found.")
                 vehicle_id = item["vehicle_id"]
                 # Parent first for consistent lock ordering across all file mutations.
-                self._lock_vehicle(connection, vehicle_id)
+                self._lock_vehicle(
+                    connection,
+                    vehicle_id,
+                )
                 row = connection.execute(
                     sql.SQL("SELECT * FROM {} WHERE id=%s AND is_deleted FOR UPDATE").format(
                         sql.Identifier(table)
@@ -499,9 +725,15 @@ class PostgresVehicleRepository:
                     raise DomainError(
                         "Remove the current card photo before restoring an older photo."
                     )
-            if kind == "attachment" and row["driver_assignment_id"] is None:
+            if (
+                kind == "attachment"
+                and row["driver_assignment_id"] is None
+            ):
                 ensure_vehicle_category_available(
-                    connection, vehicle_id, row["category_id"], item_id
+                    connection,
+                    vehicle_id,
+                    row["category_id"],
+                    item_id,
                 )
             connection.execute(
                 sql.SQL(
@@ -519,7 +751,10 @@ class PostgresVehicleRepository:
                 row["plate_number"] if kind == "vehicle" else row["original_name"],
             )
 
-    def list_activity(self, before=None):
+    def list_activity(
+        self,
+        before=None,
+    ):
         with self.database.connect() as connection:
             return connection.execute(
                 """

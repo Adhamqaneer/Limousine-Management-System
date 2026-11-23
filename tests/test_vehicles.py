@@ -18,12 +18,20 @@ class MemoryVehicleRepository:
     def __init__(self):
         self.vehicles = {}
         self.attachments = {}
-        self.now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        self.now = datetime(
+            2026,
+            1,
+            1,
+            tzinfo=timezone.utc,
+        )
 
     def list_vehicles(self):
         return list(reversed(list(self.vehicles.values())))
 
-    def get_vehicle(self, vehicle_id):
+    def get_vehicle(
+        self,
+        vehicle_id,
+    ):
         try:
             vehicle = self.vehicles[vehicle_id]
         except KeyError as error:
@@ -31,45 +39,99 @@ class MemoryVehicleRepository:
         attachments = tuple(
             item for item in self.attachments.values() if item.vehicle_id == vehicle_id
         )
-        return replace(vehicle, attachments=attachments)
+        return replace(
+            vehicle,
+            attachments=attachments,
+        )
 
-    def create_vehicle(self, plate_number, **fields):
-        vehicle = Vehicle(len(self.vehicles) + 1, plate_number, self.now, **fields)
+    def create_vehicle(
+        self,
+        plate_number,
+        **fields,
+    ):
+        vehicle = Vehicle(
+            len(self.vehicles) + 1,
+            plate_number,
+            self.now,
+            **fields,
+        )
         self.vehicles[vehicle.id] = vehicle
         return vehicle
 
-    def update_vehicle(self, vehicle_id, **fields):
-        vehicle = replace(self.get_vehicle(vehicle_id), **fields)
+    def update_vehicle(
+        self,
+        vehicle_id,
+        **fields,
+    ):
+        vehicle = replace(
+            self.get_vehicle(vehicle_id),
+            **fields,
+        )
         self.vehicles[vehicle_id] = vehicle
         return vehicle
 
-    def add_attachment(self, vehicle_id, **metadata):
+    def add_attachment(
+        self,
+        vehicle_id,
+        **metadata,
+    ):
         attachment = Attachment(
-            len(self.attachments) + 1, vehicle_id=vehicle_id, created_at=self.now, **metadata
+            len(self.attachments) + 1,
+            vehicle_id=vehicle_id,
+            created_at=self.now,
+            **metadata,
         )
         self.attachments[attachment.id] = attachment
         return attachment
 
-    def get_attachment(self, vehicle_id, attachment_id):
+    def get_attachment(
+        self,
+        vehicle_id,
+        attachment_id,
+    ):
         attachment = self.attachments.get(attachment_id)
-        if not attachment or attachment.vehicle_id != vehicle_id:
+        if (
+            not attachment
+            or attachment.vehicle_id != vehicle_id
+        ):
             raise NotFound("Attachment not found for this vehicle.")
         return attachment
 
-    def rename_attachment(self, vehicle_id, attachment_id, original_name, *, expected_name, actor):
+    def rename_attachment(
+        self,
+        vehicle_id,
+        attachment_id,
+        original_name,
+        *,
+        expected_name,
+        actor,
+    ):
         from limousine.domain.attachments import AttachmentNameConflict
 
-        item = self.get_attachment(vehicle_id, attachment_id)
+        item = self.get_attachment(
+            vehicle_id,
+            attachment_id,
+        )
         if item.original_name != expected_name:
             raise AttachmentNameConflict("Changed name.")
-        updated = replace(item, original_name=original_name)
+        updated = replace(
+            item,
+            original_name=original_name,
+        )
         self.attachments[attachment_id] = updated
         return updated
 
 
 class PlateNumberTests(SimpleTestCase):
     def test_preserves_hyphens_and_leading_zeroes(self):
-        self.assertEqual(normalize_plate_number("  00123-50  "), "00123-50")
+        self.assertEqual(
+            normalize_plate_number("  00123-50  "),
+            "00123-50",
+        )
+        self.assertEqual(
+            normalize_plate_number("01-23-50"),
+            "01-23-50",
+        )
 
     def test_rejects_empty_nontext_and_multiline_values(self):
         for value in ("", "   ", None, 123, "12\n34", "12\t34", "\x00123"):
@@ -77,9 +139,15 @@ class PlateNumberTests(SimpleTestCase):
                 normalize_plate_number(value)
 
     def test_enforces_length_and_agreed_plate_format(self):
-        self.assertEqual(normalize_plate_number("1" * 64), "1" * 64)
+        maximum = "1-" + "2" * 62
+        self.assertEqual(
+            normalize_plate_number(maximum),
+            maximum,
+        )
         with self.assertRaises(DomainError):
-            normalize_plate_number("1" * 65)
+            normalize_plate_number(maximum + "2")
+        with self.assertRaises(DomainError):
+            normalize_plate_number("5076523")
 
 
 class VehicleUseCaseTests(SimpleTestCase):
@@ -88,53 +156,133 @@ class VehicleUseCaseTests(SimpleTestCase):
         self.service = VehicleService(self.repository)
 
     def test_new_vehicle_follows_existing_vehicles_even_when_timestamps_match(self):
-        first = self.service.create_vehicle(" 001 ", "Sedan")
-        second = self.service.create_vehicle("002", "Sedan")
-        self.assertEqual([item.id for item in self.service.list_vehicles()], [first.id, second.id])
-        self.assertEqual(first.plate_number, "001")
+        first = self.service.create_vehicle(
+            " 050-001 ",
+            "Sedan",
+        )
+        second = self.service.create_vehicle(
+            "050-002",
+            "Sedan",
+        )
+        self.assertEqual(
+            [item.id for item in self.service.list_vehicles()],
+            [first.id, second.id],
+        )
+        self.assertEqual(
+            first.plate_number,
+            "050-001",
+        )
 
     def test_edit_preserves_vehicle_identity_creation_date_and_order(self):
-        first = self.service.create_vehicle("001", "Sedan")
-        self.service.create_vehicle("002", "Sedan")
-        edited = self.service.update_vehicle(first.id, plate_number=" 003 ")
-        self.assertEqual(
-            (edited.id, edited.created_at, edited.plate_number), (first.id, first.created_at, "003")
+        first = self.service.create_vehicle(
+            "050-001",
+            "Sedan",
         )
-        self.assertEqual([item.id for item in self.service.list_vehicles()], [1, 2])
+        self.service.create_vehicle(
+            "050-002",
+            "Sedan",
+        )
+        edited = self.service.update_vehicle(
+            first.id,
+            plate_number=" 050-003 ",
+        )
+        self.assertEqual(
+            (edited.id, edited.created_at, edited.plate_number),
+            (first.id, first.created_at, "050-003"),
+        )
+        self.assertEqual(
+            [item.id for item in self.service.list_vehicles()],
+            [1, 2],
+        )
 
     def test_invalid_input_does_not_create_or_modify_a_record(self):
-        vehicle = self.service.create_vehicle("001", "Sedan")
-        with self.assertRaises(DomainError):
-            self.service.create_vehicle("", "Sedan")
-        with self.assertRaises(DomainError):
-            self.service.update_vehicle(vehicle.id, plate_number=" ")
-        self.assertEqual(len(self.repository.vehicles), 1)
-        self.assertEqual(self.service.get_vehicle(vehicle.id).plate_number, "001")
+        vehicle = self.service.create_vehicle(
+            "050-001",
+            "Sedan",
+        )
+        for invalid in ("", "5076523"):
+            with self.subTest(plate=invalid):
+                with self.assertRaises(DomainError):
+                    self.service.create_vehicle(
+                        invalid,
+                        "Sedan",
+                    )
+                with self.assertRaises(DomainError):
+                    self.service.update_vehicle(
+                        vehicle.id,
+                        plate_number=invalid,
+                    )
+        self.assertEqual(
+            len(self.repository.vehicles),
+            1,
+        )
+        self.assertEqual(
+            self.service.get_vehicle(vehicle.id).plate_number,
+            "050-001",
+        )
 
     def test_missing_vehicle_is_reported_without_creating_an_attachment(self):
         with self.assertRaises(NotFound):
             self.service.add_attachment(
-                999, storage_key="key", original_name="photo.jpg", kind="image", size=10
+                999,
+                storage_key="key",
+                original_name="photo.jpg",
+                kind="image",
+                size=10,
             )
-        self.assertEqual(self.repository.attachments, {})
+        self.assertEqual(
+            self.repository.attachments,
+            {},
+        )
 
     def test_attachments_are_returned_only_for_their_vehicle(self):
-        first = self.service.create_vehicle("001", "Sedan")
-        second = self.service.create_vehicle("002", "Sedan")
-        attachment = self.service.add_attachment(
-            first.id, storage_key="opaque-key", original_name=" photo.jpg ", kind="image", size=100
+        first = self.service.create_vehicle(
+            "050-001",
+            "Sedan",
         )
-        self.assertEqual(self.service.get_vehicle(first.id).attachments, (attachment,))
-        self.assertEqual(self.service.get_vehicle(second.id).attachments, ())
+        second = self.service.create_vehicle(
+            "050-002",
+            "Sedan",
+        )
+        attachment = self.service.add_attachment(
+            first.id,
+            storage_key="opaque-key",
+            original_name=" photo.jpg ",
+            kind="image",
+            size=100,
+        )
         self.assertEqual(
-            self.service.get_attachment(first.id, attachment.id).original_name, "photo.jpg"
+            self.service.get_vehicle(first.id).attachments,
+            (attachment,),
+        )
+        self.assertEqual(
+            self.service.get_vehicle(second.id).attachments,
+            (),
+        )
+        self.assertEqual(
+            self.service.get_attachment(
+                first.id,
+                attachment.id,
+            ).original_name,
+            "photo.jpg",
         )
         with self.assertRaises(NotFound):
-            self.service.get_attachment(second.id, attachment.id)
+            self.service.get_attachment(
+                second.id,
+                attachment.id,
+            )
 
     def test_invalid_attachment_metadata_is_not_saved(self):
-        vehicle = self.service.create_vehicle("001", "Sedan")
-        valid = dict(storage_key="opaque-key", original_name="file.pdf", kind="file", size=100)
+        vehicle = self.service.create_vehicle(
+            "050-001",
+            "Sedan",
+        )
+        valid = dict(
+            storage_key="opaque-key",
+            original_name="file.pdf",
+            kind="file",
+            size=100,
+        )
         for invalid in (
             {"storage_key": ""},
             {"original_name": " "},
@@ -143,14 +291,26 @@ class VehicleUseCaseTests(SimpleTestCase):
             {"size": True},
         ):
             with self.subTest(invalid=invalid), self.assertRaises(DomainError):
-                self.service.add_attachment(vehicle.id, **(valid | invalid))
-        self.assertEqual(self.repository.attachments, {})
+                self.service.add_attachment(
+                    vehicle.id,
+                    **(valid | invalid),
+                )
+        self.assertEqual(
+            self.repository.attachments,
+            {},
+        )
 
     def test_agreed_text_fields_preserve_zeroes_and_partial_edits(self):
         car = self.service.create_vehicle(
-            "001", "  Sedan  ", chassis_number=" 0007 ", manufacture_year="2020"
+            "050-001",
+            "  Sedan  ",
+            chassis_number=" 0007 ",
+            manufacture_year="2020",
         )
-        edited = self.service.update_vehicle(car.id, owner_name="  أحمد  ")
+        edited = self.service.update_vehicle(
+            car.id,
+            owner_name="  أحمد  ",
+        )
         self.assertEqual(
             (
                 edited.vehicle_type,
@@ -169,8 +329,14 @@ class VehicleUseCaseTests(SimpleTestCase):
             {"vehicle_type": "Sedan", "chassis_number": "x" * 121},
         ):
             with self.subTest(fields=fields), self.assertRaises(DomainError):
-                self.service.create_vehicle("001", **fields)
-        self.assertEqual(self.repository.vehicles, {})
+                self.service.create_vehicle(
+                    "050-001",
+                    **fields,
+                )
+        self.assertEqual(
+            self.repository.vehicles,
+            {},
+        )
 
     def test_eight_fields_round_trip_without_losing_leading_zeroes(self):
         car = self.service.create_vehicle(
@@ -195,11 +361,18 @@ class VehicleUseCaseTests(SimpleTestCase):
         )
         for chassis in ("ABC", "00123", "JT001a", ""):
             self.assertEqual(
-                self.service.update_vehicle(car.id, chassis_number=chassis).chassis_number, chassis
+                self.service.update_vehicle(
+                    car.id,
+                    chassis_number=chassis,
+                ).chassis_number,
+                chassis,
             )
 
     def test_character_rules_reject_invalid_changes_atomically(self):
-        car = self.service.create_vehicle("50-1746", "Camry")
+        car = self.service.create_vehicle(
+            "50-1746",
+            "Camry",
+        )
         invalid = {
             "owner_name": ["Adham1", "Αdh am", "أحمد!", "َ"],
             "driver_name": ["John-Doe", "Driver2"],
@@ -212,21 +385,35 @@ class VehicleUseCaseTests(SimpleTestCase):
         }
         for field, values in invalid.items():
             for value in values:
-                with self.subTest(field=field, value=value), self.assertRaises(DomainError):
+                with (
+                    self.subTest(
+                        field=field,
+                        value=value,
+                    ),
+                    self.assertRaises(DomainError),
+                ):
                     self.service.update_vehicle(
                         car.id,
                         **{
                             field: value,
                             "owner_name": value if field == "owner_name" else "New owner",
-                        }
+                        },
                     )
-        self.assertEqual(self.service.get_vehicle(car.id), car)
+        self.assertEqual(
+            self.service.get_vehicle(car.id),
+            car,
+        )
 
     def test_legacy_values_survive_unrelated_partial_edit(self):
         car = self.repository.create_vehicle(
-            "OLD A", vehicle_type="Camry 2024", chassis_number="old-chassis"
+            "OLD A",
+            vehicle_type="Camry 2024",
+            chassis_number="old-chassis",
         )
-        edited = self.service.update_vehicle(car.id, owner_phone="00123")
+        edited = self.service.update_vehicle(
+            car.id,
+            owner_phone="00123",
+        )
         self.assertEqual(
             (edited.plate_number, edited.vehicle_type, edited.chassis_number),
             ("OLD A", "Camry 2024", "old-chassis"),
@@ -235,5 +422,10 @@ class VehicleUseCaseTests(SimpleTestCase):
     def test_names_allow_arabic_marks_and_english_spaces(self):
         for name in ("مُحَمَّد", "Abd Alhameed", "أحمد Adham"):
             self.assertEqual(
-                self.service.create_vehicle("123", name, owner_name=name).owner_name, name
+                self.service.create_vehicle(
+                    "50-123",
+                    name,
+                    owner_name=name,
+                ).owner_name,
+                name,
             )

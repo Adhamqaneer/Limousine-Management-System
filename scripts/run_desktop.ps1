@@ -15,7 +15,10 @@ if (-not $PostgresBin) {
         Test-Path -LiteralPath (Join-Path $_ 'initdb.exe')
     } | Select-Object -First 1
 }
-if (-not $PostgresBin -or -not (Test-Path -LiteralPath (Join-Path $PostgresBin 'initdb.exe'))) {
+if (
+    -not $PostgresBin -or
+    -not (Test-Path -LiteralPath (Join-Path $PostgresBin 'initdb.exe'))
+) {
     throw 'Provide the PostgreSQL bin directory with -PostgresBin.'
 }
 if (-not $Profile) {

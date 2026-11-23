@@ -17,12 +17,24 @@ const vehicles = [
 const snapshot = JSON.stringify(vehicles);
 // Every non-empty combination preserves selection order, values, blank cells and orientation.
 for (let mask = 1; mask < 256; mask++) {
-  const wanted = fields.filter((_, index) => mask & (1 << index));
+  const wanted = fields.filter((
+    _,
+    index,
+  ) => mask & (1 << index));
   const ordered = [...wanted].reverse();
   const selected = [...ordered, 'password_hash', ordered[0]];
-  assert.deepEqual(HSpaceReport.columns(selected), ordered);
-  const rows = HSpaceReport.rows(vehicles, selected);
-  assert.equal(rows.length, 2);
+  assert.deepEqual(
+    HSpaceReport.columns(selected),
+    ordered,
+  );
+  const rows = HSpaceReport.rows(
+    vehicles,
+    selected,
+  );
+  assert.equal(
+    rows.length,
+    2,
+  );
   assert.deepEqual(
     rows[0],
     ordered.map((name) => vehicles[0][name]),
@@ -31,11 +43,26 @@ for (let mask = 1; mask < 256; mask++) {
     rows[1],
     ordered.map((name) => vehicles[1][name] || '—'),
   );
-  assert.equal(HSpaceReport.landscape(selected), wanted.length > 4);
+  assert.equal(
+    HSpaceReport.landscape(selected),
+    wanted.length > 4,
+  );
 }
-assert.deepEqual(HSpaceReport.columns([]), []);
-assert.deepEqual(HSpaceReport.rows([], fields), []);
-assert.equal(JSON.stringify(vehicles), snapshot);
+assert.deepEqual(
+  HSpaceReport.columns([]),
+  [],
+);
+assert.deepEqual(
+  HSpaceReport.rows(
+    [],
+    fields,
+  ),
+  [],
+);
+assert.equal(
+  JSON.stringify(vehicles),
+  snapshot,
+);
 assert.ok(Object.isFrozen(fields));
 console.log(
   '255 report combinations passed; selection order, leading zeros, Arabic, blanks and records preserved.',

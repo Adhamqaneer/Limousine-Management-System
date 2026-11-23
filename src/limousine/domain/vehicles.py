@@ -10,22 +10,32 @@ class DomainError(ValueError):
     """Input does not satisfy the currently agreed vehicle rules."""
 
 
+class VehicleNumberInUse(DomainError):
+    """A vehicle already uses this number."""
+
+
 class NotFound(LookupError):
     """The requested vehicle or its attachment does not exist."""
 
 
 def normalize_plate_number(value: str) -> str:
-    """Preserve ASCII digits and optional hyphens between digit groups."""
-    if not isinstance(value, str):
+    """Require at least one hyphen between ASCII digit groups."""
+    if not isinstance(
+        value,
+        str,
+    ):
         raise DomainError("Enter a plate number.")
     value = value.strip()
     if not value:
         raise DomainError("Enter a plate number.")
     if len(value) > 64:
         raise DomainError("The plate number must be 64 characters or fewer.")
-    if not re.fullmatch(r"[0-9]+(?:-[0-9]+)*", value):
+    if not re.fullmatch(
+        r"[0-9]+(?:-[0-9]+)+",
+        value,
+    ):
         raise DomainError(
-            "Use English digits, with optional hyphens between digits, for the vehicle number."
+            "Use English digits and at least one hyphen between digit groups, such as 50-31142."
         )
     return value
 
@@ -53,9 +63,15 @@ def is_vehicle_name(value):
         is_english_letter = char.isascii() and char.isalpha()
         is_arabic_letter = is_arabic_character and category.startswith("L")
         is_arabic_mark = is_arabic_character and category.startswith("M")
-        if is_english_letter or is_arabic_letter:
+        if (
+            is_english_letter
+            or is_arabic_letter
+        ):
             has_letter = True
-        elif char != " " and not (is_arabic_mark and has_letter):
+        elif (
+            char != " "
+            and not (is_arabic_mark and has_letter)
+        ):
             return False
     return has_letter
 
@@ -65,10 +81,16 @@ def normalize_vehicle_fields(fields):
         raise DomainError("Unknown vehicle field.")
     result = {}
     for name, value in fields.items():
-        if not isinstance(value, str):
+        if not isinstance(
+            value,
+            str,
+        ):
             raise DomainError("Vehicle fields must be text.")
         value = value.strip()
-        if name == "vehicle_type" and not value:
+        if (
+            name == "vehicle_type"
+            and not value
+        ):
             raise DomainError("Enter a vehicle type.")
         if len(value) > VEHICLE_TEXT_FIELDS[name]:
             raise DomainError("A vehicle field exceeds its allowed length.")
@@ -82,18 +104,28 @@ def normalize_vehicle_fields(fields):
                 raise DomainError(
                     "Names and vehicle type accept Arabic or English letters and spaces only."
                 )
-            if name == "owner_phone" and not re.fullmatch(
-                r"[0-9\u0660-\u0669\u06f0-\u06f9]+", value
+            if (
+                name == "owner_phone"
+                and not re.fullmatch(
+                r"[0-9\u0660-\u0669\u06f0-\u06f9]+",
+                value,
+            )
             ):
                 raise DomainError("The owner phone accepts digits only.")
             if (
                 name in ("driver_phone", "manufacture_year")
-                and not re.fullmatch(r"[0-9]+", value)
+                and not re.fullmatch(
+                r"[0-9]+",
+                value,
+            )
             ):
                 raise DomainError("Driver phone and vehicle model accept English digits only.")
             if (
                 name == "chassis_number"
-                and not re.fullmatch(r"[A-Za-z0-9]+", value)
+                and not re.fullmatch(
+                r"[A-Za-z0-9]+",
+                value,
+            )
             ):
                 raise DomainError("The chassis number accepts English letters and digits only.")
         result[name] = value

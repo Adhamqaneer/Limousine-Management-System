@@ -41,7 +41,11 @@
     },
   };
   const text = (key) => strings[root.lang === 'ar' ? 'ar' : 'en'][key] || key;
-  const element = (tag, value = '', className = '') => {
+  const element = (
+    tag,
+    value = '',
+    className = '',
+  ) => {
     const node = document.createElement(tag);
     node.textContent = value;
     node.className = className;
@@ -57,22 +61,44 @@
     saving = false;
   const buttons = new Set(),
     uploadSelects = [];
-  const dialog = element('dialog', '', 'category-dialog');
-  dialog.setAttribute('aria-labelledby', 'attachment-category-title');
+  const dialog = element(
+    'dialog',
+    '',
+    'category-dialog',
+  );
+  dialog.setAttribute(
+    'aria-labelledby',
+    'attachment-category-title',
+  );
   const form = element('form'),
     heading = element('h2');
   heading.id = 'attachment-category-title';
-  const description = element('p', '', 'muted');
+  const description = element(
+    'p',
+    '',
+    'muted',
+  );
   description.id = 'attachment-category-description';
-  dialog.setAttribute('aria-describedby', description.id);
+  dialog.setAttribute(
+    'aria-describedby',
+    description.id,
+  );
   const label = element('label');
   label.htmlFor = 'attachment-category-choice';
   const select = element('select');
   select.id = 'attachment-category-choice';
-  const newGroup = element('div', '', 'category-new-type'),
+  const newGroup = element(
+    'div',
+    '',
+    'category-new-type',
+  ),
     nameLabel = element('label'),
     newName = element('input'),
-    hint = element('p', '', 'field-hint');
+    hint = element(
+      'p',
+      '',
+      'field-hint',
+    );
   newName.id = 'attachment-category-name';
   newName.type = 'text';
   newName.maxLength = 100;
@@ -80,35 +106,86 @@
   newName.autocomplete = 'off';
   nameLabel.htmlFor = newName.id;
   hint.id = 'attachment-category-name-hint';
-  newName.setAttribute('aria-describedby', hint.id);
-  const distinctLabel = element('label', '', 'category-distinct-confirm'),
+  newName.setAttribute(
+    'aria-describedby',
+    hint.id,
+  );
+  const distinctLabel = element(
+    'label',
+    '',
+    'category-distinct-confirm',
+  ),
     distinct = element('input'),
     distinctText = element('span');
   distinct.type = 'checkbox';
   distinct.id = 'attachment-category-distinct';
-  distinctLabel.append(distinct, distinctText);
+  distinctLabel.append(
+    distinct,
+    distinctText,
+  );
   distinctLabel.hidden = true;
-  newGroup.append(nameLabel, newName, hint, distinctLabel);
+  newGroup.append(
+    nameLabel,
+    newName,
+    hint,
+    distinctLabel,
+  );
   newGroup.hidden = true;
-  const status = element('p', '', 'form-message');
-  status.setAttribute('role', 'alert');
-  const actions = element('div', '', 'dialog-actions'),
-    cancel = element('button', '', 'button secondary'),
-    save = element('button', '', 'button primary');
+  const status = element(
+    'p',
+    '',
+    'form-message',
+  );
+  status.setAttribute(
+    'role',
+    'alert',
+  );
+  const actions = element(
+    'div',
+    '',
+    'dialog-actions',
+  ),
+    cancel = element(
+      'button',
+      '',
+      'button secondary',
+    ),
+    save = element(
+      'button',
+      '',
+      'button primary',
+    );
   cancel.type = 'button';
   save.type = 'submit';
-  actions.append(cancel, save);
-  form.append(heading, description, label, select, newGroup, status, actions);
+  actions.append(
+    cancel,
+    save,
+  );
+  form.append(
+    heading,
+    description,
+    label,
+    select,
+    newGroup,
+    status,
+    actions,
+  );
   dialog.append(form);
   document.body.append(dialog);
   function categoryLabel(category) {
     return category.code && strings.en[category.code] ? text(category.code) : category.name;
   }
-  function options(control, value) {
+  function options(
+    control,
+    value,
+  ) {
     value = redirects[value] || value;
     control.replaceChildren(
       ...categories.map((category) => {
-        const option = element('option', categoryLabel(category));
+        const option = element(
+          'option',
+          categoryLabel(category),
+        );
         option.value = String(category.id);
         return option;
       }),
@@ -137,25 +214,40 @@
         categories.find((item) => item.is_other);
       button.textContent =
         text('category') + ': ' + (category ? categoryLabel(category) : text('other'));
-      button.setAttribute('aria-label', button.textContent + ' — ' + button.categoryItem.name);
+      button.setAttribute(
+        'aria-label',
+        button.textContent + ' — ' + button.categoryItem.name,
+      );
     }
     uploadSelects.forEach(({ label, select }) => {
       label.firstChild.textContent = text('category');
-      options(select, select.value);
+      options(
+        select,
+        select.value,
+      );
     });
     if (dialog.open) {
-      options(select, select.value || selectedItem?.category_id);
+      options(
+        select,
+        select.value || selectedItem?.category_id,
+      );
       updateNewType();
     }
   }
-  async function request(url, options = {}) {
+  async function request(
+    url,
+    options = {},
+  ) {
     const token = document.getElementById('csrf-token')?.value || '';
-    const response = await fetch(url, {
-      ...options,
-      credentials: 'same-origin',
-      cache: 'no-store',
-      headers: { 'X-CSRFToken': token, ...options.headers },
-    });
+    const response = await fetch(
+      url,
+      {
+        ...options,
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: { 'X-CSRFToken': token, ...options.headers },
+      },
+    );
     if (response.status === 401) {
       location.assign('/login/');
       throw new Error();
@@ -171,7 +263,10 @@
     if (pending) {
       return pending;
     }
-    if (categories.length && !force) {
+    if (
+      categories.length
+      && !force
+    ) {
       return categories;
     }
     pending = request('/api/attachment-categories/')
@@ -193,7 +288,10 @@
     if (saving) {
       return;
     }
-    if (uploadTarget && !saved) {
+    if (
+      uploadTarget
+      && !saved
+    ) {
       uploadTarget.value = previousUploadCategory;
       uploadTarget.lastCategory = previousUploadCategory;
     }
@@ -204,7 +302,11 @@
       returnButton.focus({ preventScroll: true });
     }
   }
-  async function open(item, button, uploadControl = null) {
+  async function open(
+    item,
+    button,
+    uploadControl = null,
+  ) {
     selectedItem = item;
     uploadTarget = uploadControl;
     previousUploadCategory = uploadControl?.lastCategory || '';
@@ -217,7 +319,10 @@
     save.disabled = true;
     try {
       await load(true);
-      if (!dialog.open || selectedItem !== item) {
+      if (
+        !dialog.open
+        || selectedItem !== item
+      ) {
         return;
       }
       options(
@@ -236,117 +341,176 @@
       status.textContent = text('failed');
     }
   }
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    if (saving || save.disabled || (!selectedItem && !uploadTarget)) {
-      return;
-    }
-    saving = true;
-    save.disabled = cancel.disabled = true;
-    select.disabled = true;
-    newName.disabled = distinct.disabled = true;
-    status.textContent = '';
-    try {
-      let categoryId = Number(select.value);
+  form.addEventListener(
+    'submit',
+    async (event) => {
+      event.preventDefault();
       if (
-        categories.find((category) => category.id === categoryId)?.is_other &&
-        newName.value.trim()
+        saving
+        || save.disabled
+        || (!selectedItem && !uploadTarget)
       ) {
-        const created = await request('/api/attachment-categories/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: newName.value.trim(), allow_similar: distinct.checked }),
-        });
-        categoryId = created.category.id;
-        if (pending) {
-          await pending;
-        }
-        await load(true);
-        options(select, categoryId);
-        updateNewType();
-      }
-      if (uploadTarget) {
-        uploadTarget.value = String(categoryId);
-        uploadTarget.lastCategory = uploadTarget.value;
-        saving = false;
-        close(true);
         return;
       }
-      const result = await request(selectedItem.manage_url + 'category/', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category_id: categoryId }),
-      });
-      selectedItem.category_id = result.attachment.category_id;
-      saving = false;
-      refreshLabels();
-      close(true);
-    } catch (error) {
-      if (error.code === 'similar_category') {
-        status.textContent = text('similar');
-        distinctLabel.hidden = false;
-      } else {
-        status.textContent = text(error.code === 'category_in_use' ? 'categoryInUse' : 'failed');
+      saving = true;
+      save.disabled = cancel.disabled = true;
+      select.disabled = true;
+      newName.disabled = distinct.disabled = true;
+      status.textContent = '';
+      try {
+        let categoryId = Number(select.value);
+        if (
+          categories.find((category) => category.id === categoryId)?.is_other
+          &&
+          newName.value.trim()
+        ) {
+          const created = await request(
+            '/api/attachment-categories/',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: newName.value.trim(), allow_similar: distinct.checked }),
+            },
+          );
+          categoryId = created.category.id;
+          if (pending) {
+            await pending;
+          }
+          await load(true);
+          options(
+            select,
+            categoryId,
+          );
+          updateNewType();
+        }
+        if (uploadTarget) {
+          uploadTarget.value = String(categoryId);
+          uploadTarget.lastCategory = uploadTarget.value;
+          saving = false;
+          close(true);
+          return;
+        }
+        const result = await request(
+          selectedItem.manage_url + 'category/',
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category_id: categoryId }),
+          },
+        );
+        selectedItem.category_id = result.attachment.category_id;
+        saving = false;
+        refreshLabels();
+        close(true);
+      } catch (error) {
+        if (error.code === 'similar_category') {
+          status.textContent = text('similar');
+          distinctLabel.hidden = false;
+        } else {
+          status.textContent = text(error.code === 'category_in_use' ? 'categoryInUse' : 'failed');
+        }
+      } finally {
+        saving = false;
+        save.disabled = cancel.disabled = false;
+        select.disabled = false;
+        newName.disabled = distinct.disabled = false;
       }
-    } finally {
-      saving = false;
-      save.disabled = cancel.disabled = false;
-      select.disabled = false;
-      newName.disabled = distinct.disabled = false;
-    }
-  });
+    },
+  );
   function updateNewType() {
     newGroup.hidden = !categories.find((category) => String(category.id) === select.value)
       ?.is_other;
   }
-  select.addEventListener('change', () => {
-    updateNewType();
-    status.textContent = '';
-    if (!newGroup.hidden) {
-      newName.focus();
-    }
-  });
-  newName.addEventListener('input', () => {
-    distinct.checked = false;
-    distinctLabel.hidden = true;
-    status.textContent = '';
-  });
-  cancel.addEventListener('click', () => close());
-  dialog.addEventListener('cancel', (event) => {
-    event.preventDefault();
-    close();
-  });
+  select.addEventListener(
+    'change',
+    () => {
+      updateNewType();
+      status.textContent = '';
+      if (!newGroup.hidden) {
+        newName.focus();
+      }
+    },
+  );
+  newName.addEventListener(
+    'input',
+    () => {
+      distinct.checked = false;
+      distinctLabel.hidden = true;
+      status.textContent = '';
+    },
+  );
+  cancel.addEventListener(
+    'click',
+    () => close(),
+  );
+  dialog.addEventListener(
+    'cancel',
+    (event) => {
+      event.preventDefault();
+      close();
+    },
+  );
   const uploadPairs = [
     ['driver-files-input', 'driver-files-add'],
   ];
   for (const [inputId, buttonId] of uploadPairs) {
     const input = document.getElementById(inputId),
       button = document.getElementById(buttonId);
-    if (!input || !button) {
+    if (
+      !input
+      || !button
+    ) {
       continue;
     }
-    const wrapper = element('div', '', 'category-upload-choice'),
-      caption = element('label', text('category')),
+    const wrapper = element(
+      'div',
+      '',
+      'category-upload-choice',
+    ),
+      caption = element(
+        'label',
+        text('category'),
+      ),
       choice = element('select');
     choice.id = 'category-for-' + inputId;
     caption.htmlFor = choice.id;
     choice.disabled = true;
-    choice.addEventListener('change', () => {
-      if (categories.find((category) => String(category.id) === choice.value)?.is_other) {
-        open(null, choice, choice);
-      } else {
-        choice.lastCategory = choice.value;
-      }
-    });
-    wrapper.append(caption, choice);
+    choice.addEventListener(
+      'change',
+      () => {
+        if (categories.find((category) => String(category.id) === choice.value)?.is_other) {
+          open(
+            null,
+            choice,
+            choice,
+          );
+        } else {
+          choice.lastCategory = choice.value;
+        }
+      },
+    );
+    wrapper.append(
+      caption,
+      choice,
+    );
     button.before(wrapper);
     uploadSelects.push({ label: wrapper, select: choice });
   }
   function createButton(item) {
-    const button = element('button', '', 'button ghost small attachment-category');
+    const button = element(
+      'button',
+      '',
+      'button ghost small attachment-category',
+    );
     button.type = 'button';
     button.categoryItem = item;
-    button.addEventListener('click', () => open(item, button));
+    button.addEventListener(
+      'click',
+      () => open(
+        item,
+        button,
+      ),
+    );
     buttons.add(button);
     button.textContent =
       text('category') +
@@ -354,19 +518,28 @@
       (categories.find((c) => c.id === item.category_id)
         ? categoryLabel(categories.find((c) => c.id === item.category_id))
         : text('other'));
-    button.setAttribute('aria-label', button.textContent + ' : ' + item.name);
+    button.setAttribute(
+      'aria-label',
+      button.textContent + ' : ' + item.name,
+    );
     return button;
   }
   window.HSpaceCategories = {
     createButton,
     selectedFor: (inputId) => document.getElementById('category-for-' + inputId)?.value || null,
   };
-  window.addEventListener('hspace:language', refreshLabels);
-  window.addEventListener('focus', () => {
-    if (!saving) {
-      load(true).catch(() => {});
-    }
-  });
+  window.addEventListener(
+    'hspace:language',
+    refreshLabels,
+  );
+  window.addEventListener(
+    'focus',
+    () => {
+      if (!saving) {
+        load(true).catch(() => {});
+      }
+    },
+  );
   refreshLabels();
   load().catch(() => {});
 })();
