@@ -4,8 +4,19 @@ import base64
 import hashlib
 import hmac
 import secrets
+import warnings
+from getpass import GetPassWarning, getpass
 
 ITERATIONS = 1_000_000
+
+
+def prompt_password():
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", GetPassWarning)
+        password = getpass("H space password: ")
+        if password != getpass("Confirm H space password: "):
+            raise ValueError("Passwords do not match.")
+    return password
 
 
 def hash_password(password):

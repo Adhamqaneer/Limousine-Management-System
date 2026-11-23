@@ -430,7 +430,7 @@ class PostgresVehicleRepository:
         return sorted(result, key=lambda row: row["deleted_at"], reverse=True)
 
     def restore_item(self, kind, item_id, actor):
-        require_actor(actor, restoring=True)
+        require_actor(actor)
         validate_kind(kind)
         if kind == "office":
             from .office import PostgresOfficeRepository

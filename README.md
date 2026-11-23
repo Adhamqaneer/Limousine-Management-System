@@ -2,11 +2,11 @@
 
 A private vehicle-management website for a car office. It runs locally with FastAPI and PostgreSQL, in English or Arabic, with light and dark themes.
 
-Four fixed accounts share vehicle records, owner details, driver periods and private photos/documents. Adham is ADMIN: only he can manage accounts, view deleted items/activity and restore records. Everyone can upload, rename and soft-delete files. Reports print selected vehicle fields or driver history, with optional office letterhead. Office files are separate from vehicle and driver documents.
+Sign in with the office account, **H space**, to manage vehicle records, driver periods, private photos and documents, and to view activity or restore deleted items. Reports print selected vehicle fields or driver history, with optional office letterhead. Office files are separate from vehicle and driver documents.
 
 ## Download attachments by type
 
-Choose a category before uploading, or click the category on an existing attachment to change it. Vehicle license, Direction card and Customs declaration are seeded; Other stays last. Existing attachments start as Other. A named type permits one active attachment per vehicle across Photos and Files; Other permits multiple. Uploads and category changes reject an occupied type. In the category dialog, choose Other and enter a new type name; saving makes it a shared permanent choice, with Other still last. The standalone category-management page has been removed; upload choices and category ZIP downloads still use the shared category list.
+Add photos or files to a vehicle, then click the category beside an uploaded attachment to classify it. Vehicle uploads start as Other. Vehicle license, Direction card and Customs declaration are available by default. A named type permits one active attachment per vehicle across Photos and Files. Other permits multiple. In the category dialog, choose Other and enter a new type name to add a permanent shared choice. Other stays last.
 
 On Vehicles, click **Download attachments**, select the document types, review the per-vehicle Available/Missing table, then click **Download ZIP**. The current search/filters apply; without filters this includes all vehicles. Each vehicle has a folder named by its plate, containing the original files in every supported format. Missing document types are listed in _missing-documents.txt inside the ZIP. Existing vehicle-data and driver-history printing is unchanged.
 
@@ -26,9 +26,13 @@ python -m venv .venv
 .\.venv\Scripts\python.exe scripts/setup_local.py
 ```
 
-Setup asks privately for the PostgreSQL administrator password. It creates the dedicated local database/role, writes `.env`, applies the schema and creates the four accounts. Initial credentials are saved in `.local/accounts.txt`. Keep both files private. Existing database settings/accounts are preserved; do not rerun setup to replace an existing installation.
+Setup asks privately for the PostgreSQL administrator password and the password for **H space**. It creates the dedicated local database and role, writes `.env` and applies the schema. The office password is stored as a hash in PostgreSQL.
 
 This checkout already has `.env`; continue using it. Connection settings are `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST` and `DB_PORT`. Setup also generates `HSPACE_SECRET_KEY`. The environment defaults to local.
+
+## Upgrade an existing installation
+
+Stop the local server and run `python manage.py migrate` with the project's configured interpreter. Enter and confirm the password for **H space** when prompted. Schema 12 backs up the existing database first, revokes old sessions and retires the former sign-ins. Existing records, files and the names on past activity entries are retained. Restart the server and sign in as **H space**.
 
 ## Run
 
@@ -54,8 +58,6 @@ Use your configured Python interpreter for the last two commands. The database a
 
 Previous refactoring checks (before the media-folder change) passed: 101 Python tests, 11 frontend harness files, 17 browser-script syntax checks, all eight templates/49 routes and the read-only PostgreSQL audit. Native browser checks and Docker execution remain unverified.
 
-Navigation follow-up: active links keep separate `nav-link` and `active` CSS classes after template formatting. Eight focused navigation/report/asset tests passed, covering the active state on all six destinations.
-
 ## Data and maintenance
 
 PostgreSQL stores records and file metadata. Private originals are organized under `media/`:
@@ -67,12 +69,12 @@ media/
   drivers/<name> -- <start> to <last-working-day> --period-<id>/photos/ and files/
 ```
 
-Driver folder labels use Arabic text, ISO dates with the year, and "now" while current. Ending/replacing a driver or correcting name/start dates updates the folder and all associated storage keys, including deleted originals. Unknown starts stay labeled unknown. A short period ID prevents name/date collisions. Deletion still retains bytes for administrator recovery.
+Driver folder labels use Arabic text, ISO dates with the year, and "now" while current. Ending/replacing a driver or correcting name/start dates updates the folder and all associated storage keys, including deleted originals. Unknown starts stay labeled unknown. A short period ID prevents name/date collisions. Deletion retains the originals for recovery.
 
 Schema 9 introduced these paths; schema 10 adds attachment categories. The existing local originals were reorganized after private database/media backups under `.local/backups/`. New uploads follow the same structure. Restart the server for the new handlers. No automated tests or browser checks were run for this change at the owner's request. Back up **both PostgreSQL and media**, plus private configuration. A Git checkout/push does not include local data or credentials.
 
-- Apply a documented schema update: `python manage.py migrate`. Existing installations receive a private database backup first. The current schema is 11.
-- Change a fixed account name/password: `python manage.py setoperator <slot> "<username>"` (slots 1-4). Enter the password privately; existing sessions are revoked.
+- Apply a documented schema update with `python manage.py migrate`. The current schema is 12.
+- Change the office password with `python manage.py setpassword`. This revokes existing sessions.
 - Retry failed-upload cleanup: `python manage.py cleanupfiles`. Referenced files, including deleted ones, are retained.
 - Optional Docker files are retained for a future decision. They are not needed locally and were not built/tested in this review.
 

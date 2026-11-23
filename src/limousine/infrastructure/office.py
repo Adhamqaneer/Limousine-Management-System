@@ -103,7 +103,7 @@ class PostgresOfficeRepository:
             self._event(connection, actor, row, "DELETE")
 
     def restore(self, item_id, actor):
-        require_actor(actor, restoring=True)
+        require_actor(actor)
         with self.database.connect() as connection:
             row = connection.execute(
                 """

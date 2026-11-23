@@ -17,7 +17,7 @@
     download: 'Download',
     rename: 'Rename',
     remove: 'Delete',
-    confirm: 'Move this driver attachment to deleted items? Only the administrator can restore it.',
+    confirm: 'Move this driver attachment to deleted items?',
     limit: 'Each file must be 10 MB or smaller.',
     invalid: 'Choose JPG, PNG, WebP, PDF, TXT, DOCX or XLSX.',
     hint: 'Identity, licence and other documents stay with this driver period, including after it ends.',

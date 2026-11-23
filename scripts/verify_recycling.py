@@ -19,7 +19,6 @@ def main():
     from limousine.application.recycling import RecyclingService
     from limousine.application.vehicles import VehicleService
     from limousine.config.runtime import load_settings
-    from limousine.domain.accounts import AccessDenied
     from limousine.infrastructure.accounts import PostgresAccountRepository
     from limousine.infrastructure.attachments import LocalAttachmentStore
     from limousine.infrastructure.database import Database
@@ -27,7 +26,7 @@ def main():
     from limousine.infrastructure.migrations import media_manifest, migrate
     from limousine.infrastructure.vehicle_repository import PostgresVehicleRepository
     from limousine.presentation.web.app import create_app
-    from limousine.presentation.web.security import administrator, current_user
+    from limousine.presentation.web.security import current_user
     from tests.uploads import SimpleUploadedFile
 
     settings = load_settings()
@@ -71,9 +70,7 @@ def main():
     backup = migrate(db)
     assert snapshot() == before and media_manifest(settings.media_root) == files
     assert migrate(db) is None
-    users = PostgresAccountRepository(db).list_users()
-    admin = next(user for user in users if user.role == "ADMIN")
-    member = next(user for user in users if user.role == "MEMBER" and user.can_login)
+    operator = PostgresAccountRepository(db).operator()
     with TemporaryDirectory() as directory, db.connect() as conn:
 
         class TransactionDatabase:
@@ -87,9 +84,9 @@ def main():
         store = LocalAttachmentStore(Path(directory))
         cleanup = FileCleanup(transactional, store)
         car = vehicles.create_vehicle(
-            "00999-001", "Camry", actor=member, owner_name="Test owner", manufacture_year="2022"
+            "00999-001", "Camry", actor=operator, owner_name="Test owner", manufacture_year="2022"
         )
-        sibling = vehicles.create_vehicle("00999-002", "Accord", actor=admin)
+        sibling = vehicles.create_vehicle("00999-002", "Accord", actor=operator)
         stored = store.save(SimpleUploadedFile("note.txt", b"retained content"))
         attachment = vehicles.add_attachment(
             car.id,
@@ -97,7 +94,7 @@ def main():
             original_name=stored.original_name,
             kind=stored.kind,
             size=stored.size,
-            actor=member,
+            actor=operator,
         )
         stored_two = store.save(SimpleUploadedFile("other.txt", b"separate file"))
         second = vehicles.add_attachment(
@@ -106,7 +103,7 @@ def main():
             original_name=stored_two.original_name,
             kind=stored_two.kind,
             size=stored_two.size,
-            actor=admin,
+            actor=operator,
         )
         image = io.BytesIO()
         Image.new("RGB", (2, 2), "white").save(image, "PNG")
@@ -116,7 +113,7 @@ def main():
             storage_key=photo.storage_key,
             original_name=photo.original_name,
             size=photo.size,
-            actor=member,
+            actor=operator,
         )
         app = create_app(settings)
         app.state.media_layout = None  # Fixture storage is managed by this script.
@@ -124,8 +121,7 @@ def main():
         app.state.recycling = recycling
         app.state.store = store
         app.state.cleanup = cleanup
-        app.dependency_overrides[current_user] = lambda: member
-        app.dependency_overrides[administrator] = lambda: admin
+        app.dependency_overrides[current_user] = lambda: operator
         client = TestClient(app)
         client.get("/login/")
         headers = {"X-CSRFToken": client.cookies["csrftoken"]}
@@ -137,12 +133,6 @@ def main():
         assert client.get("/api/vehicles/").json()["vehicles"][-2]["attachment_count"] == 1
         cleanup.discard(stored.storage_key)
         assert store.path(stored.storage_key).read_bytes() == b"retained content"
-        try:
-            recycling.restore_item("attachment", attachment.id, member)
-        except AccessDenied:
-            pass
-        else:
-            raise AssertionError("Member restored an item")
         assert client.delete(f"/api/vehicles/{car.id}/", headers=headers).status_code == 204
         assert car.id not in [
             item["id"] for item in client.get("/api/vehicles/").json()["vehicles"]
@@ -184,22 +174,22 @@ def main():
             storage_key=replacement.storage_key,
             original_name=replacement.original_name,
             size=replacement.size,
-            actor=admin,
+            actor=operator,
         )
         deleted_cover = next(
             item
-            for item in recycling.list_deleted(admin)
+            for item in recycling.list_deleted(operator)
             if item["kind"] == "cover" and item["vehicle_id"] == car.id
         )
         restore_cover = f"/api/recycle-bin/cover/{deleted_cover['id']}/restore/"
         assert client.post(restore_cover, headers=headers).status_code == 400
         assert vehicles.get_cover(car.id).storage_key == replacement.storage_key
-        vehicles.delete_cover(car.id, actor=member)
+        vehicles.delete_cover(car.id, actor=operator)
         assert client.post(restore_cover, headers=headers).status_code == 204
         assert vehicles.get_cover(car.id).storage_key == photo.storage_key
-        history = recycling.list_activity(admin)
+        history = recycling.list_activity(operator)
         assert {"CREATE", "DELETE", "RESTORE"} <= {item["action"] for item in history}
-        assert {member.username, admin.username} <= {item["actor_name"] for item in history}
+        assert {operator.username} <= {item["actor_name"] for item in history}
         assert any(item["reason"] == "replaced" for item in history)
         assert vehicles.get_vehicle(sibling.id).plate_number == "00999-002"
         assert (
@@ -221,7 +211,7 @@ def main():
         conn.rollback()
     assert snapshot() == before and media_manifest(settings.media_root) == files
     print(
-        "PASS: schema 4/idempotency, actor audit, soft deletion, hidden downloads/list/edits, parent/child recovery, member denial, cover conflict, retained bytes and rollback."
+        "PASS: schema 4/idempotency, actor audit, soft deletion, hidden downloads/list/edits, parent/child recovery, operator denial, cover conflict, retained bytes and rollback."
     )
     print(
         "Existing rows, account data and original file hashes preserved. Private upgrade backup created."

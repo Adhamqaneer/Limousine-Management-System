@@ -6,10 +6,12 @@ import shutil
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 from psycopg import sql
 
 from limousine.config.runtime import ROOT
+from limousine.domain.accounts import OPERATOR_USERNAME
 from limousine.domain.categories import SEED_CATEGORIES, category_key
 from limousine.infrastructure.media_paths import (
     COVER_FILE_PATTERN,
@@ -17,6 +19,9 @@ from limousine.infrastructure.media_paths import (
     STORAGE_KEY_PATTERN,
     VEHICLE_FILE_PATTERN,
 )
+from limousine.infrastructure.passwords import hash_password
+
+SCHEMA_VERSION = 12
 
 DDL = """
 CREATE TABLE IF NOT EXISTS hspace_schema_migration (version integer PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP);
@@ -98,8 +103,7 @@ def backup_database(settings):
     return target
 
 
-def migrate(database):
-    settings = database.settings
+def _check_local(settings):
     if (
         settings.db_host not in ("127.0.0.1", "localhost", "::1")
         or settings.db_name != "limousine_local"
@@ -107,19 +111,35 @@ def migrate(database):
         raise ValueError(
             "Local migrations are restricted to the configured limousine_local database."
         )
+
+
+def _schema_version(connection):
+    if not connection.execute(
+        "SELECT to_regclass('public.hspace_schema_migration') AS name"
+    ).fetchone()["name"]:
+        return None
+    return connection.execute(
+        "SELECT COALESCE(max(version), 0) AS version FROM hspace_schema_migration"
+    ).fetchone()["version"]
+
+
+def needs_operator_setup(database):
+    _check_local(database.settings)
     with database.connect() as connection:
-        exists = connection.execute(
-            "SELECT to_regclass('public.hspace_schema_migration') AS name"
-        ).fetchone()["name"]
-        upgrade = (
-            exists
-            and not connection.execute(
-                "SELECT 1 FROM hspace_schema_migration WHERE version=11"
-            ).fetchone()
-        )
-    backup = backup_database(settings) if upgrade else None
+        return (_schema_version(connection) or 0) < SCHEMA_VERSION
+
+
+def migrate(database, *, operator_password=None):
+    _check_local(database.settings)
     with database.connect() as connection:
         connection.execute("SELECT pg_advisory_xact_lock(72730804)")
+        version = _schema_version(connection)
+        if version is not None and version >= SCHEMA_VERSION:
+            return None
+        if operator_password is None:
+            raise ValueError("Run manage.py migrate to set the office password privately.")
+        encoded = hash_password(operator_password)
+        backup = backup_database(database.settings) if version is not None else None
         connection.execute(DDL)
         connection.execute(
             "INSERT INTO hspace_schema_migration(version) VALUES (1) ON CONFLICT DO NOTHING"
@@ -441,4 +461,29 @@ def migrate(database):
                     ON limo_attachment FOR EACH ROW EXECUTE FUNCTION hspace_guard_vehicle_category();
                 INSERT INTO hspace_schema_migration(version) VALUES (11);
             """)
+        connection.execute("""
+            CREATE TABLE hspace_operator (
+                singleton boolean PRIMARY KEY DEFAULT TRUE CHECK (singleton),
+                user_id uuid NOT NULL UNIQUE REFERENCES hspace_user(id),
+                password_hash varchar(256) NOT NULL
+            );
+            DELETE FROM hspace_session;
+            ALTER TABLE hspace_session ADD CONSTRAINT hspace_session_operator_fk
+                FOREIGN KEY (user_id) REFERENCES hspace_operator(user_id);
+            ALTER TABLE hspace_user
+                DROP CONSTRAINT hspace_user_username_key,
+                DROP COLUMN slot, DROP COLUMN role, DROP COLUMN is_active,
+                DROP COLUMN is_deleted, DROP COLUMN deleted_at, DROP COLUMN password_hash;
+        """)
+        operator_id = uuid4()
+        connection.execute(
+            "INSERT INTO hspace_user(id,username) VALUES (%s,%s)", (operator_id, OPERATOR_USERNAME)
+        )
+        connection.execute(
+            "INSERT INTO hspace_operator(user_id,password_hash) VALUES (%s,%s)",
+            (operator_id, encoded),
+        )
+        connection.execute(
+            "INSERT INTO hspace_schema_migration(version) VALUES (%s)", (SCHEMA_VERSION,)
+        )
     return backup

@@ -39,7 +39,7 @@ Favor short, visible primary actions. Wrap names and filenames; never put essent
 
 ## Layout and maintenance
 
-Shared header/icons/brand apply across all pages. Main navigation has only real destinations. Team is ADMIN-only. There are no invented metrics, statuses or extra vehicle fields.
+Shared header/icons/brand apply across all pages. Main navigation has only real destinations. Deleted items is available after sign-in. There are no invented metrics, statuses or extra vehicle fields.
 
 Laptop viewports at least 1200 CSS pixels wide show five compact vehicle columns; 1024–1199 use four, 800–1023 use three, 561–799 use two, and smaller widths use one. Large screens retain a split sign-in view. Smaller widths collapse the grid and header/navigation; mobile sign-in stacks story and form. Target review widths: 375/768/1024/1440px and both orientations.
 

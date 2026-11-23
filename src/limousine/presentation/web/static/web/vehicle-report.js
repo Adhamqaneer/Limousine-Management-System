@@ -58,7 +58,6 @@
     navDrivers: 'سجل الشوفيرين',
     navTrash: 'المحذوفات',
     navReports: 'طباعة البيانات',
-    teamAccess: 'إدارة الفريق',
     brandSub: 'إدارة السيارات',
     signOut: 'تسجيل الخروج',
     reportEyebrow: 'بيانات مكتبك، على ورق',

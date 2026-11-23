@@ -22,7 +22,7 @@
       'Someone changed this name. Close this window and open Rename again to review the current name.',
     deleteVehicle: 'Delete vehicle',
     confirmDeleteVehicle:
-      'Move vehicle {plate} and its visible files to deleted items? Only the administrator can restore it.',
+      'Move vehicle {plate} and its visible files to deleted items?',
     vehicleDeleted: 'Vehicle moved to deleted items.',
     filters: 'Filters',
     doneFilters: 'Done',
@@ -33,7 +33,6 @@
     ownerFilterSummary: '{owner} · {shown} matching vehicles (of {total} total)',
     filterSummary: 'Showing {shown} of {total} vehicles',
     title: 'H SPACE | Vehicles',
-    teamAccess: 'Team',
     switchArabic: 'Switch to Arabic',
     switchEnglish: 'Switch to English',
     lightMode: 'Switch to light mode',
@@ -62,9 +61,9 @@
     deleteAttachment: 'Delete',
     deleteNamed: 'Delete {name}',
     removeCardPhoto: 'Remove card photo',
-    confirmDelete: 'Move "{name}" to deleted items? Only the administrator can restore it.',
+    confirmDelete: 'Move "{name}" to deleted items?',
     confirmRemoveCover:
-      'Move the card photo for {plate} to deleted items? Only the administrator can restore it.',
+      'Move the card photo for {plate} to deleted items?',
     deleting: 'Deleting…',
     deleted: 'Attachment deleted.',
     coverDeleted: 'Card photo removed.',
@@ -122,7 +121,6 @@
     brandSub: 'إدارة السيارات',
     vehicles: 'سياراتك.',
     workspace: 'مساحة عملك',
-    teamAccess: 'إدارة الفريق',
     vehicleCollection: 'مجموعة السيارات',
     footerTagline: 'لكل تفصيل مكانه.',
     listDescription: 'لكل تفصيل مكانه. ولكل سيارة مساحتها.',
@@ -1416,7 +1414,6 @@
     let failure = '';
     uploadBusy = true;
     updateDetailControls();
-    const categoryId = window.HSpaceCategories?.selectedFor(input.id);
     try {
       for (const file of selected) {
         if (activeDetailId !== id) break;
@@ -1426,7 +1423,6 @@
         });
         const body = new FormData();
         body.append('file', file);
-        if (categoryId) body.append('category_id', categoryId);
         await api(`/api/vehicles/${id}/attachments/`, {
           method: 'POST',
           body,

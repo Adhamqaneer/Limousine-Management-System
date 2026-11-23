@@ -20,7 +20,7 @@
 | presentation/web/requests.py | Bounded JSON forms and vehicle field names |
 | presentation/web/serializers.py | Public JSON; no storage keys/password hashes |
 | presentation/web/file_handlers.py | Shared private upload/rename/preview/download handling |
-| presentation/web/security.py | Sessions, administrator checks and signed CSRF |
+| presentation/web/security.py | Office sessions and signed CSRF |
 | presentation/web/http_errors.py | Safe errors and security headers |
 | config/runtime.py | Private .env settings |
 
@@ -43,11 +43,12 @@ All eight fields are text; leading zeroes matter. Creation requires type and pla
 
 Arabic combining marks are allowed after a letter. Unrelated edits preserve legacy values; changed fields use current validation.
 
-## PostgreSQL tables (schema 11)
+## PostgreSQL tables (schema 12)
 
 | Table | Purpose |
 | --- | --- |
-| hspace_user | Four UUID accounts, hashed passwords, ADMIN/MEMBER and status |
+| hspace_user | UUID actor identities and names, including former users |
+| hspace_operator | Singleton credential with password hash and a reference to the current actor |
 | hspace_session | SHA-256 token hashes and absolute expiry |
 | limo_vehicle | Vehicle fields, current driver cache and deletion actors |
 | limo_attachment | Vehicle gallery or driver-period file metadata |
@@ -63,10 +64,12 @@ Arabic combining marks are allowed after a letter. Unrelated edits preserve lega
 
 Migrations are transactional/idempotent and restricted to the configured loopback limousine_local database. Existing upgrades require a private pg_dump backup. Foreign keys, metadata/deletion checks, partial unique indexes and retention triggers protect relationships/history. The local role owns its schema; this is not independently tamper-proof audit storage.
 
+Schema 12 adds the singleton credential for H space, revokes legacy sessions and removes the former password hashes and role/status columns. It inserts a new actor ID and keeps all historical actor IDs and names. The first password is entered privately before the migration, which installs the credential in the same transaction as the schema change.
+
 ## Invariants
 
-- Sessions expire after 12 hours. Disabling/deleting an account or changing its password revokes access. Cookies are HttpOnly; mutations require signed, session-bound CSRF.
-- All active accounts can delete. Metadata/bytes remain; only ADMIN restores. Parent restoration does not undo separate child deletion.
+- Sessions expire after 12 hours. Changing the office password revokes existing sessions. Cookies are HttpOnly; mutations require signed, session-bound CSRF.
+- The signed-in operator can delete and restore. Metadata and file bytes remain. Parent restoration does not undo separate child deletion.
 - Driver documents use a composite period/vehicle foreign key; NULL assignment means the vehicle gallery. Office documents use their own table and a nullable-vehicle activity scope.
 - Driver changes lock the vehicle first, update period/current cache and append snapshots atomically. Unknown starts stay unknown. ended_on is exclusive; the displayed last working day is inclusive. Gaps before replacements are supported.
 - Uploads use generated UUID filenames in office/photos|files, vehicles/vehicle-ID/photos|files|covers, or a named drivers/period folder. Limit: 10 MiB/file and 25 MP/image. JPG/PNG/WebP/PDF/TXT/DOCX/XLSX are validated locally. Gallery changes never select a card photo.
@@ -82,7 +85,7 @@ Schema 9 widens file-key checks without adding tables. It accepts existing keys 
 
 ## Attachment classification and ZIP downloads
 
-Schema 10 adds non-null category foreign keys to vehicle/driver and office attachments, defaulting existing records to Other. Names and aliases share a unique normalized registry (Unicode normalization, Arabic alef/marks/tatweel, case and punctuation). Similarity suggestions use canonical names and aliases; semantic equivalence is a user decision. All active accounts can create, alias, classify and merge. Other cannot absorb named types or be merged.
+Schema 10 adds non-null category foreign keys to vehicle/driver and office attachments, defaulting existing records to Other. Names and aliases share a unique normalized registry (Unicode normalization, Arabic alef/marks/tatweel, case and punctuation). Similarity suggestions use canonical names and aliases; semantic equivalence is a user decision. The signed-in operator can create, alias, classify and merge. Other cannot absorb named types or be merged.
 
 Category writes and uploads acquire the same transaction advisory lock before resolving a category. Merges move active/deleted metadata and all aliases atomically, retain source category rows and append actor events. Stale upload IDs resolve through the merge chain. Original bytes, filenames, driver periods and deletion state do not change. This feature does not provide category deletion or an automatic merge undo.
 

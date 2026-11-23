@@ -6,8 +6,6 @@ import secrets
 
 from fastapi import Request
 
-from limousine.domain.accounts import AccessDenied, Role
-
 SESSION_COOKIE = "hspace_session"
 
 
@@ -20,13 +18,6 @@ def current_user(request: Request):
     user = request.app.state.accounts.session_user(token) if token else None
     if user is None:
         raise AuthenticationRequired()
-    return user
-
-
-def administrator(request: Request):
-    user = current_user(request)
-    if user.role != Role.ADMIN:
-        raise AccessDenied("Administrator access required.")
     return user
 
 

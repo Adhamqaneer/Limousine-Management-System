@@ -29,7 +29,7 @@ def main():
     from limousine.infrastructure.migrations import media_manifest, migrate
     from limousine.infrastructure.vehicle_repository import PostgresVehicleRepository
     from limousine.presentation.web.app import create_app
-    from limousine.presentation.web.security import administrator, current_user
+    from limousine.presentation.web.security import current_user
 
     settings = load_settings()
     assert settings.db_name == "limousine_local" and settings.db_host in (
@@ -72,9 +72,7 @@ def main():
     migrate(db)
     preserved()
     assert migrate(db) is None
-    users = PostgresAccountRepository(db).list_users()
-    member = next(user for user in users if user.role == "MEMBER" and user.can_login)
-    admin = next(user for user in users if user.role == "ADMIN" and user.can_login)
+    operator = PostgresAccountRepository(db).operator()
     with TemporaryDirectory(prefix="hspace-driver-docs-") as directory, db.connect() as conn:
 
         class TransactionDatabase:
@@ -94,13 +92,13 @@ def main():
         app.state.store = store
         app.state.recycling = RecyclingService(repo)
         app.state.cleanup = FileCleanup(transaction, store)
-        app.dependency_overrides[current_user] = lambda: member
+        app.dependency_overrides[current_user] = lambda: operator
         client = TestClient(app)
         client.get("/login/")
         headers = {"X-CSRFToken": client.cookies["csrftoken"]}
         try:
-            car = vehicles.create_vehicle("00997-001", "Camry", actor=member)
-            drivers.assign(car.id, "Old Driver", "00123", "2000-01-01", member)
+            car = vehicles.create_vehicle("00997-001", "Camry", actor=operator)
+            drivers.assign(car.id, "Old Driver", "00123", "2000-01-01", operator)
             old = drivers.history(car.id)[0]
             image = io.BytesIO()
             Image.new("RGB", (2, 2), "white").save(image, "PNG")
@@ -140,7 +138,7 @@ def main():
             assert drivers.history(car.id, on_date="2000-01-10") and not drivers.history(
                 car.id, on_date="2000-01-11"
             )
-            drivers.assign(car.id, "New Driver", "00456", "2000-01-20", member)
+            drivers.assign(car.id, "New Driver", "00456", "2000-01-20", operator)
             current = drivers.history(car.id)[0]
             assert current["attachment_count"] == 0 and not drivers.history(
                 car.id, on_date="2000-01-15"
@@ -162,7 +160,7 @@ def main():
                 ).status_code
                 == 400
             )
-            drivers.assign(car.id, "Same Day Driver", "00789", "2000-01-20", member)
+            drivers.assign(car.id, "Same Day Driver", "00789", "2000-01-20", operator)
             same_day = next(row for row in drivers.history(car.id) if row["id"] == current["id"])
             assert (
                 same_day["started_on"] == same_day["ended_on"]
@@ -195,7 +193,7 @@ def main():
             ).fetchone()
             assert (
                 item["is_deleted"]
-                and item["deleted_by"] == member.id
+                and item["deleted_by"] == operator.id
                 and store.path(item["storage_key"]).read_bytes() == image
             )
             assert client.get(photo["download_url"]).status_code == 404
@@ -203,14 +201,6 @@ def main():
                 row["id"] == photo["id"] and row["driver_name"] == "Old Driver"
                 for row in repo.list_deleted()
             )
-            app.dependency_overrides[administrator] = lambda: member
-            assert (
-                client.post(
-                    f'/api/recycle-bin/attachment/{photo["id"]}/restore/', headers=headers
-                ).status_code
-                == 403
-            )
-            app.dependency_overrides[administrator] = lambda: admin
             assert (
                 client.post(
                     f'/api/recycle-bin/attachment/{photo["id"]}/restore/', headers=headers
@@ -227,7 +217,7 @@ def main():
             client.delete(base + str(photo["id"]) + "/", headers=headers)
             app.state.cleanup.discard(item["storage_key"])
             assert store.path(item["storage_key"]).is_file()
-            repo.delete_vehicle(car.id, member)
+            repo.delete_vehicle(car.id, operator)
             assert (
                 client.get(base).status_code == 404
                 and client.get(document["preview_url"]).status_code == 404
@@ -246,7 +236,7 @@ def main():
                 "SELECT * FROM hspace_driver_change WHERE vehicle_id=%s AND action='END'", (car.id,)
             ).fetchone()
             assert (
-                event["actor_id"] == member.id
+                event["actor_id"] == operator.id
                 and event["before_data"]["is_current"]
                 and not event["after_data"]["is_current"]
             )
@@ -266,11 +256,11 @@ def main():
             else:
                 raise AssertionError("Current-driver guard was bypassed.")
             other_car = vehicles.create_vehicle(
-                "00997-002", "Camry", driver_name="Legacy Driver", driver_phone="000", actor=member
+                "00997-002", "Camry", driver_name="Legacy Driver", driver_phone="000", actor=operator
             )
             legacy = drivers.history(other_car.id)[0]
             assert legacy["started_on"] is None
-            drivers.end(other_car.id, legacy["id"], "2000-01-05", member)
+            drivers.end(other_car.id, legacy["id"], "2000-01-05", operator)
             assert (
                 vehicles.get_vehicle(other_car.id).driver_name == ""
                 and drivers.history(other_car.id)[0]["started_on"] is None
@@ -289,7 +279,7 @@ def main():
             conn.rollback()
     preserved()
     print(
-        "PASS: schema 7/idempotency, preserved rows/media, inclusive ending/gaps/cache/audit, period-scoped upload/preview/download/rename, gallery and ZIP isolation, wrong-scope denial, member deletion/admin recovery, retained bytes, parent masking, FK/current guards and fixture rollback. Sequences may advance."
+        "PASS: schema 7/idempotency, preserved rows/media, inclusive ending/gaps/cache/audit, period-scoped upload/preview/download/rename, gallery and ZIP isolation, wrong-scope denial, operator deletion/operator recovery, retained bytes, parent masking, FK/current guards and fixture rollback. Sequences may advance."
     )
 
 

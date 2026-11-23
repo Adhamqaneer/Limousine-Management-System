@@ -12,7 +12,7 @@ from limousine.config.runtime import Settings
 from limousine.presentation.web import rendering
 from limousine.presentation.web.app import create_app
 from limousine.presentation.web.security import current_user
-from tests.test_accounts import MEMBER
+from tests.test_accounts import OPERATOR
 
 
 class StaticAssetTests(TestCase):
@@ -37,7 +37,7 @@ class StaticAssetTests(TestCase):
 
     def test_vehicle_and_report_pages_deliver_versioned_translations(self):
         app = create_app(Settings())
-        app.dependency_overrides[current_user] = lambda: MEMBER
+        app.dependency_overrides[current_user] = lambda: OPERATOR
         client = TestClient(app)
         for page, script in [("/", "app.js"), ("/reports/vehicles/", "vehicle-report.js")]:
             html = client.get(page).text

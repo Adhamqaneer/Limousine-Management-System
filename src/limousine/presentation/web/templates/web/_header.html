@@ -29,21 +29,13 @@
         {% if request.url.path == '/office/' %}aria-current="page"{% endif %}
         ><svg class="icon" aria-hidden="true"><use href="#file" /></svg
         ><span data-i18n="navOffice">Office files</span></a
-      >{% if user.role == "ADMIN" %}
-        <a
-          href="/recycle-bin/"
-          {% if request.url.path == '/recycle-bin/' %}aria-current="page"{% endif %}
-          class="{{ 'nav-link active' if request.url.path == '/recycle-bin/' else 'nav-link' }}"
-          ><svg class="icon" aria-hidden="true"><use href="#trash" /></svg
-          ><span data-i18n="navTrash">Deleted items</span></a
-        ><a
-          href="/users/"
-          class="{{ 'nav-link active' if request.url.path == '/users/' else 'nav-link' }}"
-          {% if request.url.path == '/users/' %}aria-current="page"{% endif %}
-          ><svg class="icon" aria-hidden="true"><use href="#shield" /></svg
-          ><span data-i18n="teamAccess">Team</span></a
-        >
-      {% endif %}
+      ><a
+        href="/recycle-bin/"
+        {% if request.url.path == '/recycle-bin/' %}aria-current="page"{% endif %}
+        class="{{ 'nav-link active' if request.url.path == '/recycle-bin/' else 'nav-link' }}"
+        ><svg class="icon" aria-hidden="true"><use href="#trash" /></svg
+        ><span data-i18n="navTrash">Deleted items</span></a
+      >
     </nav>
   {% endif %}
   <div class="header-actions">

@@ -42,15 +42,3 @@ def vehicle_payload(item, detailed=False):
     if detailed:
         payload["attachments"] = [attachment_payload(file) for file in item.attachments]
     return payload
-
-
-def user_payload(user):
-    return {
-        "id": str(user.id),
-        "slot": user.slot,
-        "username": user.username,
-        "role": user.role.value,
-        "is_active": user.is_active,
-        "is_deleted": user.is_deleted,
-        "deleted_at": user.deleted_at.isoformat() if user.deleted_at else None,
-    }

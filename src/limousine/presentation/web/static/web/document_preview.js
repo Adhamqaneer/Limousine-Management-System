@@ -17,7 +17,6 @@
     navTrash: 'المحذوفات',
     navReports: 'طباعة البيانات',
     navVehicles: 'السيارات',
-    teamAccess: 'الفريق',
     brandSub: 'إدارة السيارات',
     signOut: 'تسجيل الخروج',
   };

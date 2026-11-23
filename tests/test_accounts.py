@@ -1,5 +1,3 @@
-from dataclasses import replace
-from datetime import datetime, timezone
 from unittest import TestCase
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -7,50 +5,38 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from limousine.config.runtime import Settings
-from limousine.domain.accounts import (
-    AccessDenied,
-    Role,
-    User,
-    authorize_account_change,
-    normalize_username,
-    validate_slot,
-)
+from limousine.domain.accounts import OPERATOR_USERNAME, User
+from limousine.infrastructure.accounts import PostgresAccountRepository, token_hash
 from limousine.infrastructure.passwords import hash_password, verify_password
 from limousine.presentation.web.app import create_app
 
-STAMP = datetime.now(timezone.utc)
-ADMIN = User(uuid4(), 1, "Adham qaneer", Role.ADMIN, True, False, None, STAMP)
-MEMBER = User(uuid4(), 2, "Member", Role.MEMBER, True, False, None, STAMP)
+OPERATOR = User(uuid4(), OPERATOR_USERNAME)
+TEST_PASSWORD = "Test-only password"
 
 
 class AccountTests(TestCase):
-    def test_names_uuid_roles_and_four_slots(self):
-        self.assertEqual(normalize_username(" Adham qaneer "), "Adham qaneer")
-        for value in (0, 5, True, "1"):
-            with self.assertRaises(ValueError):
-                validate_slot(value)
-        for value in ("", "name\nother", "<name>"):
-            with self.assertRaises(ValueError):
-                normalize_username(value)
-        self.assertEqual(Role.ADMIN.value, "ADMIN")
-        self.assertTrue(ADMIN.can_login)
-        self.assertFalse(replace(MEMBER, is_deleted=True).can_login)
-
-    def test_only_admin_can_manage_members_and_admin_is_protected(self):
-        with self.assertRaises(AccessDenied):
-            authorize_account_change(MEMBER, MEMBER, {"is_active": False})
-        with self.assertRaises(AccessDenied):
-            authorize_account_change(ADMIN, ADMIN, {"is_active": False})
-        self.assertEqual(
-            authorize_account_change(ADMIN, MEMBER, {"is_deleted": True}), (False, True)
+    def test_only_the_office_username_can_create_a_session(self):
+        database = MagicMock()
+        connection = database.connect.return_value.__enter__.return_value
+        encoded = hash_password(TEST_PASSWORD)
+        connection.execute.return_value.fetchone.return_value = {
+            "user_id": OPERATOR.id,
+            "password_hash": encoded,
+        }
+        accounts = PostgresAccountRepository(database)
+        self.assertIsNone(accounts.sign_in("Former user", TEST_PASSWORD, 60))
+        self.assertIsNone(accounts.sign_in(OPERATOR_USERNAME, "incorrect", 60))
+        token = accounts.sign_in(OPERATOR_USERNAME, TEST_PASSWORD, 60, "prior-session")
+        self.assertTrue(token)
+        connection.execute.assert_any_call(
+            "INSERT INTO hspace_session (token_hash,user_id,expires_at) VALUES (%s,%s,%s)",
+            (token_hash(token), OPERATOR.id, connection.execute.call_args_list[-2].args[1][2]),
         )
-        with self.assertRaises(ValueError):
-            authorize_account_change(ADMIN, MEMBER, {"is_active": "false"})
 
     def test_password_hashes_are_compatible_and_never_plaintext(self):
-        encoded = hash_password("Different8")
-        self.assertNotIn("Different8", encoded)
-        self.assertTrue(verify_password("Different8", encoded))
+        encoded = hash_password(TEST_PASSWORD)
+        self.assertNotIn(TEST_PASSWORD, encoded)
+        self.assertTrue(verify_password(TEST_PASSWORD, encoded))
         self.assertFalse(verify_password("wrong", encoded))
         self.assertFalse(verify_password("wrong", "invalid"))
 
@@ -62,7 +48,6 @@ class AccountTests(TestCase):
             "/api/vehicles/1/cover/",
             "/api/vehicles/1/attachments/1/preview/",
             "/api/vehicles/1/attachments/1/download/",
-            "/api/users/",
         ):
             self.assertEqual(client.get(path).status_code, 401)
         self.assertEqual(client.get("/", follow_redirects=False).headers["location"], "/login/")
@@ -70,7 +55,7 @@ class AccountTests(TestCase):
     def test_signed_csrf_blocks_missing_forged_and_cross_session_tokens(self):
         app = create_app(Settings())
         app.state.accounts = MagicMock()
-        app.state.accounts.session_user.return_value = MEMBER
+        app.state.accounts.session_user.return_value = OPERATOR
         client = TestClient(app)
         self.assertEqual(client.post("/login/", data={"password": "private"}).status_code, 403)
         client.get("/login/")
@@ -83,10 +68,11 @@ class AccountTests(TestCase):
             client.post("/logout/", data={"csrfmiddlewaretoken": token}).status_code, 403
         )
 
-    def test_member_is_forbidden_from_owner_routes(self):
+    def test_team_management_routes_are_removed(self):
         app = create_app(Settings())
         app.state.accounts = MagicMock()
-        app.state.accounts.session_user.return_value = MEMBER
+        app.state.accounts.session_user.return_value = OPERATOR
         client = TestClient(app, cookies={"hspace_session": "opaque-session"})
-        self.assertEqual(client.get("/api/users/").status_code, 403)
-        self.assertEqual(client.get("/users/").status_code, 403)
+        self.assertEqual(client.get("/api/users/").status_code, 404)
+        self.assertEqual(client.get("/users/").status_code, 404)
+        self.assertEqual(client.patch(f"/api/users/{OPERATOR.id}/").status_code, 404)

@@ -49,7 +49,6 @@
     navTrash: 'المحذوفات',
     navReports: 'طباعة البيانات',
     navVehicles: 'السيارات',
-    teamAccess: 'إدارة الفريق',
     brandSub: 'إدارة السيارات',
     skip: 'انتقل إلى المحتوى',
     signOut: 'تسجيل الخروج',

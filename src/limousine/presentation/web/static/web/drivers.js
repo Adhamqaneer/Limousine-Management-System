@@ -72,7 +72,6 @@
     navReports: 'Print data',
     navTrash: 'Deleted items',
     navDrivers: 'Driver history',
-    teamAccess: 'Team',
     brandSub: 'Vehicle management',
     signOut: 'Sign out',
   };
@@ -144,7 +143,6 @@
     navReports: 'طباعة البيانات',
     navTrash: 'المحذوفات',
     navDrivers: 'سجل الشوفيرين',
-    teamAccess: 'إدارة الفريق',
     brandSub: 'إدارة السيارات',
     signOut: 'تسجيل الخروج',
   };

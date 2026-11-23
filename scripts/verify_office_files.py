@@ -28,7 +28,7 @@ def main():
     from limousine.infrastructure.office import PostgresOfficeRepository
     from limousine.infrastructure.vehicle_repository import PostgresVehicleRepository
     from limousine.presentation.web.app import create_app
-    from limousine.presentation.web.security import administrator, current_user
+    from limousine.presentation.web.security import current_user
 
     settings = load_settings()
     assert (
@@ -60,9 +60,7 @@ def main():
     migrate(db)
     preserved()
     assert migrate(db) is None
-    users = PostgresAccountRepository(db).list_users()
-    member = next(user for user in users if user.role == "MEMBER" and user.can_login)
-    admin = next(user for user in users if user.role == "ADMIN" and user.can_login)
+    operator = PostgresAccountRepository(db).operator()
     with TemporaryDirectory(prefix="hspace-office-") as directory, db.connect() as conn:
 
         class TransactionDatabase:
@@ -82,7 +80,7 @@ def main():
         app.state.recycling = recycling
         app.state.store = store
         app.state.cleanup = cleanup
-        app.dependency_overrides[current_user] = lambda: member
+        app.dependency_overrides[current_user] = lambda: operator
         client = TestClient(app)
         client.get("/login/")
         headers = {"X-CSRFToken": client.cookies["csrftoken"]}
@@ -138,7 +136,7 @@ def main():
 
             try:
                 with conn.transaction(), patch.object(repo, "_event", side_effect=fail):
-                    service.rename(doc["id"], "Rollback", "Renamed.txt", member)
+                    service.rename(doc["id"], "Rollback", "Renamed.txt", operator)
             except RuntimeError:
                 pass
             else:
@@ -150,19 +148,11 @@ def main():
             assert store.path(item.storage_key).is_file()
             cleanup.discard(item.storage_key)
             assert store.path(item.storage_key).is_file()
-            app.dependency_overrides[administrator] = lambda: member
-            assert (
-                client.post(
-                    "/api/recycle-bin/office/" + str(doc["id"]) + "/restore/", headers=headers
-                ).status_code
-                == 403
-            )
-            app.dependency_overrides[administrator] = lambda: admin
             deleted = client.get("/api/recycle-bin/").json()["items"]
             assert any(
                 row["kind"] == "office"
                 and row["id"] == doc["id"]
-                and row["deleted_by"] == member.username
+                and row["deleted_by"] == operator.username
                 and row["vehicle_id"] is None
                 for row in deleted
             )
@@ -175,21 +165,21 @@ def main():
             assert client.get(doc["download_url"]).content == b"office original"
             events = [
                 row
-                for row in recycling.list_activity(admin)
+                for row in recycling.list_activity(operator)
                 if row["entity_kind"] == "office" and row["entity_id"] == doc["id"]
             ]
             assert [row["action"] for row in events] == ["RESTORE", "DELETE", "RENAME", "CREATE"]
             assert all(row["vehicle_id"] is None for row in events)
             assert (
-                events[0]["actor_name"] == admin.username
-                and events[1]["actor_name"] == member.username
+                events[0]["actor_name"] == operator.username
+                and events[1]["actor_name"] == operator.username
             )
             for query, params in [
                 ("DELETE FROM hspace_office_attachment WHERE id=%s", (doc["id"],)),
                 ("UPDATE hspace_activity SET label=label WHERE id=%s", (events[0]["id"],)),
                 (
                     "INSERT INTO hspace_activity(entity_kind,entity_id,action,actor_id,actor_name,label) VALUES ('vehicle',1,'CREATE',%s,'fixture','fixture')",
-                    (member.id,),
+                    (operator.id,),
                 ),
             ]:
                 try:
@@ -212,7 +202,7 @@ def main():
             conn.rollback()
     preserved()
     print(
-        "PASS: schema 8/idempotency, preserved existing rows/media; office upload, private originals, section ZIPs, rename/conflict, atomic audit rollback, member deletion/admin recovery, retained bytes/cleanup, immutable events, scope guard and rolled-back fixtures. Sequences may advance."
+        "PASS: schema 8/idempotency, preserved existing rows/media; office upload, private originals, section ZIPs, rename/conflict, atomic audit rollback, operator deletion/operator recovery, retained bytes/cleanup, immutable events, scope guard and rolled-back fixtures. Sequences may advance."
     )
 
 

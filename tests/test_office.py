@@ -17,7 +17,7 @@ from limousine.domain.office import OfficeAttachment
 from limousine.domain.vehicles import DomainError, NotFound
 from limousine.presentation.web.app import create_app
 from limousine.presentation.web.security import current_user
-from tests.test_accounts import MEMBER
+from tests.test_accounts import OPERATOR
 from tests.test_vehicle_http import STAMP, photo
 from tests.uploads import SimpleUploadedFile
 
@@ -27,7 +27,7 @@ class OfficeTests(TestCase):
         temp = TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.app = create_app(Settings(media_root=Path(temp.name)))
-        self.app.dependency_overrides[current_user] = lambda: MEMBER
+        self.app.dependency_overrides[current_user] = lambda: OPERATOR
         self.repo = MagicMock()
         self.service = OfficeService(self.repo)
         self.app.state.office = self.service
@@ -73,7 +73,7 @@ class OfficeTests(TestCase):
         self.assertEqual(response.status_code, 201)
         args = self.repo.add.call_args.args
         self.assertTrue(args[0].startswith("office/"))
-        self.assertEqual(args[1:], ("office.txt", "file", 12, MEMBER))
+        self.assertEqual(args[1:], ("office.txt", "file", 12, OPERATOR))
         self.assertEqual(self.app.state.store.path(args[0]).read_bytes(), b"office bytes")
         self.repo.add.side_effect = DomainError("Failed metadata")
         self.assertEqual(
@@ -99,7 +99,7 @@ class OfficeTests(TestCase):
             headers=self.headers,
         )
         self.assertEqual(response.json()["attachment"]["name"], "New.png")
-        self.repo.rename.assert_called_once_with(7, "New.png", "office.png", MEMBER)
+        self.repo.rename.assert_called_once_with(7, "New.png", "office.png", OPERATOR)
         self.assertEqual(self.app.state.store.path(self.item.storage_key).read_bytes(), self.image)
         self.assertEqual(
             self.client.patch(
@@ -120,7 +120,7 @@ class OfficeTests(TestCase):
         self.assertEqual(
             self.client.delete(self.base + "7/", headers=self.headers).status_code, 204
         )
-        self.repo.delete.assert_called_once_with(7, MEMBER)
+        self.repo.delete.assert_called_once_with(7, OPERATOR)
         for method, kwargs in [
             ("delete", {}),
             ("patch", {"json": {"name": "A", "expected_name": "office.png"}}),
@@ -150,10 +150,9 @@ class OfficeTests(TestCase):
     def test_missing_deleted_files_and_domain_guards(self):
         self.repo.get.side_effect = NotFound("Deleted")
         self.assertEqual(self.client.get(self.base + "7/preview/").status_code, 404)
-        for actor in (None, replace(MEMBER, is_active=False)):
-            with self.assertRaises(AccessDenied):
-                self.service.delete(7, actor)
+        with self.assertRaises(AccessDenied):
+            self.service.delete(7, None)
         with self.assertRaises(DomainError):
-            self.service.add("vehicles/key", "x", "file", 1, MEMBER)
+            self.service.add("vehicles/key", "x", "file", 1, OPERATOR)
         with self.assertRaises(DomainError):
             self.service.download("all")

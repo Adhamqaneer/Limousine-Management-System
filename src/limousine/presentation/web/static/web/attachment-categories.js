@@ -1,4 +1,4 @@
-/* One category list serves existing attachments and all upload pickers. */
+/* One category list serves existing attachments and driver/office upload pickers. */
 (() => {
   const root = document.documentElement;
   const strings = {
@@ -301,8 +301,6 @@
     close();
   });
   const uploadPairs = [
-    ['photo-input', 'add-photos'],
-    ['file-input', 'add-files'],
     ['driver-files-input', 'driver-files-add'],
     ['office-photos-input', 'office-add-photos'],
     ['office-files-input', 'office-add-files'],

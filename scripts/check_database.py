@@ -10,8 +10,10 @@ sys.path.insert(0, str(ROOT / "src"))
 
 def main():
     from limousine.config.runtime import load_settings
+    from limousine.domain.accounts import OPERATOR_USERNAME
     from limousine.infrastructure.attachments import LocalAttachmentStore
     from limousine.infrastructure.database import Database
+    from limousine.infrastructure.migrations import SCHEMA_VERSION
 
     settings = load_settings()
     if (
@@ -30,6 +32,7 @@ def main():
                 "limo_attachment",
                 "limo_vehicle_cover",
                 "hspace_user",
+                "hspace_operator",
                 "hspace_session",
                 "hspace_file_cleanup",
                 "hspace_activity",
@@ -41,6 +44,12 @@ def main():
             )
         }
         report = {"counts": counts}
+        report["office_account_ready"] = counts["hspace_operator"] == 1 and bool(
+            connection.execute(
+                "SELECT 1 FROM hspace_operator o JOIN hspace_user u ON u.id=o.user_id WHERE u.username=%s",
+                (OPERATOR_USERNAME,),
+            ).fetchone()
+        )
         role = connection.execute(
             "SELECT rolsuper,rolcreatedb,rolcreaterole,rolreplication,rolbypassrls FROM pg_roles WHERE rolname=current_user"
         ).fetchone()
@@ -99,6 +108,7 @@ def main():
                 "limo_attachment_valid_key",
                 "limo_vehicle_cover_valid_key",
                 "hspace_session_hash_format",
+                "hspace_session_operator_fk",
             }
             - constraints
         )
@@ -190,6 +200,7 @@ def main():
     }
     report["ok"] = (
         report["restricted_database_role"]
+        and report["office_account_ready"]
         and not report["unvalidated_constraints"]
         and not missing
         and not report["missing_required_constraints"]
@@ -198,7 +209,7 @@ def main():
         and not report["missing_deletion_constraints"]
         and not report["missing_driver_triggers"]
         and not report["driver_state_mismatches"]
-        and report["schema_versions"] == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        and report["schema_versions"] == list(range(1, SCHEMA_VERSION + 1))
     )
     print(json.dumps(report, indent=2))
     return 0 if report["ok"] else 1

@@ -12,8 +12,8 @@ from PIL import Image
 from limousine.config.runtime import Settings
 from limousine.domain.vehicles import Attachment, NotFound, Vehicle, VehicleCover
 from limousine.presentation.web.app import create_app
-from limousine.presentation.web.security import administrator, current_user
-from tests.test_accounts import ADMIN
+from limousine.presentation.web.security import current_user
+from tests.test_accounts import OPERATOR
 
 STAMP = datetime.now(timezone.utc)
 
@@ -51,8 +51,7 @@ class VehicleHttpTests(TestCase):
         self.directory = TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.app = create_app(Settings(media_root=Path(self.directory.name)))
-        self.app.dependency_overrides[current_user] = lambda: ADMIN
-        self.app.dependency_overrides[administrator] = lambda: ADMIN
+        self.app.dependency_overrides[current_user] = lambda: OPERATOR
         self.service = MagicMock()
         self.app.state.vehicles = self.service
         self.app.state.cleanup = MagicMock()
@@ -73,7 +72,7 @@ class VehicleHttpTests(TestCase):
         self.assertEqual(response.status_code, 201)
         self.client.patch("/api/vehicles/1/", json={"owner_name": "Owner"}, headers=self.headers)
         self.service.create_vehicle.assert_called_once_with(
-            plate_number="001", vehicle_type="Sedan", actor=ADMIN
+            plate_number="001", vehicle_type="Sedan", actor=OPERATOR
         )
         self.service.update_vehicle.assert_called_once_with(1, owner_name="Owner")
         self.assertNotIn("storage_key", response.text)
@@ -191,9 +190,9 @@ class VehicleHttpTests(TestCase):
     def test_jinja_pages_and_csrf_cookie_are_stable_between_tabs(self):
         response = self.client.get("/")
         self.assertIn("H SPACE | Vehicles", response.text)
-        self.assertIn('href="/users/"', response.text)
+        self.assertNotIn('href="/users/"', response.text)
         self.assertEqual(self.client.cookies["csrftoken"], self.headers["X-CSRFToken"])
-        self.assertEqual(self.client.get("/users/").status_code, 200)
+        self.assertEqual(self.client.get("/recycle-bin/").status_code, 200)
 
     def test_delete_requires_csrf_and_does_not_accept_get(self):
         for url in ("/api/vehicles/1/attachments/2/", "/api/vehicles/1/cover/"):
@@ -206,7 +205,7 @@ class VehicleHttpTests(TestCase):
         self.service.delete_attachment.return_value = "key-for-attachment"
         response = self.client.delete("/api/vehicles/1/attachments/2/", headers=self.headers)
         self.assertEqual(response.status_code, 204)
-        self.service.delete_attachment.assert_called_once_with(1, 2, actor=ADMIN)
+        self.service.delete_attachment.assert_called_once_with(1, 2, actor=OPERATOR)
         self.app.state.cleanup.process.assert_not_called()
         self.app.state.cleanup.reset_mock()
         self.service.delete_attachment.side_effect = NotFound()
@@ -227,7 +226,7 @@ class VehicleHttpTests(TestCase):
         self.assertEqual(
             self.client.delete("/api/vehicles/1/cover/", headers=self.headers).status_code, 204
         )
-        self.service.delete_cover.assert_called_once_with(1, actor=ADMIN)
+        self.service.delete_cover.assert_called_once_with(1, actor=OPERATOR)
         self.service.delete_attachment.assert_not_called()
         self.app.state.cleanup.process.assert_not_called()
 

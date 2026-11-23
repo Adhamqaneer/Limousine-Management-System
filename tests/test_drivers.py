@@ -14,18 +14,18 @@ from limousine.domain.drivers import (
 from limousine.domain.vehicles import DomainError
 from limousine.presentation.web.app import create_app
 from limousine.presentation.web.security import current_user
-from tests.test_accounts import MEMBER
+from tests.test_accounts import OPERATOR
 
 
 class DriverRuleTests(TestCase):
     def test_end_uses_inclusive_last_day_and_keeps_a_future_gap_available(self):
         repo = MagicMock()
         service = DriverService(repo, today=lambda: date(2026, 11, 18))
-        service.end(1, 4, "2026-11-10", MEMBER)
-        repo.end_driver.assert_called_once_with(1, 4, date(2026, 11, 11), MEMBER)
+        service.end(1, 4, "2026-11-10", OPERATOR)
+        repo.end_driver.assert_called_once_with(1, 4, date(2026, 11, 11), OPERATOR)
         for value in ("2026-11-19", "2026-02-30", "", None):
             with self.subTest(value=value), self.assertRaises(DriverValidationError):
-                service.end(1, 4, value, MEMBER)
+                service.end(1, 4, value, OPERATOR)
 
     def test_invalid_input_has_stable_field_and_reason(self):
         service = DriverService(MagicMock(), today=lambda: date(2022, 1, 1))
@@ -38,7 +38,7 @@ class DriverRuleTests(TestCase):
         ]
         for name, phone, start, field, reason in cases:
             with self.subTest(reason=reason), self.assertRaises(DriverValidationError) as result:
-                service.assign(1, name, phone, start, MEMBER)
+                service.assign(1, name, phone, start, OPERATOR)
             self.assertEqual((result.exception.field, result.exception.reason), (field, reason))
         with self.assertRaises(DriverValidationError) as result:
             validate_boundary(date(2021, 1, 1), date(2022, 1, 1))
@@ -65,20 +65,20 @@ class DriverRuleTests(TestCase):
     def test_assignment_and_correction_are_distinct_and_validate_phone(self):
         repo = MagicMock()
         service = DriverService(repo)
-        service.assign(1, " Driver ", "00123", "2022-01-01", MEMBER)
+        service.assign(1, " Driver ", "00123", "2022-01-01", OPERATOR)
         repo.change_driver.assert_called_with(
-            1, {"driver_name": "Driver", "driver_phone": "00123"}, date(2022, 1, 1), MEMBER
+            1, {"driver_name": "Driver", "driver_phone": "00123"}, date(2022, 1, 1), OPERATOR
         )
-        service.correct(1, "Driver", "00124", None, MEMBER)
+        service.correct(1, "Driver", "00124", None, OPERATOR)
         repo.change_driver.assert_called_with(
-            1, {"driver_name": "Driver", "driver_phone": "00124"}, None, MEMBER, correcting=True
+            1, {"driver_name": "Driver", "driver_phone": "00124"}, None, OPERATOR, correcting=True
         )
         for name, phone in (("", "123"), ("Driver1", "123"), ("Driver", "+123")):
             with self.assertRaises(DomainError):
-                service.assign(1, name, phone, "2022-01-01", MEMBER)
+                service.assign(1, name, phone, "2022-01-01", OPERATOR)
         with self.assertRaises(DomainError):
             DriverService(repo, today=lambda: date(2022, 1, 1)).assign(
-                1, "Driver", "123", "2022-01-02", MEMBER
+                1, "Driver", "123", "2022-01-02", OPERATOR
             )
 
 
@@ -87,7 +87,7 @@ class DriverHttpTests(TestCase):
         from limousine.domain.vehicles import Vehicle
         from tests.test_vehicle_http import STAMP
 
-        self.app.dependency_overrides[current_user] = lambda: MEMBER
+        self.app.dependency_overrides[current_user] = lambda: OPERATOR
         self.app.state.vehicles = MagicMock()
         self.app.state.vehicles.get_vehicle.return_value = Vehicle(
             1, "001", STAMP, vehicle_type="Camry"
@@ -98,7 +98,7 @@ class DriverHttpTests(TestCase):
         response = self.client.post(url, json=body, headers=self.headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["vehicle"]["driver_name"], "")
-        self.service.end.assert_called_once_with(1, 4, "2026-11-10", MEMBER)
+        self.service.end.assert_called_once_with(1, 4, "2026-11-10", OPERATOR)
         self.assertEqual(
             self.client.post(
                 url, json={**body, "driver_name": "fake"}, headers=self.headers
@@ -131,7 +131,7 @@ class DriverHttpTests(TestCase):
         from limousine.domain.vehicles import Vehicle
         from tests.test_vehicle_http import STAMP
 
-        self.app.dependency_overrides[current_user] = lambda: MEMBER
+        self.app.dependency_overrides[current_user] = lambda: OPERATOR
         self.app.state.vehicles = MagicMock()
         self.app.state.vehicles.get_vehicle.return_value = Vehicle(
             1, "001", STAMP, vehicle_type="Camry"
@@ -149,14 +149,14 @@ class DriverHttpTests(TestCase):
             ).status_code,
             200,
         )
-        self.service.assign.assert_called_once_with(1, "Driver", "00123", "2022-01-01", MEMBER)
+        self.service.assign.assert_called_once_with(1, "Driver", "00123", "2022-01-01", OPERATOR)
         self.assertEqual(
             self.client.patch(
                 "/api/vehicles/1/drivers/current/", json=body, headers=self.headers
             ).status_code,
             200,
         )
-        self.service.correct.assert_called_once_with(1, "Driver", "00123", "2022-01-01", MEMBER)
+        self.service.correct.assert_called_once_with(1, "Driver", "00123", "2022-01-01", OPERATOR)
         self.assertEqual(
             self.client.post(
                 "/api/vehicles/1/drivers/", json={**body, "actor": "fake"}, headers=self.headers
@@ -175,7 +175,7 @@ class DriverHttpTests(TestCase):
     def test_validation_error_identifies_the_driver_field(self):
         from limousine.domain.drivers import DriverValidationError
 
-        self.app.dependency_overrides[current_user] = lambda: MEMBER
+        self.app.dependency_overrides[current_user] = lambda: OPERATOR
         self.service.assign.side_effect = DriverValidationError(
             "driver_phone", "phoneRule", "Use English digits."
         )

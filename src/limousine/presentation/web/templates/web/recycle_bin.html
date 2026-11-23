@@ -19,7 +19,7 @@
         <div class="heading-copy">
           <h1 data-i18n="trashTitle">Deleted items</h1>
           <p class="muted" data-i18n="trashDescription">
-            Files are retained. Only the administrator can restore deleted items.
+            Restore deleted records and files.
           </p>
         </div>
         {% include 'web/_record_signature.html' %}
@@ -36,7 +36,7 @@
           Restore the vehicle first. Files deleted separately stay deleted. To recover an older card
           photo, remove the current card photo first.
         </p>
-        <div class="team-list recycle-list" id="deleted-list" aria-busy="true"></div>
+        <div class="recovery-grid recycle-list" id="deleted-list" aria-busy="true"></div>
       </section>
       <section class="activity-section" aria-labelledby="activity-title">
         <h2 id="activity-title" data-i18n="activityTitle">Activity history</h2>
@@ -44,7 +44,7 @@
           New additions, name changes, deletions and restorations are recorded. Earlier uploader
           identities are unknown.
         </p>
-        <div id="activity-list" class="team-list"></div>
+        <div id="activity-list" class="recovery-grid"></div>
         <button
           id="older-activity"
           class="button secondary"

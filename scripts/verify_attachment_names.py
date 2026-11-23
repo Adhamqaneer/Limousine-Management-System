@@ -60,11 +60,7 @@ def main():
     assert migrate(db) is None
     with db.connect() as conn:
         assert conn.execute("SELECT 1 FROM hspace_schema_migration WHERE version=6").fetchone()
-    member = next(
-        user
-        for user in PostgresAccountRepository(db).list_users()
-        if user.role == "MEMBER" and user.can_login
-    )
+    operator = PostgresAccountRepository(db).operator()
     with TemporaryDirectory(prefix="hspace-rename-") as directory, db.connect() as conn:
 
         class TransactionDatabase:
@@ -76,19 +72,19 @@ def main():
         service = VehicleService(repo)
         store = LocalAttachmentStore(directory)
         try:
-            car = service.create_vehicle("00999-002", "Camry", actor=member)
+            car = service.create_vehicle("00999-002", "Camry", actor=operator)
             image = io.BytesIO()
             Image.new("RGB", (2, 2), "white").save(image, "PNG")
             items, contents = [], [image.getvalue(), b"original document 00123"]
             for name, content in zip(["Original.PNG", "Original.txt"], contents):
                 source = io.BytesIO(content)
                 stored = store.save(SimpleNamespace(name=name, size=len(content), read=source.read))
-                items.append(service.add_attachment(car.id, actor=member, **vars(stored)))
+                items.append(service.add_attachment(car.id, actor=operator, **vars(stored)))
             app = create_app(settings)
             app.state.media_layout = None  # Fixture storage is managed by this script.
             app.state.vehicles = service
             app.state.store = store
-            app.dependency_overrides[current_user] = lambda: member
+            app.dependency_overrides[current_user] = lambda: operator
             client = TestClient(app)
             client.get("/login/")
             headers = {"X-CSRFToken": client.cookies["csrftoken"]}
@@ -133,12 +129,12 @@ def main():
                 if event["vehicle_id"] == car.id and event["action"] == "RENAME"
             ]
             assert len(events) == 2 and all(
-                event["actor_name"] == member.username for event in events
+                event["actor_name"] == operator.username for event in events
             )
             current = service.get_attachment(car.id, items[0].id)
             try:
                 repo.rename_attachment(
-                    car.id, current.id, "Stale.PNG", expected_name="old.PNG", actor=member
+                    car.id, current.id, "Stale.PNG", expected_name="old.PNG", actor=operator
                 )
             except AttachmentNameConflict:
                 pass
@@ -149,14 +145,14 @@ def main():
                     repo, "_event", side_effect=RuntimeError("fixture rollback")
                 ):
                     service.rename_attachment(
-                        car.id, current.id, "Not saved", current.original_name, actor=member
+                        car.id, current.id, "Not saved", current.original_name, actor=operator
                     )
             except RuntimeError:
                 pass
             else:
                 raise AssertionError("Expected the audit write to fail.")
             assert service.get_attachment(car.id, current.id).original_name == current.original_name
-            service.delete_attachment(car.id, current.id, actor=member)
+            service.delete_attachment(car.id, current.id, actor=operator)
             assert (
                 client.patch(
                     f"/api/vehicles/{car.id}/attachments/{current.id}/",
@@ -165,7 +161,7 @@ def main():
                 ).status_code
                 == 404
             )
-            repo.delete_vehicle(car.id, member)
+            repo.delete_vehicle(car.id, operator)
             assert (
                 client.patch(
                     f"/api/vehicles/{car.id}/attachments/{items[1].id}/",
@@ -178,7 +174,7 @@ def main():
             conn.rollback()
     assert snapshot() == before and media_manifest(settings.media_root) == files
     print(
-        "PASS: schema 6/idempotency, original rows/files preserved, member rename/download/ZIP, fixed extensions, conflict checks, actor audit, transactional rollback and deleted-parent masking. Test fixtures rolled back; sequences may advance."
+        "PASS: schema 6/idempotency, original rows/files preserved, operator rename/download/ZIP, fixed extensions, conflict checks, actor audit, transactional rollback and deleted-parent masking. Test fixtures rolled back; sequences may advance."
     )
 
 

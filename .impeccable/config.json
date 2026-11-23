@@ -29,6 +29,24 @@
         ],
         "createdAt": "2026-11-21T20:38:32.345Z",
         "reason": "Agent review: detector cannot resolve Jinja static() stylesheet and incorrectly reports body/h1/h2 at 16px. Download uses branded-page-heading heading-copy; shared app.css sets h1 to 28-44px (28px mobile), body to 16px. Preserve the existing hierarchy."
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "src/limousine/presentation/web/templates/web/recycle_bin.html"
+        ],
+        "createdAt": "2026-11-22T16:13:45.551Z",
+        "reason": "Agent review: detector could not read the Jinja static() stylesheet and reported all roles at 16px. Shared app.css sets the branded page h1 to 28–44px against 16px body text."
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "src/limousine/presentation/web/templates/web/login.html"
+        ],
+        "createdAt": "2026-11-22T16:13:45.645Z",
+        "reason": "Agent review: detector could not read the Jinja static() stylesheet and reported all roles at 16px. Shared app.css sets the story h1 to 40–80px across breakpoints and the form h2 to 32–36px against 16px body text."
       }
     ]
   }

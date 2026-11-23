@@ -1,4 +1,4 @@
-/* Shared language/theme controls for Team and Office-document pages. */
+/* Shared language/theme controls for workspace pages. */
 (() => {
   const root = document.documentElement;
   function save(key, value) {

@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from limousine.config.runtime import Settings
 from limousine.presentation.web.app import create_app
 from limousine.presentation.web.security import current_user
-from tests.test_accounts import ADMIN, MEMBER
+from tests.test_accounts import OPERATOR
 
 
 class VehicleReportTests(TestCase):
@@ -20,28 +20,27 @@ class VehicleReportTests(TestCase):
         self.assertEqual(response.headers["location"], "/login/")
         self.assertIn("no-store", response.headers["cache-control"])
 
-    def test_both_roles_can_open_report_without_mutating_or_loading_records(self):
+    def test_operator_can_open_report_without_mutating_or_loading_records(self):
         service = MagicMock()
         self.app.state.vehicles = service
-        for user in (ADMIN, MEMBER):
-            self.app.dependency_overrides[current_user] = lambda: user
-            response = self.client.get("/reports/vehicles/")
-            self.assertEqual(response.status_code, 200)
-            self.assertIn('id="report-choices"', response.text)
-            self.assertIn('id="print-report" disabled', response.text)
-            self.assertIn('lang="en" dir="ltr"', response.text)
-            self.assertIn('aria-current="page"', response.text)
-            self.assertIn("no-store", response.headers["cache-control"])
+        self.app.dependency_overrides[current_user] = lambda: OPERATOR
+        response = self.client.get("/reports/vehicles/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('id="report-choices"', response.text)
+        self.assertIn('id="print-report" disabled', response.text)
+        self.assertIn('lang="en" dir="ltr"', response.text)
+        self.assertIn('aria-current="page"', response.text)
+        self.assertIn("no-store", response.headers["cache-control"])
         self.assertEqual(service.mock_calls, [])
 
     def test_report_assets_are_available_and_native_print_stays_read_only(self):
-        self.app.dependency_overrides[current_user] = lambda: MEMBER
+        self.app.dependency_overrides[current_user] = lambda: OPERATOR
         for asset in ("vehicle-report.css", "vehicle-report.js", "report-data.js"):
             self.assertEqual(self.client.get("/static/web/" + asset).status_code, 200)
         self.assertEqual(self.client.post("/reports/vehicles/").status_code, 405)
 
     def test_letterhead_is_in_repeating_table_head_and_watermark_is_decorative(self):
-        self.app.dependency_overrides[current_user] = lambda: MEMBER
+        self.app.dependency_overrides[current_user] = lambda: OPERATOR
         html = self.client.get("/reports/vehicles/").text
         heading = html.split("<thead>", 1)[1].split("</thead>", 1)[0]
         self.assertIn('class="office-letterhead"', heading)

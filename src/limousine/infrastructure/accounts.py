@@ -1,27 +1,11 @@
-"""PostgreSQL accounts and revocable opaque sessions; no JWT dependency."""
+"""PostgreSQL sign-in for the office account and revocable opaque sessions."""
 
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
 
-from limousine.domain.accounts import Role, User, normalize_username, validate_slot
-from limousine.domain.vehicles import NotFound
+from limousine.domain.accounts import OPERATOR_USERNAME, User
 from limousine.infrastructure.passwords import hash_password, verify_password
-
-
-def user_from_row(row):
-    return User(
-        row["id"],
-        row["slot"],
-        row["username"],
-        Role(row["role"]),
-        row["is_active"],
-        row["is_deleted"],
-        row["deleted_at"],
-        row["created_at"],
-        row["last_login"],
-    )
 
 
 def token_hash(token):
@@ -32,66 +16,49 @@ class PostgresAccountRepository:
     def __init__(self, database):
         self.database = database
 
-    def authenticate(self, username, password):
+    def sign_in(self, username, password, seconds, previous_token=""):
         with self.database.connect() as connection:
+            # Hold the credential stable until the session is created.
             row = connection.execute(
-                "SELECT * FROM hspace_user WHERE username=%s", (username,)
+                "SELECT user_id,password_hash FROM hspace_operator FOR SHARE"
             ).fetchone()
-            # A dummy hash keeps missing users on the same expensive verification path.
             encoded = row["password_hash"] if row else "pbkdf2_sha256$1000000$dummy$invalid"
-            matches = verify_password(password, encoded)
-            return (
-                user_from_row(row)
-                if row and matches and row["is_active"] and not row["is_deleted"]
-                else None
+            if not verify_password(password, encoded) or not row or username != OPERATOR_USERNAME:
+                return None
+            token = secrets.token_urlsafe(32)
+            expires = datetime.now(timezone.utc) + timedelta(seconds=seconds)
+            connection.execute(
+                "DELETE FROM hspace_session WHERE expires_at <= CURRENT_TIMESTAMP OR token_hash=%s",
+                (token_hash(previous_token),),
             )
-
-    def list_users(self):
-        with self.database.connect() as connection:
-            return [
-                user_from_row(row)
-                for row in connection.execute("SELECT * FROM hspace_user ORDER BY slot").fetchall()
-            ]
-
-    def get_user(self, user_id):
-        with self.database.connect() as connection:
-            row = connection.execute("SELECT * FROM hspace_user WHERE id=%s", (user_id,)).fetchone()
-            if not row:
-                raise NotFound("Account not found.")
-            return user_from_row(row)
-
-    def create_session(self, user_id, seconds):
-        token = secrets.token_urlsafe(32)
-        expires = datetime.now(timezone.utc) + timedelta(seconds=seconds)
-        with self.database.connect() as connection:
-            connection.execute("DELETE FROM hspace_session WHERE expires_at <= CURRENT_TIMESTAMP")
             connection.execute(
                 "INSERT INTO hspace_session (token_hash,user_id,expires_at) VALUES (%s,%s,%s)",
-                (token_hash(token), user_id, expires),
+                (token_hash(token), row["user_id"], expires),
             )
             connection.execute(
-                "UPDATE hspace_user SET last_login=CURRENT_TIMESTAMP WHERE id=%s", (user_id,)
+                "UPDATE hspace_user SET last_login=CURRENT_TIMESTAMP WHERE id=%s",
+                (row["user_id"],),
             )
-        return token
+            return token
+
+    def operator(self):
+        with self.database.connect() as connection:
+            row = connection.execute("SELECT user_id FROM hspace_operator").fetchone()
+            if not row:
+                raise ValueError("Set up the office account first.")
+            return User(row["user_id"], OPERATOR_USERNAME)
 
     def session_user(self, token):
         if not token or len(token) > 128:
             return None
         with self.database.connect() as connection:
             row = connection.execute(
-                """
-
-                    SELECT u.*
-                    FROM hspace_user u
-                    JOIN hspace_session s ON s.user_id=u.id
-                    WHERE s.token_hash=%s
-                      AND s.expires_at>CURRENT_TIMESTAMP
-                      AND u.is_active
-                      AND NOT u.is_deleted
-                """,
+                """SELECT s.user_id FROM hspace_session s
+                   JOIN hspace_operator o ON o.user_id=s.user_id
+                   WHERE s.token_hash=%s AND s.expires_at>CURRENT_TIMESTAMP""",
                 (token_hash(token),),
             ).fetchone()
-            return user_from_row(row) if row else None
+            return User(row["user_id"], OPERATOR_USERNAME) if row else None
 
     def delete_session(self, token):
         if token:
@@ -100,46 +67,12 @@ class PostgresAccountRepository:
                     "DELETE FROM hspace_session WHERE token_hash=%s", (token_hash(token),)
                 )
 
-    def update_status(self, user_id, active, deleted):
-        with self.database.connect() as connection:
-            row = connection.execute(
-                """
-
-                    UPDATE hspace_user
-                    SET is_active=%s,is_deleted=%s,deleted_at=CASE
-                                                                  WHEN %s THEN COALESCE(deleted_at,
-                                                                                 CURRENT_TIMESTAMP) ELSE NULL
-                                                              END
-                    WHERE id=%s
-                      AND role<>'ADMIN' RETURNING *
-                """,
-                (active, deleted, deleted, user_id),
-            ).fetchone()
-            if not row:
-                raise NotFound("Account not found or protected.")
-            connection.execute("DELETE FROM hspace_session WHERE user_id=%s", (user_id,))
-            return user_from_row(row)
-
-    def set_operator(self, slot, username, password):
-        validate_slot(slot)
-        username = normalize_username(username)
+    def set_password(self, password):
         encoded = hash_password(password)
         with self.database.connect() as connection:
-            connection.execute("SELECT pg_advisory_xact_lock(72730804)")
-            for row in connection.execute("SELECT slot,password_hash FROM hspace_user").fetchall():
-                if row["slot"] != slot and verify_password(password, row["password_hash"]):
-                    raise ValueError("Each account must have a different password.")
-            role = "ADMIN" if slot == 1 else "MEMBER"
-            row = connection.execute(
-                """
-
-                    INSERT INTO hspace_user (id,
-                                   slot, username, password_hash, role, is_active, is_deleted, created_at)
-                    VALUES (%s,%s,%s,%s,%s,TRUE,FALSE,CURRENT_TIMESTAMP) ON CONFLICT (slot) DO
-                    UPDATE
-                    SET username=EXCLUDED.username,password_hash=EXCLUDED.password_hash RETURNING *
-                """,
-                (uuid4(), slot, username, encoded, role),
-            ).fetchone()
-            connection.execute("DELETE FROM hspace_session WHERE user_id=%s", (row["id"],))
-            return user_from_row(row)
+            updated = connection.execute(
+                "UPDATE hspace_operator SET password_hash=%s", (encoded,)
+            )
+            if updated.rowcount != 1:
+                raise ValueError("Set up the office account first.")
+            connection.execute("DELETE FROM hspace_session")

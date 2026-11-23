@@ -3,7 +3,6 @@
 
 import argparse
 import sys
-from getpass import getpass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -20,9 +19,7 @@ def main():
     commands.add_parser("test")
     commands.add_parser("migrate")
     commands.add_parser("cleanupfiles")
-    operator = commands.add_parser("setoperator")
-    operator.add_argument("slot", type=int, choices=range(1, 5))
-    operator.add_argument("username")
+    commands.add_parser("setpassword")
     args = parser.parse_args()
     if args.command == "runserver":
         import uvicorn
@@ -47,7 +44,6 @@ def main():
             "login.html",
             "home.html",
             "document_preview.html",
-            "users.html",
             "vehicle_report.html",
             "recycle_bin.html",
             "drivers.html",
@@ -61,9 +57,12 @@ def main():
     elif args.command == "migrate":
         from limousine.config.runtime import load_settings
         from limousine.infrastructure.database import Database
-        from limousine.infrastructure.migrations import migrate
+        from limousine.infrastructure.migrations import migrate, needs_operator_setup
+        from limousine.infrastructure.passwords import prompt_password
 
-        backup = migrate(Database(load_settings()))
+        database = Database(load_settings())
+        password = prompt_password() if needs_operator_setup(database) else None
+        backup = migrate(database, operator_password=password)
         print("PostgreSQL migration completed. Existing vehicles/files preserved.")
         if backup:
             print("Pre-migration database backup saved under .local/backups/.")
@@ -80,18 +79,14 @@ def main():
         print(
             f"Cleanup batch: {completed} completed; {pending} deferred. Up to 100 entries per run."
         )
-    elif args.command == "setoperator":
+    elif args.command == "setpassword":
         from limousine.config.runtime import load_settings
         from limousine.infrastructure.accounts import PostgresAccountRepository
         from limousine.infrastructure.database import Database
+        from limousine.infrastructure.passwords import prompt_password
 
-        password = getpass("New password: ")
-        if password != getpass("Confirm password: "):
-            raise ValueError("Passwords do not match.")
-        PostgresAccountRepository(Database(load_settings())).set_operator(
-            args.slot, args.username, password
-        )
-        print("Account saved. Existing sessions revoked.")
+        PostgresAccountRepository(Database(load_settings())).set_password(prompt_password())
+        print("Office password updated. Existing sessions revoked.")
     return 0
 
 

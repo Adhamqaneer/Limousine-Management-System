@@ -11,9 +11,9 @@ Jinja HTML templates, CSS and plain JavaScript; no build step or npm runtime dep
 | search.js / vehicle-filters.js | Fuzzy plate/type search and owner/model/type filters |
 | ui-state.js | Unsaved detail drafts in page memory |
 | drivers.js / driver-files.js | Period workflow and scoped documents |
-| office-files.js / recycle-bin.js / users.js | Office documents, recovery and accounts |
+| office-files.js / recycle-bin.js | Office documents and recovery |
 | report-data.js / vehicle-report.js / vehicle-report.css | Selected fields, filtered results and printing |
-| attachment-categories.js | Shared upload labels and existing-file classification dialog |
+| attachment-categories.js | Existing attachment classification and driver/office upload pickers |
 | attachment-download.js | Select document types and download the filtered vehicle originals as ZIP |
 | login.js / document_preview.js | Sign-in and local document preview |
 
@@ -27,13 +27,13 @@ Cards use five columns from 1200px and fewer at smaller widths. Photos have 64x4
 
 Template asset URLs include content versions to avoid stale scripts. WebP MIME is explicitly registered for Windows. Refresh after assets change; restart after Python changes.
 
-Active navigation classes use a complete Jinja string expression so template formatters cannot merge nav-link and active. The navigation regression test renders all six destinations and checks the base layout class, active state and aria-current.
+Active navigation classes use a complete Jinja string expression so template formatters cannot merge nav-link and active. The navigation regression test renders all five destinations and checks the base layout class, active state and aria-current.
 
 ## Printing and previews
 
 Reports use HTML tables and browser print/PDF. Letterhead mode adds the office banner/watermark; preprinted-paper mode omits them. Screen controls/decorative page headings are hidden in print. Driver periods have their own report. DOCX/XLSX previews are local bounded text/table conversions; original formatting/images/formulas may differ.
 
-Attachment type choices load from the authenticated shared API. The download page has type checkboxes and one Download ZIP action, scoped to the current vehicle search/filters. It posts the selection with CSRF and saves the returned original-file archive. Upload labels and existing-file classification remain separate from filenames. This feature adds no attachment print/PDF rendering; the existing vehicle-data and driver-history reports retain their print behavior.
+Attachment type choices load from the authenticated shared API. Vehicle Photos and Files upload to Other by default. Each uploaded row has a category button that opens the classification dialog. Driver and office upload controls also offer a category picker. The download page has type checkboxes and one Download ZIP action, scoped to the current vehicle search/filters. It posts the selection with CSRF and saves the returned original-file archive. Categories are independent of filenames. This feature adds no attachment print/PDF rendering; the existing vehicle-data and driver-history reports retain their print behavior.
 
 ## Checks
 

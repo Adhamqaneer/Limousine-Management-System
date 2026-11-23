@@ -75,8 +75,7 @@ def main():
                     and row["created_by"] is None
                     and row["created_at"] is None
                 )
-    users = PostgresAccountRepository(db).list_users()
-    member = next(user for user in users if user.role == "MEMBER" and user.can_login)
+    operator = PostgresAccountRepository(db).operator()
     with db.connect() as conn:
 
         class TransactionDatabase:
@@ -90,7 +89,7 @@ def main():
         drivers = DriverService(PostgresDriverRepository(transactional))
         recycling = RecyclingService(repo)
         car = vehicles.create_vehicle(
-            "00998-001", "Camry", driver_name="Old Driver", driver_phone="00123", actor=member
+            "00998-001", "Camry", driver_name="Old Driver", driver_phone="00123", actor=operator
         )
         initial = drivers.history(car.id)
         assert len(initial) == 1 and initial[0]["started_on"] is None
@@ -98,7 +97,7 @@ def main():
         app.state.media_layout = None  # Fixture storage is managed by this script.
         app.state.drivers = drivers
         app.state.vehicles = vehicles
-        app.dependency_overrides[current_user] = lambda: member
+        app.dependency_overrides[current_user] = lambda: operator
         client = TestClient(app)
         client.get("/login/")
         headers = {"X-CSRFToken": client.cookies["csrftoken"]}
@@ -119,7 +118,7 @@ def main():
             correction["before_data"]["driver_phone"] == "00123"
             and correction["after_data"]["driver_phone"] == "00124"
         )
-        assert correction["actor_name"] == member.username
+        assert correction["actor_name"] == operator.username
         write("New Driver", "0079", "2022-01-01")
         assert len(drivers.history(car.id)) == 2
         assert drivers.history(car.id, "", "2021-01-01")[0]["driver_name"] == "Old Driver"
@@ -158,7 +157,7 @@ def main():
             pass
         else:
             raise AssertionError("Direct driver overwrite allowed")
-        recycling.delete_vehicle(car.id, member)
+        recycling.delete_vehicle(car.id, operator)
         assert client.get("/api/drivers/?q=Old").status_code == 200
         assert not any(row["vehicle_id"] == car.id for row in drivers.history())
         assert client.get(f"/api/vehicles/{car.id}/drivers/").status_code == 404

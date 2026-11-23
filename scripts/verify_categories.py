@@ -46,11 +46,7 @@ def main():
     database = Database(settings)
     assert migrate(database) is None, "Apply the documented migration first."
     originals = media_manifest(settings.media_root)
-    member = next(
-        user
-        for user in PostgresAccountRepository(database).list_users()
-        if user.role == "MEMBER" and user.can_login
-    )
+    operator = PostgresAccountRepository(database).operator()
     tables = (
         "limo_vehicle",
         "limo_attachment",
@@ -99,7 +95,7 @@ def main():
         app.state.attachment_download = AttachmentDownloadService(
             PostgresAttachmentDownloadRepository(fixture_db)
         )
-        app.dependency_overrides[current_user] = lambda: member
+        app.dependency_overrides[current_user] = lambda: operator
         client = TestClient(app)
         client.get("/login/")
         headers = {"X-CSRFToken": client.cookies["csrftoken"]}
@@ -143,9 +139,9 @@ def main():
             post(f"/api/attachment-categories/{target}/aliases/", {"name": "Fixture policy"}, 409)
             post(f"/api/attachment-categories/{source}/merge/", {"target_id": other}, 400)
             car = app.state.vehicles.create_vehicle(
-                "00999-901", "Camry", actor=member, driver_name="Fixture Driver"
+                "00999-901", "Camry", actor=operator, driver_name="Fixture Driver"
             )
-            missing_car = app.state.vehicles.create_vehicle("00999-902", "Camry", actor=member)
+            missing_car = app.state.vehicles.create_vehicle("00999-902", "Camry", actor=operator)
             base = f"/api/vehicles/{car.id}/attachments/"
             image = io.BytesIO()
             Image.new("RGB", (10, 8), "white").save(image, "PNG")
@@ -327,13 +323,13 @@ def main():
                 ([source, target],),
             ).fetchall()
             assert {"CREATE", "ALIAS", "MERGE"} <= {event["action"] for event in events}
-            assert all(event["actor_id"] == member.id for event in events)
+            assert all(event["actor_id"] == operator.id for event in events)
         finally:
             connection.rollback()
     assert snapshot() == original_records
     assert media_manifest(settings.media_root) == originals
     print(
-        "PASS: member category/alias/merge, duplicate guards, stale uploads, all attachment scopes, deleted-file retention, ZIP originals grouped by plate and missing documents. Fixture rows rolled back; originals unchanged; sequences may advance."
+        "PASS: operator category/alias/merge, duplicate guards, stale uploads, all attachment scopes, deleted-file retention, ZIP originals grouped by plate and missing documents. Fixture rows rolled back; originals unchanged; sequences may advance."
     )
 
 

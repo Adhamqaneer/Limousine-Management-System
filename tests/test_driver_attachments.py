@@ -11,7 +11,7 @@ from limousine.config.runtime import Settings
 from limousine.domain.vehicles import Attachment, NotFound, Vehicle
 from limousine.presentation.web.app import create_app
 from limousine.presentation.web.security import current_user
-from tests.test_accounts import MEMBER
+from tests.test_accounts import OPERATOR
 from tests.test_vehicle_http import STAMP, photo
 from tests.uploads import SimpleUploadedFile
 
@@ -21,7 +21,7 @@ class DriverAttachmentTests(TestCase):
         directory = TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         self.app = create_app(Settings(media_root=Path(directory.name)))
-        self.app.dependency_overrides[current_user] = lambda: MEMBER
+        self.app.dependency_overrides[current_user] = lambda: OPERATOR
         self.service = MagicMock()
         self.app.state.vehicles = self.service
         self.service.get_vehicle.return_value = Vehicle(1, "001", STAMP, vehicle_type="Camry")
@@ -57,18 +57,18 @@ class DriverAttachmentTests(TestCase):
             201,
         )
         self.assertEqual(self.service.add_attachment.call_args.kwargs["assignment_id"], 4)
-        self.assertEqual(self.service.add_attachment.call_args.kwargs["actor"], MEMBER)
+        self.assertEqual(self.service.add_attachment.call_args.kwargs["actor"], OPERATOR)
         body = {"name": "New", "expected_name": "identity.png"}
         self.assertEqual(
             self.client.patch(self.base + "5/", json=body, headers=self.headers).status_code, 200
         )
         self.service.rename_attachment.assert_called_once_with(
-            1, 5, "New", "identity.png", actor=MEMBER, assignment_id=4
+            1, 5, "New", "identity.png", actor=OPERATOR, assignment_id=4
         )
         self.assertEqual(
             self.client.delete(self.base + "5/", headers=self.headers).status_code, 204
         )
-        self.service.delete_attachment.assert_called_once_with(1, 5, actor=MEMBER, assignment_id=4)
+        self.service.delete_attachment.assert_called_once_with(1, 5, actor=OPERATOR, assignment_id=4)
 
     def test_mutations_require_csrf_and_all_routes_require_authentication(self):
         self.assertEqual(

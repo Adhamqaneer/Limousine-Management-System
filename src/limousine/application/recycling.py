@@ -22,16 +22,16 @@ class RecyclingService:
         return self.repository.delete_vehicle(vehicle_id, actor)
 
     def list_deleted(self, actor):
-        require_actor(actor, restoring=True)
+        require_actor(actor)
         return self.repository.list_deleted()
 
     def restore_item(self, kind, item_id, actor):
-        require_actor(actor, restoring=True)
+        require_actor(actor)
         validate_kind(kind)
         return self.repository.restore_item(kind, item_id, actor)
 
     def list_activity(self, actor, before=None):
-        require_actor(actor, restoring=True)
+        require_actor(actor)
         if before is not None and (
             isinstance(before, bool)
             or not isinstance(before, int)

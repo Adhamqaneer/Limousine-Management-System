@@ -3,7 +3,7 @@
 - Read README.md first. Stay in this checkout; preserve behavior unless the owner requests changes.
 - Use FastAPI and PostgreSQL only. Keep development on loopback. Deployment/desktop packaging is undecided; do not add fallback business stores.
 - Keep rules in domain, use cases/contracts in application, persistence in infrastructure and HTTP/UI in presentation. Fixed text fields and validation are in docs/architecture.md.
-- Four fixed account slots: Adham is ADMIN. All active accounts share records; only ADMIN manages member status, views recovery/activity and restores items.
+- One office sign-in, H space, covers all features including recovery and activity. Preserve former user IDs and names for historical attribution.
 - Retain original file bytes and actor-attributed events. Card photos, vehicle galleries, driver documents and office files are independent. Restoring a vehicle must not revive separately deleted files.
 - Change current driver name/phone through history only. Preserve phone snapshots, unknown starts, handover boundaries, gaps and immutable correction/end events.
 - Keep data/file routes authenticated, mutations CSRF-protected, previews local, English/Arabic RTL and both themes intact.

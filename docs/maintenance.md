@@ -6,7 +6,7 @@ Use the Python interpreter configured for the project; on this checkout that can
 
 | Command | What it checks |
 | --- | --- |
-| python manage.py check | Imports FastAPI and compiles all ten page templates |
+| python manage.py check | Imports FastAPI and compiles all eight page templates |
 | python manage.py test | Isolated Python domain/service/HTTP/storage tests |
 | node scripts/test_frontend.cjs | Browser-script syntax and all frontend harnesses; no npm install |
 | python scripts/check_readme.py | Implementation changes include a README update |
@@ -19,11 +19,11 @@ Keep Python at four-space indentation and web files at two spaces (see .editorco
 
 These scripts are for the intended local database while the app is idle. They may back up/upgrade an older schema, create rollback-only fixtures and use temporary media. Rollback can still advance sequences. Read their scope before running:
 
-- scripts/verify_recycling.py: recoverable deletion, actor history and administrator recovery.
+- scripts/verify_recycling.py: recoverable deletion, actor history and office recovery.
 - scripts/verify_drivers.py: assignment/correction, period boundaries and snapshots.
 - scripts/verify_attachment_names.py: rename conflicts, original downloads/ZIPs and audit rollback.
 - scripts/verify_driver_documents.py: ending periods, document scope and current-driver synchronization.
-- scripts/verify_categories.py: schema-10 member labels/aliases/merges, stale uploads, retained originals and category ZIP downloads; requires migrations already applied.
+- scripts/verify_categories.py: labels/aliases/merges, stale uploads, retained originals and category ZIP downloads; requires migrations already applied.
 - scripts/verify_office_files.py: independent office documents and recovery/audit.
 
 No real-database migration or fixture mutation was run for this refactoring; only the read-only audit was used. Historical migrations are kept because fresh installation/upgrades need them. Never remove retained rows/files to clean up test fixtures.
@@ -51,7 +51,7 @@ The folder organization was introduced in schema 9 (current schema: 10). Existin
 
 Schema 10 adds category metadata; switching the mistaken attachment-print workflow to ZIP downloads needs no further schema migration. Existing data/classifications remain intact. The unused PDF renderer, its worker/dependency, print page/styles and their tests were removed. No installed private-runtime packages were deleted.
 
-scripts/verify_categories.py exercises real PostgreSQL and authenticated HTTP using rolled-back fixtures and temporary media: member category/alias/merge, stale upload IDs, deleted metadata, all attachment scopes, per-vehicle ZIP originals and missing documents. It compares the original rows/media afterward; sequences may advance on rollback. Category download HTTP, safe ZIP names, original bytes, limits and error cleanup have isolated tests. Frontend checks cover the simple download selection and preserve the existing reports. Native browser downloads remain unverified.
+scripts/verify_categories.py exercises real PostgreSQL and authenticated HTTP using rolled-back fixtures and temporary media: category/alias/merge, stale upload IDs, deleted metadata, all attachment scopes, per-vehicle ZIP originals and missing documents. It compares the original rows/media afterward; sequences may advance on rollback. Category download HTTP, safe ZIP names, original bytes, limits and error cleanup have isolated tests. Frontend checks cover the simple download selection and preserve the existing reports. Native browser downloads remain unverified.
 
 The static detector cannot resolve Jinja static() stylesheets. The categories and download templates use the shared 28-44px heading against 16px body text, so their file-scoped flat-type-hierarchy exceptions preserve the actual hierarchy. The exception for the deleted attachment-print template was removed.
 
@@ -66,3 +66,7 @@ Inline creation/availability checks passed: 111 isolated Python tests, all 19 br
 Vehicle category uniqueness (schema 11): an automatic private pg_dump backup precedes migration. Existing duplicate named-category groups are retained without recategorizing/deleting originals. New uploads, category changes, merges and restoration cannot introduce further conflicts. Other remains unlimited. Checks cover service rules, actual PostgreSQL trigger conflicts/restoration and HTTP duplicate rejection, preserving original fixture rows/files on rollback.
 
 Schema-11 verification passed: 113 isolated Python tests, 19 browser scripts/13 frontend harnesses, all nine templates (59 routes), real PostgreSQL upload/classification/trigger/restoration conflict checks with rolled-back fixtures, and the read-only schema/file audit. Existing originals were retained; no native browser check, commit, push or deployment was performed.
+
+## Office sign-in
+
+Schema 12 installs the H space credential and retires all former sign-ins in one transaction. The PostgreSQL upgrade check used a temporary password inside a rolled-back transaction. It verified preserved actor identities, old-session revocation, the singleton constraint, password rotation and access to recovery and activity. The read-only audit checks the provisioned account and session foreign key after the local upgrade.

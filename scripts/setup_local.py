@@ -121,35 +121,15 @@ def main():
         )
         sys.path.insert(0, str(ROOT / "src"))
         from limousine.config.runtime import load_settings
-        from limousine.infrastructure.accounts import PostgresAccountRepository
         from limousine.infrastructure.database import Database
-        from limousine.infrastructure.migrations import migrate
+        from limousine.infrastructure.migrations import migrate, needs_operator_setup
+        from limousine.infrastructure.passwords import prompt_password
 
         stage = "database migration"
         database_adapter = Database(load_settings())
-        migrate(database_adapter)
-        accounts = PostgresAccountRepository(database_adapter)
-        existing_users = accounts.list_users()
-        if not existing_users:
-            directory = ROOT / ".local"
-            directory.mkdir(exist_ok=True)
-            access_file = directory / "accounts.txt"
-            if access_file.exists():
-                print("An accounts file already exists; configure accounts using setoperator.")
-                return 1
-            names = ["Adham qaneer", "AbdAlhameed qaneer", "Abdullah qaneer", "Ahmad qaneer"]
-            with access_file.open("x", encoding="utf-8") as output:
-                access_file.chmod(0o600)
-                output.write(
-                    "Local accounts - keep private. Change with: manage.py setoperator <slot> <username>\n"
-                )
-                for slot, username in enumerate(names, 1):
-                    password = secrets.token_urlsafe(6)
-                    accounts.set_operator(slot, username, password)
-                    output.write(f"{username}: {password}\n")
-                    output.flush()
-        print("Local database, migrations and four accounts are ready.")
-        print("Account credentials are in .local/accounts.txt (ignored by Git).")
+        password = prompt_password() if needs_operator_setup(database_adapter) else None
+        migrate(database_adapter, operator_password=password)
+        print("Local database and the H space account are ready.")
         return 0
     except Exception as error:
         # Database exceptions may include server or SQL details. Do not emit them.

@@ -7,8 +7,8 @@ from fastapi.testclient import TestClient
 
 from limousine.config.runtime import Settings
 from limousine.presentation.web.app import create_app
-from limousine.presentation.web.security import administrator, current_user
-from tests.test_accounts import ADMIN
+from limousine.presentation.web.security import current_user
+from tests.test_accounts import OPERATOR
 
 
 class NavigationParser(HTMLParser):
@@ -33,10 +33,9 @@ class NavigationParser(HTMLParser):
 class NavigationTests(TestCase):
     def test_each_current_page_preserves_link_layout_and_active_state(self):
         app = create_app(Settings())
-        app.dependency_overrides[current_user] = lambda: ADMIN
-        app.dependency_overrides[administrator] = lambda: ADMIN
+        app.dependency_overrides[current_user] = lambda: OPERATOR
         client = TestClient(app)
-        pages = ("/", "/reports/vehicles/", "/drivers/", "/office/", "/recycle-bin/", "/users/")
+        pages = ("/", "/reports/vehicles/", "/drivers/", "/office/", "/recycle-bin/")
         for page in pages:
             with self.subTest(page=page):
                 response = client.get(page)
@@ -45,7 +44,7 @@ class NavigationTests(TestCase):
                 parser.feed(response.text)
                 # Ignore other in-page links to these URLs.
                 links = [link for link in parser.links if "nav-link" in link.get("class", "")]
-                self.assertEqual(len(links), 6)
+                self.assertEqual({link["href"] for link in links}, set(pages))
                 for link in links:
                     classes = link["class"].split()
                     self.assertIn("nav-link", classes)

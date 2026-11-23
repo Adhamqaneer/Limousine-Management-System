@@ -16,7 +16,7 @@ from limousine.infrastructure.attachment_archive import build_attachment_archive
 from limousine.presentation.web.app import create_app
 from limousine.presentation.web.downloads import ArchiveResponse
 from limousine.presentation.web.security import current_user
-from tests.test_accounts import MEMBER
+from tests.test_accounts import OPERATOR
 from tests.test_vehicle_http import STAMP, photo
 from tests.uploads import SimpleUploadedFile
 
@@ -26,7 +26,7 @@ class AttachmentArchiveTests(TestCase):
         directory = TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         self.app = create_app(Settings(media_root=Path(directory.name)))
-        self.app.dependency_overrides[current_user] = lambda: MEMBER
+        self.app.dependency_overrides[current_user] = lambda: OPERATOR
         self.repository = MagicMock()
         self.app.state.vehicles = VehicleService(self.repository)
         self.contents = [photo(), photo(), b"original text 00123", b"different original text"]

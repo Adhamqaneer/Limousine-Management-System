@@ -12,7 +12,7 @@ from limousine.config.runtime import Settings
 from limousine.domain.attachments import AttachmentNameError, renamed_attachment_name
 from limousine.presentation.web.app import create_app
 from limousine.presentation.web.security import current_user
-from tests.test_accounts import MEMBER
+from tests.test_accounts import OPERATOR
 from tests.test_vehicle_http import photo
 from tests.test_vehicles import MemoryVehicleRepository
 from tests.uploads import SimpleUploadedFile
@@ -30,7 +30,7 @@ class AttachmentRenameTests(TestCase):
         for name, content in zip(["old.PNG", "old.txt"], self.contents):
             stored = self.app.state.store.save(SimpleUploadedFile(name, content))
             self.items.append(self.service.add_attachment(self.car.id, **vars(stored)))
-        self.app.dependency_overrides[current_user] = lambda: MEMBER
+        self.app.dependency_overrides[current_user] = lambda: OPERATOR
         self.client = TestClient(self.app)
         self.client.get("/login/")
         self.headers = {"X-CSRFToken": self.client.cookies["csrftoken"]}

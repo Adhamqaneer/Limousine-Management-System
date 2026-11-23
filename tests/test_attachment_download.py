@@ -1,7 +1,6 @@
 """ZIP original bytes, safe per-vehicle names, scope validation and private HTTP."""
 
 import io
-from dataclasses import replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
@@ -22,7 +21,7 @@ from limousine.infrastructure.attachment_archive import build_vehicle_archive
 from limousine.infrastructure.attachments import LocalAttachmentStore
 from limousine.presentation.web.app import create_app
 from limousine.presentation.web.security import current_user
-from tests.test_accounts import MEMBER
+from tests.test_accounts import OPERATOR
 
 
 class AttachmentDownloadTests(TestCase):
@@ -34,7 +33,7 @@ class AttachmentDownloadTests(TestCase):
             [dict(vehicle_id=10, category_id=1, count=2)],
         )
         service = AttachmentDownloadService(repository)
-        result = service.availability([10, 11], [1, 2], MEMBER)
+        result = service.availability([10, 11], [1, 2], OPERATOR)
         self.assertEqual(result["file_count"], 2)
         self.assertEqual(
             result["vehicles"][0]["documents"],
@@ -50,7 +49,7 @@ class AttachmentDownloadTests(TestCase):
             [],
         )
         self.assertEqual(
-            service.availability([11], [1], MEMBER)["vehicles"][0]["documents"][0]["count"], 0
+            service.availability([11], [1], OPERATOR)["vehicles"][0]["documents"][0]["count"], 0
         )
 
     def selection(self, directory):
@@ -126,16 +125,16 @@ class AttachmentDownloadTests(TestCase):
             [dict(vehicle_id=10, category_id=1, size=5)],
         )
         service = AttachmentDownloadService(repo)
-        selection = service.select([10, 11], [1], MEMBER)
+        selection = service.select([10, 11], [1], OPERATOR)
         self.assertEqual(selection.missing, ({"plate_number": "02", "category_name": "License"},))
         with self.assertRaises(AccessDenied):
-            service.select([10], [1], replace(MEMBER, is_active=False))
+            service.select([10], [1], None)
         repo.selection.return_value = ([], [], [])
         with self.assertRaises(NotFound):
-            service.select([10], [1], MEMBER)
+            service.select([10], [1], OPERATOR)
         repo.selection.return_value = ([], [], [dict(size=1024**3 + 1)])
         with self.assertRaises(DomainError):
-            service.select([10], [1], MEMBER)
+            service.select([10], [1], OPERATOR)
         for invalid in ([], [True], [0], [2**63], "1"):
             with self.assertRaises(DomainError):
                 selected_ids(invalid, 500)
@@ -148,7 +147,7 @@ class AttachmentDownloadTests(TestCase):
             self.assertEqual(
                 client.post("/api/attachment-download/availability/", json={}).status_code, 401
             )
-            app.dependency_overrides[current_user] = lambda: MEMBER
+            app.dependency_overrides[current_user] = lambda: OPERATOR
             app.state.attachment_download = MagicMock()
             store, selection = self.selection(directory)
             app.state.store = store
@@ -178,7 +177,7 @@ class AttachmentDownloadTests(TestCase):
             self.assertEqual(response.headers["X-HSpace-Missing-Count"], "1")
             with ZipFile(io.BytesIO(response.content)) as archive:
                 self.assertEqual(archive.read("050-001/license.pdf"), b"%PDF-original")
-            app.state.attachment_download.select.assert_called_once_with([10, 11], [1], MEMBER)
+            app.state.attachment_download.select.assert_called_once_with([10, 11], [1], OPERATOR)
             self.assertEqual(client.get("/reports/attachments/").status_code, 404)
             self.assertEqual(
                 client.get("/api/vehicles/10/attachments/1/print-pages/1/").status_code, 404

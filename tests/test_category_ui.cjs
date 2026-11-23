@@ -59,7 +59,15 @@ async function main() {
       this.focused = true;
     }
   }
-  for (const id of ['photo-input', 'add-photos', 'csrf-token']) {
+  for (const id of [
+    'photo-input',
+    'add-photos',
+    'file-input',
+    'add-files',
+    'office-photos-input',
+    'office-add-photos',
+    'csrf-token',
+  ]) {
     const node = new Node();
     node.id = id;
   }
@@ -145,11 +153,18 @@ async function main() {
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(item.category_id, 1);
   assert.match(button.textContent, /رخصة السيارة/);
-  const choice = nodes.get('category-for-photo-input');
+  for (const [inputId, buttonId] of [
+    ['photo-input', 'add-photos'],
+    ['file-input', 'add-files'],
+  ]) {
+    assert.equal(context.HSpaceCategories.selectedFor(inputId), null);
+    assert.equal(nodes.get(buttonId).beforeNode, undefined);
+  }
+  const choice = nodes.get('category-for-office-photos-input');
   assert.equal(choice.value, '99');
   choice.value = '1';
-  assert.equal(context.HSpaceCategories.selectedFor('photo-input'), '1');
-  assert.equal(nodes.get('add-photos').beforeNode.querySelector('a'), undefined);
+  assert.equal(context.HSpaceCategories.selectedFor('office-photos-input'), '1');
+  assert.equal(nodes.get('office-add-photos').beforeNode.querySelector('a'), undefined);
   await button.handlers.click();
   const dialog = body.children[0],
     form = dialog.children[0],
@@ -201,7 +216,7 @@ async function main() {
   assert.ok(dialog.open);
   assert.equal(form.children.at(-1).children.at(-1).disabled, true);
   console.log(
-    'Category UI passed: shared upload choices, merged-ID redirects, scoped PATCH/CSRF, Arabic/English labels, focus restoration and failure gating.',
+    'Category UI passed: vehicle classification after upload, office upload choices, merged-ID redirects, scoped PATCH/CSRF, Arabic/English labels, focus restoration and failure gating.',
   );
 }
 main().catch((error) => {

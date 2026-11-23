@@ -1,6 +1,5 @@
 """Classification rules and HTTP boundaries, without a database fallback."""
 
-from dataclasses import replace
 from unittest import TestCase
 from unittest.mock import MagicMock
 
@@ -19,7 +18,7 @@ from limousine.domain.categories import (
 from limousine.domain.vehicles import DomainError
 from limousine.presentation.web.app import create_app
 from limousine.presentation.web.security import current_user
-from tests.test_accounts import MEMBER
+from tests.test_accounts import OPERATOR
 
 
 class CategoryTests(TestCase):
@@ -45,17 +44,17 @@ class CategoryTests(TestCase):
         self.assertEqual(similar_categories(categories, "Vehicle licens")[0]["id"], 1)
         self.assertEqual(similar_categories(categories, "Other"), [])
 
-    def test_member_can_manage_types_but_inactive_accounts_cannot(self):
+    def test_signed_in_operator_can_manage_types(self):
         repository = MagicMock()
         service = CategoryService(repository)
-        service.create("Insurance", MEMBER)
-        repository.create.assert_called_once_with("Insurance", "insurance", MEMBER, False)
-        service.merge(1, 2, MEMBER)
-        repository.merge.assert_called_once_with(1, 2, MEMBER)
+        service.create("Insurance", OPERATOR)
+        repository.create.assert_called_once_with("Insurance", "insurance", OPERATOR, False)
+        service.merge(1, 2, OPERATOR)
+        repository.merge.assert_called_once_with(1, 2, OPERATOR)
         with self.assertRaises(AccessDenied):
-            service.create("Insurance", replace(MEMBER, is_active=False))
+            service.create("Insurance", None)
         with self.assertRaises(DomainError):
-            service.create("Insurance", MEMBER, "true")
+            service.create("Insurance", OPERATOR, "true")
         for invalid in (True, -1, 0, "1", 2**63):
             with self.assertRaises(DomainError):
                 record_id(invalid)
@@ -68,7 +67,7 @@ class CategoryTests(TestCase):
         self.assertEqual(
             client.get("/attachments/download/", follow_redirects=False).status_code, 303
         )
-        app.dependency_overrides[current_user] = lambda: MEMBER
+        app.dependency_overrides[current_user] = lambda: OPERATOR
         self.assertEqual(client.get("/attachment-categories/").status_code, 404)
         self.assertEqual(client.get("/attachments/download/").status_code, 200)
         client.get("/login/")
@@ -85,7 +84,7 @@ class CategoryTests(TestCase):
             "/api/attachment-categories/", json={"name": "Insurance"}, headers=headers
         )
         self.assertEqual(response.status_code, 200)
-        app.state.categories.create.assert_called_once_with("Insurance", MEMBER, False)
+        app.state.categories.create.assert_called_once_with("Insurance", OPERATOR, False)
         self.assertEqual(
             client.post(
                 "/api/attachment-categories/",
